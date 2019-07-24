@@ -57,7 +57,7 @@ typedef enum {
 #define THRESHOLD_3 50
 
 /* Kernels initialization */
-status_t init_cv_kernel(char*);
+status_t init_cv_kernel(char*, char*);
 status_t init_rad_kernel(char*);
 status_t init_vit_kernel(char*);
 

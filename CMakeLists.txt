@@ -20,6 +20,6 @@ set(MINI_ERA_SOURCE_FILES
     main.c)
 
 add_executable(mini_era ${MINI_ERA_SOURCE_FILES})
-target_link_libraries(mini_era ${OpenCV_LIBS} )
+target_link_libraries(mini_era ${OpenCV_LIBS} python2.7)
 
 add_dependencies(mini_era model)

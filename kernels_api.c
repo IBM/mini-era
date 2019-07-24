@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <python2.7/Python.h>
 #include<stdio.h>
 #include "kernels_api.h"
 
@@ -23,7 +24,9 @@ FILE *cv_trace = NULL;
 FILE *rad_trace = NULL;
 FILE *vit_trace = NULL;
 
-status_t init_cv_kernel(char* trace_filename)
+char* keras_python_file;
+
+status_t init_cv_kernel(char* trace_filename, char* py_file)
 {
   cv_trace = fopen(trace_filename,"r");
   if (!cv_trace)
@@ -31,6 +34,8 @@ status_t init_cv_kernel(char* trace_filename)
     printf("Error: unable to open trace file %s\n", trace_filename);
     return error;
   }
+
+  keras_python_file = py_file;
 
   return success;
 }
@@ -76,6 +81,15 @@ bool_t eof_vit_kernel()
 
 label_t iterate_cv_kernel()
 {
+  /* Call Keras python functions */
+
+  Py_Initialize();
+
+  PyObject* pName = PyString_FromString(keras_python_file);
+
+  PyObject* pModule = PyImport_Import(pName);
+
+
   /* 1) Read the next image frame from the trace */
   /* fread( ... ); */
 

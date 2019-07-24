@@ -55,13 +55,14 @@ int main(int argc, char *argv[])
   strcat(rad_trace, ".rad");
   strcat(vit_trace, ".vit");
 
-  printf("Compuer vision trace file: %s\n", cv_trace);
+  printf("Computer vision trace file: %s\n", cv_trace);
   printf("Radar trace file: %s\n", rad_trace);
   printf("Viterbi decoding trace file: %s\n", vit_trace);
 
+  char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
   /* Kernels initialization */
-  if (!init_cv_kernel(cv_trace))
+  if (!init_cv_kernel(cv_trace, cv_py_file))
   {
     printf("Error: the computer vision kernel couldn't be initialized properly.\n");
     return 1;
