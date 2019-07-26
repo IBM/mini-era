@@ -31,6 +31,9 @@
 #include "viterbi_standalone.h"
 
 
+//#undef  GENERATE_CHECK_VALUES
+#define  GENERATE_CHECK_VALUES
+
 // GLOBAL VARIABLES
 t_branchtab27 d_branchtab27_generic[2];
 //unsigned char d_metric0_generic[64] __attribute__ ((aligned(16)));
@@ -87,14 +90,14 @@ uint8_t* depuncture(uint8_t *in) {
 /* This is the main "do_decoding" function; takes the necessary inputs
  * from the decode call (above) and does the decoding, outputing the decoded result.
  */
-// INPUTS/OUTPUTS:          :  I/O   : Offset : Size
+// INPUTSOUTPUTS:          :  I/O   : Offset : Size
 //    in_cbps               : INPUT  :     0  : int = 4 bytes
 //    in_ntraceback         : INPUT  :     4  : int = 4 bytes
 //    in_n_data_bits        : INPUT  :     8  : int = 4 bytes
 //    d_branchtab27_generic : INPUT  :    12  : uint8_t[2][32] = 64 bytes
-//    in_depuncture_pattern : INPUT  :    76  : uint8_t[6] (max is 6 bytes)
-//    depd_data             : INPUT  :    82  : uint8_t[MAX_ENCODED_BITS == 24780] (depunctured data)
-//    <return_val>          : OUTPUT : 24862  : uint8_t[MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
+//    in_depuncture_pattern : INPUT  :    76  : uint8_t[8] (max is 6 bytes + 2 padding bytes)
+//    depd_data             : INPUT  :    84  : uint8_t[MAX_ENCODED_BITS == 24780] (depunctured data)
+//    <return_val>          : OUTPUT : 24864  : uint8_t[MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
 /* THESE ARE JUST USED LOCALLY IN THIS FUNCTION NOW  */
 /*  BUT they must reset to zero on each invocation   */
@@ -127,8 +130,8 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture
   unsigned char* d_brtab27[2] = {      &(inMemory[   12]), 
                                        &(inMemory[   44]) };
   int8_t*  in_depuncture_pattern     = &(inMemory[   76]);
-  uint8_t* depd_data                 = &(inMemory[   82]);
-  uint8_t* l_decoded                 = &(inMemory[24862]);
+  uint8_t* depd_data                 = &(inMemory[   84]);
+  uint8_t* l_decoded                 = &(inMemory[24864]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
@@ -454,7 +457,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture
 	if (out_count >= in_ntraceback) {
 	  for (int i= 0; i < 8; i++) {
 	    l_decoded[(out_count - in_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
-	    //printf("l_decoded[ %u ] written\n", (out_count - in_ntraceback) * 8 + i);
+	    printf("l_decoded[ %u ] written as %u\n", (out_count - in_ntraceback) * 8 + i, l_decoded[(out_count - in_ntraceback) * 8 + i]);
 	    n_decoded++;
 	  }
 	}
@@ -463,6 +466,17 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture
     }
     in_count++;
   }
+
+  VERBOSE({
+      printf("\nVBS: FINAL l_decoded = [\n");
+      for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+	///if (ti > 0) { printf(", "); }
+	//if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
+	//if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
+	printf("%5u : %3u : %p\n", ti, l_decoded[ti], &(l_decoded[ti]));
+      }
+      printf("]\n\n");
+    });      
 
 #ifndef USE_ESP_INTERFACE
   return l_decoded;
@@ -540,7 +554,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
       }
       printf("\n");
     });
-  
+
 #ifdef USE_ESP_INTERFACE
   {
     // Copy inputs into the inMemory for esp-interface version
@@ -564,21 +578,44 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
     }
     if (imi != 82) { printf("ERROR : imi = %u and should be 82\n", imi); }
     // imi = 82
+    imi += 2; // Padding
     for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
       inMemory[imi++] = depunctured[ti];
     }
+    if (imi != 24864) { printf("ERROR : imi = %u and should be 24864\n", imi); }
     // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
-    // uint8_t* l_decoded                  = inMemory[24862];
+    // Reset the output space (for cleaner testing results)
+    for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+      inMemory[imi++] = 0;
+    }
+
+#ifdef GENERATE_CHECK_VALUES
+    printf("\nINPUTS-TO-DO-DECODING:\n");
+    for (int ti = 0; ti < (84 + MAX_ENCODED_BITS); ti ++) {
+      printf("%u\n", inMemory[ti]);
+    }
+    printf("LAST-INPUT\n\n\n");
+#endif
 
     // Call the do_decoding routine
     do_decoding(inMemory);
     
     // Copy the outputs back into the composite locations
-    imi = 24862; // start of the outputs
+    imi = 24864; // start of the outputs
+#ifdef GENERATE_CHECK_VALUES
+    printf("\n\nOUTPUTS-FROM-DO-DECODING:\n");
+#endif
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+#ifdef GENERATE_CHECK_VALUES
+      printf("%u\n", inMemory[imi]);
+#endif
       d_decoded[ti] = inMemory[imi++];
     }
+
   }
+#ifdef GENERATE_CHECK_VALUES
+    printf("LAST-OUTPUT\n\n");
+#endif
   return d_decoded;
 #else
   return do_decoding(ofdm->n_cbps, d_ntraceback, d_depuncture_pattern, frame->n_data_bits, depunctured);
