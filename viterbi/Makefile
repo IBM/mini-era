@@ -3,38 +3,55 @@ CFLAGS = -g
 
 AR      = ar rcs
 
-L_SRC = viterbi_standalone.c viterbi_decoder_generic.c 
+L_SRC = viterbi_standalone.c viterbi_decoder_generic.c
 L_OBJ = $(L_SRC:%.c=obj/%.o)
 L_OBJ_ESP = $(L_SRC:%.c=obj_esp/%.o)
+L_BC = $(L_SRC:%.c=obj/.%.o.bc)
+L_BC_ESP = $(L_SRC:%.c=obj_esp/.%.o.bc)
 
-LF_SRC = viterbi_standalone.c viterbi_flat.c 
+LF_SRC = viterbi_standalone.c viterbi_flat.c
 LF_OBJ = $(LF_SRC:%.c=obj_f/%.o)
 LF_OBJ_ESP = $(LF_SRC:%.c=obj_f_esp/%.o)
+LF_BC = $(LF_SRC:%.c=obj_f/.%.o.bc)
+LF_BC_ESP = $(LF_SRC:%.c=obj_f_esp/.%.o.bc)
 
-LFV_SRC = viterbi_standalone.c viterbi_flat.c 
+LFV_SRC = viterbi_standalone.c viterbi_flat.c
 LFV_OBJ = $(LFV_SRC:%.c=obj_fv/%.o)
 LFV_OBJ_ESP = $(LFV_SRC:%.c=obj_fv_esp/%.o)
+LFV_BC = $(LFV_SRC:%.c=obj_fv/.%.o.bc)
+LFV_BC_ESP = $(LFV_SRC:%.c=obj_fv_esp/.%.o.bc)
+
 
 LCK_OBJ = $(L_SRC:%.c=obj_ck/%.o)
 LCK_OBJ_ESP = $(L_SRC:%.c=obj_ck_esp/%.o)
+LCK_BC = $(L_SRC:%.c=obj_ck/.%.o.bc)
+LCK_BC_ESP = $(L_SRC:%.c=obj_ck_esp/.%.o.bc)
 
 T_SRC = vtest.c
 T_OBJ = $(T_SRC:%.c=obj/%.o)
 T_OBJ_ESP = $(T_SRC:%.c=obj_esp/%.o)
+T_BC = $(T_SRC:%.c=obj/.%.o.bc)
+T_BC_ESP = $(T_SRC:%.c=obj_esp/.%.o.bc)
 
 VT_SRC = viterbi_test.c descrambler_function.c
 VT_OBJ = $(VT_SRC:%.c=obj/%.o)
 VT_OBJ_ESP = $(VT_SRC:%.c=obj_esp/%.o)
+VT_BC = $(VT_SRC:%.c=obj/.%.o.bc)
+VT_BC_ESP = $(VT_SRC:%.c=obj_esp/.%.o.bc)
 
 FT_SRC = viterbi_test.c descrambler_function.c
 FT_OBJ = $(FT_SRC:%.c=obj_f/%.o)
 FT_OBJ_ESP = $(FT_SRC:%.c=obj_f_esp/%.o)
+FT_BC = $(FT_SRC:%.c=obj_f/.%.o.bc)
+FT_BC_ESP = $(FT_SRC:%.c=obj_f_esp/.%.o.bc)
 
 FTV_SRC = viterbi_test.c descrambler_function.c
 FTV_OBJ = $(FTV_SRC:%.c=obj_fv/%.o)
 FTV_OBJ_ESP = $(FTV_SRC:%.c=obj_fv_esp/%.o)
+FTV_BC = $(FTV_SRC:%.c=obj_fv/.%.o.bc)
+FTV_BC_ESP = $(FTV_SRC:%.c=obj_fv_esp/.%.o.bc)
 
-all:	vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp 
+all:	vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp
 	echo Done building all
 
 lib:	libviterbi.a libviterbi_esp.a libviterbiCk.a libviterbiCk_esp.a libviterbiF.a libviterbiF_esp.a libviterbiFV.a libviterbiFV_esp.a
@@ -91,23 +108,29 @@ viterbi_fvtest: $(FTV_OBJ) libviterbiFV.a
 viterbi_fvtest_esp: $(FTV_OBJ_ESP) libviterbiFV_esp.a
 	$(CC) $(FTV_OBJ_ESP) -L . -lviterbiFV_esp -o $@
 
+needle:
+	LLVM_COMPILER=clang $(MAKE) CC=wllvm
+	extract-bc vtest -o llvm/vtest.bc
+	make -C llvm/
+
 clean:
-	-rm libviterbi.a $(L_OBJ)
-	-rm libviterbi_esp.a $(L_OBJ_ESP)
-	-rm libviterbiCk.a $(LCK_OBJ)
-	-rm libviterbiCk_esp.a $(LCK_OBJ_ESP)
-	-rm libviterbiF.a $(LF_OBJ)
-	-rm libviterbiF_esp.a $(LF_OBJ_ESP)
-	-rm libviterbiFV.a $(LFV_OBJ)
-	-rm libviterbiFV_esp.a $(LFV_OBJ_ESP)
-	-rm vtest $(T_OBJ) 
-	-rm vtest_esp $(T_OBJ_ESP)
-	-rm viterbi_test $(VT_OBJ) 
-	-rm viterbi_test_esp $(VT_OBJ_ESP)
-	-rm viterbi_ftest $(FT_OBJ) 
-	-rm viterbi_ftest_esp $(FT_OBJ_ESP)
-	-rm viterbi_fvtest $(FTV_OBJ) 
-	-rm viterbi_fvtest_esp $(FTV_OBJ_ESP)
+	-rm libviterbi.a $(L_OBJ) $(L_BC)
+	-rm libviterbi_esp.a $(L_OBJ_ESP) $(L_BC_ESP)
+	-rm libviterbiCk.a $(LCK_OBJ) $(LCK_BC)
+	-rm libviterbiCk_esp.a $(LCK_OBJ_ESP) $(LCK_BC_ESP)
+	-rm libviterbiF.a $(LF_OBJ) $(LF_BC)
+	-rm libviterbiF_esp.a $(LF_OBJ_ESP) $(LF_BC_ESP)
+	-rm libviterbiFV.a $(LFV_OBJ) $(LFV_BC)
+	-rm libviterbiFV_esp.a $(LFV_OBJ_ESP) $(LFV_BC_ESP)
+	-rm vtest $(T_OBJ) $(T_BC)
+	-rm vtest_esp $(T_OBJ_ESP) $(T_BC_ESP)
+	-rm viterbi_test $(VT_OBJ) $(VT_BC)
+	-rm viterbi_test_esp $(VT_OBJ_ESP) $(VT_BC_ESP)
+	-rm viterbi_ftest $(FT_OBJ) $(FT_BC)
+	-rm viterbi_ftest_esp $(FT_OBJ_ESP) $(FT_BC_ESP)
+	-rm viterbi_fvtest $(FTV_OBJ) $(FTV_BC)
+	-rm viterbi_fvtest_esp $(FTV_OBJ_ESP) $(FTV_BC_ESP)
+	make clean -C llvm/
 
 
 obj/%.o: %.c
@@ -147,12 +170,12 @@ obj_ck/viterbi_decoder_generic.o: viterbi_standalone.h
 obj_ck/vtest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
 obj_ck/viterbi_test.o: viterbi_standalone.h utils.h /usr/include/stdint.h
 
-obj_f/viterbi_standalone.o: viterbi_flat.h base.h utils.h 
+obj_f/viterbi_standalone.o: viterbi_flat.h base.h utils.h
 obj_f/viterbi_flat.o: viterbi_flat.h base.h utils.h
 obj_f/viterbi_flat.o: viterbi_standalone.h
 obj_f/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
 
-obj_fv/viterbi_standalone.o: viterbi_flat.h base.h utils.h 
+obj_fv/viterbi_standalone.o: viterbi_flat.h base.h utils.h
 obj_fv/viterbi_flat.o: viterbi_flat.h base.h utils.h
 obj_fv/viterbi_flat.o: viterbi_standalone.h
 obj_fv/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
@@ -182,4 +205,3 @@ obj_fv_esp/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
 
 depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(L_SRC) $(T_SRC)
 # DO NOT DELETE THIS LINE -- make depend depends on it.
-
