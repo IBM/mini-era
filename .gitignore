@@ -6,7 +6,9 @@
 *.ko
 *.obj
 *.elf
-*.o.bc
+
+# Bitcode files
+*.bc
 
 # Linker output
 *.ilk
@@ -42,6 +44,8 @@
 *.su
 *.idb
 *.pdb
+*.done
+*.log
 
 # Kernel Module Compile Results
 *.mod*
