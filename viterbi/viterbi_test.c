@@ -37,6 +37,8 @@
 #include "viterbi_decoder_generic.h"
 #include "base.h"
 
+#define SHOW_INPUTS_AND_OUTPUTS   0
+
 extern void descrambler(uint8_t* in, int psdusize, uint8_t* ref, uint8_t *msg);
 extern uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
 int main(int argc, char* argv[])
@@ -168,10 +170,19 @@ int main(int argc, char* argv[])
   int MAX_MSG_chars = frame.psdu_size -28;
 
   uint8_t input[MAX_ENCODED_BITS]; // MAX_Encoded_bits]; //={0};
-  uint8_t reference[MAX_Decoded_bits]; // ={0}; 1000 is maximum used here
+  uint8_t reference[MAX_ENCODED_BITS * 3 / 4]; // MAX_Decoded_bits]; // ={0}; 1000 is maximum used here
   uint8_t descramble[MAX_Descram_bytes]; // ={0}; 1000 is maximum used here
   uint8_t actual_msg[MAX_MSG_chars]; // ={0}; 1000 is maximum used here
-	
+
+  // For "sanity" we zero out the input, d_depuntured, and reference
+  for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
+    input[ti] = 0;
+    d_depunctured[ti] = 0;
+    if (ti < (MAX_ENCODED_BITS * 3 / 4)) {
+      reference[ti] = 0;
+    }
+  }
+
   //printf(">>>>>> Get de-interleaved bits from file. >>>>>> \n");
   fptr = fopen(argv[1], "r");
   line_num = 1;
@@ -205,7 +216,6 @@ int main(int argc, char* argv[])
 	  for (int i =0;i<frame.n_data_bits;i++)
 	    {
 	      reference[i] = *(ptr+24+i) - '0'; // in file: 24: strlen(str4)
-
 	    }
 	}
       line_num++;
@@ -267,19 +277,84 @@ int main(int argc, char* argv[])
   printf("\n");
   fclose(fptr);
 
+
+  if (SHOW_INPUTS_AND_OUTPUTS == 1) {
+    printf("CHECKING INPUTS :\n");
+    int tii = 0;
+    printf("\nINPUT BITS:\n");
+    for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
+      if (tii > 0) {
+	printf(", ");
+      }
+      tii++;
+      printf("%3u", input[ti]);
+      if ((tii % 25) == 0) {
+	printf("\n");
+	tii = 0;
+      }
+    }
+    printf("\n\nDEPUNCTURED BITS:\n");
+    tii = 0;
+    for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
+      if (tii > 0) {
+	printf(", ");
+      }
+      tii++;
+      printf("%3u", d_depunctured[ti]);
+      if ((tii % 25) == 0) {
+	printf("\n");
+	tii = 0;
+      }
+    }
+    printf("\n\nREFERENCE:\n");
+    tii = 0;
+    for (int ti = 0; ti < (MAX_ENCODED_BITS * 3/4); ti++) {
+      if (tii > 0) {
+	printf(", ");
+      }
+      tii++;
+      printf("%3u", reference[ti]);
+      if ((tii % 25) == 0) {
+	printf("\n");
+	tii = 0;
+      }
+    }
+    printf("\n");
+  }
+	
+
   int input_s = (int)(sizeof(input)/sizeof(input[0])); //input bits_length
-  int ref_s = (int)(sizeof(reference)/sizeof(reference[0])); //decoder output reference bits length
+  int ref_s   = (int)(sizeof(reference)/sizeof(reference[0])); //decoder output reference bits length
   int descram_s = (int)(sizeof(descramble)/sizeof(descramble[0])); //descramble reference bytes length
-  int msg_s = (int)(sizeof(actual_msg)/sizeof(actual_msg[0])); // actual message chars length
+  int msg_s   = (int)(sizeof(actual_msg)/sizeof(actual_msg[0])); // actual message chars length
 
   uint8_t *in = input;
-  uint8_t *ref = reference;
+  //uint8_t *ref = reference;
   uint8_t *descram_ref = descramble;
   uint8_t *msg = actual_msg;
 
   // our main module starts from here
   uint8_t *result;
   result = decode(&ofdm, &frame, in);
+
+  if (SHOW_INPUTS_AND_OUTPUTS == 1) {
+    printf("MAIN CHECKING OUTPUTS :\n");
+    int tii = 0;
+    printf("\nRESULT DEPUNCTURED BITS:\n");
+    for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
+      if (tii > 0) {
+	printf(", ");
+      }
+      tii++;
+      printf("%3u", result[ti]);
+      if ((tii % 25) == 0) {
+	printf("\n");
+	tii = 0;
+      }
+    }
+    printf("\n\n");
+  }
+	
   int count_res =0;
   int result_s = (int)(sizeof(result)/sizeof(result[0]));
   printf(">>>>>> Decoded bits are here >>>>>> \n");
