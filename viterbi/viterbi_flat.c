@@ -457,7 +457,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture
 	if (out_count >= in_ntraceback) {
 	  for (int i= 0; i < 8; i++) {
 	    l_decoded[(out_count - in_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
-	    printf("l_decoded[ %u ] written as %u\n", (out_count - in_ntraceback) * 8 + i, l_decoded[(out_count - in_ntraceback) * 8 + i]);
+	    //printf("l_decoded[ %u ] written as %u\n", (out_count - in_ntraceback) * 8 + i, l_decoded[(out_count - in_ntraceback) * 8 + i]);
 	    n_decoded++;
 	  }
 	}

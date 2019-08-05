@@ -39,7 +39,7 @@
 
 #define SHOW_INPUTS_AND_OUTPUTS   0
 
-extern void descrambler(uint8_t* in, int psdusize, uint8_t* ref, uint8_t *msg);
+extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 extern uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
 int main(int argc, char* argv[])
 {
@@ -380,8 +380,8 @@ int main(int argc, char* argv[])
   //descrambler
   int psdusize = frame.psdu_size;
   uint8_t *descram;
-
-  descrambler(result,psdusize, descram_ref, msg);
+  char     out_msg[1600]; // 1600 is sufficiently large for our messages.
+  descrambler(result, psdusize, out_msg, descram_ref, msg);
 
   return 0;
 }

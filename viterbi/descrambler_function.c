@@ -24,13 +24,13 @@
 
 typedef unsigned char   uint8_t;
 
-void descrambler(uint8_t* in, int psdusize, uint8_t* ref, uint8_t *msg) //definition
+char* descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg) //definition
 {
 	uint8_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
 	uint8_t msg_length = (psdusize)-28;
 	uint8_t out[output_length];
-	uint8_t out_msg[msg_length];
 	int state = 0; //start
+	int verbose = ((ref != NULL) && (msg != NULL));
 	// find the initial state of LFSR (linear feedback shift register: 7 bits) from first 7 input bits
 	for(int i = 0; i < 7; i++)
 	{
@@ -65,51 +65,58 @@ void descrambler(uint8_t* in, int psdusize, uint8_t* ref, uint8_t *msg) //defini
 		state = ((state << 1) & 0x7e) | feedback;
 	}
 
-	printf(">>>>>> Descrambler output is here: >>>>>> \n");
-	int  des_error_count = 0;
-	for (int i = 0; i < output_length ; i++)
-	{
-		if (out[i] != *(ref+i))
-		{
-			printf(">>>>>> Miscompare: descrambler[%d] = %u vs %u = EXPECTED_VALUE[%d]\n", i, out[i], *(ref+i), i);
-			des_error_count++;
-		}
-	}
-	if (des_error_count !=0)
-	{
-		printf(">>>>>> Mismatch in the descrambler block, please check the inputs and algorithm one last time. >>>>>> \n");
-	}
-	else
-	{
-		printf("!!!!!! Great Job, descrambler algorithm works fine for the given configuration. !!!!!! \n");
-	}
-	printf("\n");
-
-	printf(">>>>>> Decoded text message is here: >>>>>> \n");
 	for (int i = 0; i< msg_length; i++)
-	{
-		out_msg[i] = out[i+26];
-		printf("%c", out_msg[i]);	
-	}
-	printf("\n");
-	
+	  {
+	    out_msg[i] = out[i+26];
+	  }
+	out_msg[msg_length] = '\0';
 
-	int  msg_error_count = 0;
-	for (int i = 0; i < msg_length ; i++)
-	{
-		if (out_msg[i] != *(msg+i))
-		{
-			printf(">>>>>> Miscompare: text_msg[%c] = %c vs %c = EXPECTED_VALUE[%c]\n", i, out_msg[i], *(msg+i), i);
-			msg_error_count++;
-		}
-	}
-	if (msg_error_count !=0)
-	{
-		printf(">>>>>> Mismatch in the text message, please check the inputs and algorithm one last time. >>>>>> \n");
-	}
-	else
-	{
-		printf("!!!!!! Great Job, text message decoding algorithm works fine for the given configuration. !!!!!! \n");
-	} 
 	printf("\n");
+	if (verbose) {
+	  printf(">>>>>> Descrambler output is here: >>>>>> \n");
+	  int  des_error_count = 0;
+	  for (int i = 0; i < output_length ; i++)
+	    {
+	      if (out[i] != *(ref+i))
+		{
+		  printf(">>>>>> Miscompare: descrambler[%d] = %u vs %u = EXPECTED_VALUE[%d]\n", i, out[i], *(ref+i), i);
+		  des_error_count++;
+		}
+	    }
+	  if (des_error_count !=0)
+	    {
+	      printf(">>>>>> Mismatch in the descrambler block, please check the inputs and algorithm one last time. >>>>>> \n");
+	    }
+	  else
+	    {
+	      printf("!!!!!! Great Job, descrambler algorithm works fine for the given configuration. !!!!!! \n");
+	    }
+	  printf("\n");
+	  printf(">>>>>> Decoded text message is here: >>>>>> \n");
+
+	  for (int i = 0; i< msg_length; i++)
+	    {
+	      printf("%c", out_msg[i]);	
+	    }
+	  printf("\n");
+
+	  int  msg_error_count = 0;
+	  for (int i = 0; i < msg_length ; i++)
+	    {
+	      if (out_msg[i] != *(msg+i))
+		{
+		  printf(">>>>>> Miscompare: text_msg[%c] = %c vs %c = EXPECTED_VALUE[%c]\n", i, out_msg[i], *(msg+i), i);
+		  msg_error_count++;
+		}
+	    }
+	  if (msg_error_count !=0)
+	    {
+	      printf(">>>>>> Mismatch in the text message, please check the inputs and algorithm one last time. >>>>>> \n");
+	    }
+	  else
+	    {
+	      printf("!!!!!! Great Job, text message decoding algorithm works fine for the given configuration. !!!!!! \n");
+	    } 
+	  printf("\n");
+	}
 }

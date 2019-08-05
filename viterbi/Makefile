@@ -3,34 +3,39 @@ CFLAGS = -g
 
 AR      = ar rcs
 
-L_SRC = viterbi_standalone.c viterbi_decoder_generic.c 
+L_SRC = viterbi_standalone.c viterbi_decoder_generic.c descrambler_function.c
 L_OBJ = $(L_SRC:%.c=obj/%.o)
 L_OBJ_ESP = $(L_SRC:%.c=obj_esp/%.o)
 
-LF_SRC = viterbi_standalone.c viterbi_flat.c 
+LF_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
 LF_OBJ = $(LF_SRC:%.c=obj_f/%.o)
 LF_OBJ_ESP = $(LF_SRC:%.c=obj_f_esp/%.o)
 
-LFV_SRC = viterbi_standalone.c viterbi_flat.c 
+LFV_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
 LFV_OBJ = $(LFV_SRC:%.c=obj_fv/%.o)
 LFV_OBJ_ESP = $(LFV_SRC:%.c=obj_fv_esp/%.o)
 
 LCK_OBJ = $(L_SRC:%.c=obj_ck/%.o)
 LCK_OBJ_ESP = $(L_SRC:%.c=obj_ck_esp/%.o)
 
+
+#A_SRC = api_test.c
+#A_OBJ = $(A_SRC:%.c=obj/%.o)
+
+
 T_SRC = vtest.c
 T_OBJ = $(T_SRC:%.c=obj/%.o)
 T_OBJ_ESP = $(T_SRC:%.c=obj_esp/%.o)
 
-VT_SRC = viterbi_test.c descrambler_function.c
+VT_SRC = viterbi_test.c 
 VT_OBJ = $(VT_SRC:%.c=obj/%.o)
 VT_OBJ_ESP = $(VT_SRC:%.c=obj_esp/%.o)
 
-FT_SRC = viterbi_test.c descrambler_function.c
+FT_SRC = viterbi_test.c 
 FT_OBJ = $(FT_SRC:%.c=obj_f/%.o)
 FT_OBJ_ESP = $(FT_SRC:%.c=obj_f_esp/%.o)
 
-FTV_SRC = viterbi_test.c descrambler_function.c
+FTV_SRC = viterbi_test.c 
 FTV_OBJ = $(FTV_SRC:%.c=obj_fv/%.o)
 FTV_OBJ_ESP = $(FTV_SRC:%.c=obj_fv_esp/%.o)
 
@@ -67,6 +72,9 @@ libviterbiFV_esp.a: $(LFV_OBJ_ESP)
 
 
 
+api_test: $(A_OBJ) libviterbi.a
+	$(CC) $(A_OBJ) -L . -lviterbi -o $@
+
 vtest: $(T_OBJ) libviterbiCk.a
 	$(CC) $(T_OBJ) -L . -lviterbiCk -o $@
 
@@ -100,6 +108,7 @@ clean:
 	-rm libviterbiF_esp.a $(LF_OBJ_ESP)
 	-rm libviterbiFV.a $(LFV_OBJ)
 	-rm libviterbiFV_esp.a $(LFV_OBJ_ESP)
+	-rm api_test $(A_OBJ) 
 	-rm vtest $(T_OBJ) 
 	-rm vtest_esp $(T_OBJ_ESP)
 	-rm viterbi_test $(VT_OBJ) 
@@ -138,46 +147,48 @@ obj_fv_esp/%.o: %.c
 obj/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
 obj/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
 obj/viterbi_decoder_generic.o: viterbi_standalone.h
-obj/vtest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
-obj/viterbi_test.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj/vtest.o: viterbi_standalone.h utils.h 
+obj/viterbi_test.o: viterbi_standalone.h utils.h 
+
+obj/atest.o: viterbi_standalone.h utils.h 
 
 obj_ck/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
 obj_ck/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
 obj_ck/viterbi_decoder_generic.o: viterbi_standalone.h
-obj_ck/vtest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
-obj_ck/viterbi_test.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_ck/vtest.o: viterbi_standalone.h utils.h 
+obj_ck/viterbi_test.o: viterbi_standalone.h utils.h 
 
 obj_f/viterbi_standalone.o: viterbi_flat.h base.h utils.h 
 obj_f/viterbi_flat.o: viterbi_flat.h base.h utils.h
 obj_f/viterbi_flat.o: viterbi_standalone.h
-obj_f/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_f/viterbi_ftest.o: viterbi_standalone.h utils.h 
 
 obj_fv/viterbi_standalone.o: viterbi_flat.h base.h utils.h 
 obj_fv/viterbi_flat.o: viterbi_flat.h base.h utils.h
 obj_fv/viterbi_flat.o: viterbi_standalone.h
-obj_fv/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_fv/viterbi_ftest.o: viterbi_standalone.h utils.h 
 
 obj_esp/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
 obj_esp/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
 obj_esp/viterbi_decoder_generic.o: viterbi_standalone.h
-obj_esp/vtest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
-obj_esp/viterbi_test.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_esp/vtest.o: viterbi_standalone.h utils.h 
+obj_esp/viterbi_test.o: viterbi_standalone.h utils.h 
 
 obj_ck_esp/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
 obj_ck_esp/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
 obj_ck_esp/viterbi_decoder_generic.o: viterbi_standalone.h
-obj_ck_esp/vtest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
-obj_ck_esp/viterbi_test.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_ck_esp/vtest.o: viterbi_standalone.h utils.h 
+obj_ck_esp/viterbi_test.o: viterbi_standalone.h utils.h 
 
 obj_f_esp/viterbi_standalone.o: viterbi_flat.h base.h utils.h
 obj_f_esp/viterbi_flat.o: viterbi_flat.h base.h utils.h
 obj_f_esp/viterbi_flat.o: viterbi_standalone.h
-obj_f_esp/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_f_esp/viterbi_ftest.o: viterbi_standalone.h utils.h 
 
 obj_fv_esp/viterbi_standalone.o: viterbi_flat.h base.h utils.h
 obj_fv_esp/viterbi_flat.o: viterbi_flat.h base.h utils.h
 obj_fv_esp/viterbi_flat.o: viterbi_standalone.h
-obj_fv_esp/viterbi_ftest.o: viterbi_standalone.h utils.h /usr/include/stdint.h
+obj_fv_esp/viterbi_ftest.o: viterbi_standalone.h utils.h 
 
 
 depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(L_SRC) $(T_SRC)
