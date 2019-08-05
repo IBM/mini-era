@@ -80,6 +80,19 @@ status_t init_rad_kernel(char* trace_filename)
   return success;
 }
 
+
+/* This is the initialization of the Viterbi trace-stream
+ * The trace format is:
+ *  <n> = number of dictionary entries (message types)
+ * For each dictionary entry:
+ *  n1 n2 n3 n4 n5 : OFDM parms: 
+ *  m1 m2 m3 m4 m5 : FRAME parms:
+ *  x1 x2 x3 ...   : The message bits (input to decode routine)
+ * Then after all dictionary entries
+ *  t1_0 t2_0 t3_0 : Message per-lane (t1 = left, t2 = middle, t3 = right) for time step 0
+ *  t1_1 t2_1 t3_1 : Message per-lane (t1 = left, t2 = middle, t3 = right) for time step 1
+ */
+
 status_t init_vit_kernel(char* trace_filename)
 {
   vit_trace = fopen(trace_filename,"r");
@@ -104,13 +117,13 @@ status_t init_vit_kernel(char* trace_filename)
   {
     fscanf(vit_trace, "%u\n", &the_viterbi_trace_dict[i].msg_id);
 
-    int in_bpsc, in_cbps, in_dbps, in_encoding; // OFDM PARMS
-    fscanf(vit_trace, "%d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding);
+    int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
+    fscanf(vit_trace, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
     the_viterbi_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
     the_viterbi_trace_dict[i].ofdm_p.n_dbps     = in_dbps;
-    the_viterbi_trace_dict[i].ofdm_p.rate_field = 13;
+    the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
     fscanf(vit_trace, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
@@ -182,14 +195,26 @@ distance_t iterate_rad_kernel()
 
   return 0.0;
 }
+/* Each time-step of the trace, we read in the 
+ * trace values for the left, middle and right lanes
+ * (i.e. which message if the autonomous car is in the 
+ *  left, middle or right lane).
+ * WE MUST KNOW WHICH LANE'S TRACE TO USE THIS TIME STEP
+ *  otherwise we can report inconsistent state; should
+ *  the car's lane be an input or a global variable?
+ * We currntly assume a global: 
+ *    GLOBAL_CURRENT_LANE = 0, 1, 2 (left, middle right)
+ */
+extern int GLOBAL_CURRENT_LANE;
 
 message_t iterate_vit_kernel()
 {
-  unsigned tr_val;
-  fscanf(vit_trace, "%u\n", &tr_val); // Read next trace indicator
+  unsigned tr_msg_vals[3];
+  fscanf(vit_trace, "%u %u %u\n", &tr_msg_vals[0], &tr_msg_vals[1], &tr_msg_vals[2]); // Read next trace indicator
 
-  // Determine whether there is a message this time-step or not
-  char the_msg[1600]; // Large enough for any of our messages
+  unsigned tr_val = tr_msg_vals[GLOBAL_CURRENT_LANE];  // Theproper message for this time step and car-lane
+  
+  char the_msg[1600]; // Return from decode; large enough for any of our messages
   message_t msg;      // The output from this routine
 
   vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
@@ -217,11 +242,10 @@ message_t iterate_vit_kernel()
   uint8_t *result;
   result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
 
-  // descramble the output
+  // descramble the output - put it in result
   int psdusize = trace_msg->frame_p.psdu_size;
   descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
 
-  // determine the message type
   // Can check contents of "the_msg" to determine which message;
   //   here we "cheat" and return the message indicated by the trace.
   
