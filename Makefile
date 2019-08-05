@@ -1,9 +1,9 @@
-CC = gcc
+CC = gcc -std=c99
 
 CFLAGS = -pedantic -Wall -O0 -g
 INCLUDES =  
-LFLAGS = 
-LIBS = 
+LFLAGS = -L viterbi
+LIBS = -lviterbi
 
 TARGET = main
 OBJECTS = kernels_api.o

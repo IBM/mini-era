@@ -39,14 +39,12 @@ typedef enum {
 } label_t;
 
 /* Pre-defined messages used by the Viterbi decoding kernel */
+/*  These now conform to version 0.4 of the specification   */
 typedef enum {
-  no_message,
-  car_on_right,
-  car_on_left,
-  car_behind,
-  car_in_front,
-  speed_violation,
-  constuction_ahead
+  safe_to_move_right_or_left   = 0,
+  safe_to_move_right_only      = 1,
+  safe_to_move_left_only       = 2,
+  unsafe_to_move_left_or_right = 3 
 } message_t;
 
 /* These thresholds (in meters) are used by the plan_and_control()

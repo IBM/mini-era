@@ -19,12 +19,40 @@
 #include<stdio.h>
 #include "kernels_api.h"
 
+/* These are types, functions, etc. required for VITERBI */
+#include "viterbi/utils.h"
+#include "viterbi/viterbi_decoder_generic.h"
+#include "viterbi/base.h"
+
+
+
+
+
 /* File pointers to the computer vision, radar and Viterbi decoding traces */
 FILE *cv_trace = NULL;
 FILE *rad_trace = NULL;
 FILE *vit_trace = NULL;
 
 char* keras_python_file;
+
+/* These are some top-level defines needed for VITERBI */
+typedef struct {
+  unsigned int msg_id;
+  ofdm_param   ofdm_p;
+  frame_param  frame_p;
+  uint8_t      in_bits[MAX_ENCODED_BITS];
+} vit_dict_entry_t;
+
+uint8_t descramble[1600]; // I think this covers our max use cases
+uint8_t actual_msg[1600];
+
+unsigned int      num_dictionary_items = 0;
+vit_dict_entry_t* the_viterbi_trace_dict;
+
+extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
+
+
+
 
 status_t init_cv_kernel(char* trace_filename, char* py_file)
 {
@@ -59,6 +87,45 @@ status_t init_vit_kernel(char* trace_filename)
   {
     printf("Error: unable to open trace file %s\n", trace_filename);
     return error;
+  }
+
+  // Read in the trace message dictionary from the trace file
+  // Read the number of messages
+  fscanf(vit_trace, "%u\n", &num_dictionary_items);
+  the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_dictionary_items, sizeof(vit_dict_entry_t));
+  if (the_viterbi_trace_dict == NULL) 
+  {
+    printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
+    return error;
+  }
+
+  // Read in each dictionary item
+  for (int i = 0; i < num_dictionary_items; i++) 
+  {
+    fscanf(vit_trace, "%u\n", &the_viterbi_trace_dict[i].msg_id);
+
+    int in_bpsc, in_cbps, in_dbps, in_encoding; // OFDM PARMS
+    fscanf(vit_trace, "%d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding);
+    the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
+    the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
+    the_viterbi_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
+    the_viterbi_trace_dict[i].ofdm_p.n_dbps     = in_dbps;
+    the_viterbi_trace_dict[i].ofdm_p.rate_field = 13;
+
+    int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
+    fscanf(vit_trace, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
+    the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
+    the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
+    the_viterbi_trace_dict[i].frame_p.n_pad          = in_pad;
+    the_viterbi_trace_dict[i].frame_p.n_encoded_bits = in_encoded_bits;
+    the_viterbi_trace_dict[i].frame_p.n_data_bits    = in_data_bits;
+
+    int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
+    for (int ci = 0; ci < num_in_bits; ci++) { 
+      unsigned c;
+      fscanf(vit_trace, "%u ", &c); 
+      the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
+    }
   }
 
   return success;
@@ -118,16 +185,47 @@ distance_t iterate_rad_kernel()
 
 message_t iterate_vit_kernel()
 {
-  /* 1) Read the next OFDM symbol from the trace */
-  /* fread( ... ); */
+  unsigned tr_val;
+  fscanf(vit_trace, "%u\n", &tr_val); // Read next trace indicator
 
+  // Determine whether there is a message this time-step or not
+  char the_msg[1600]; // Large enough for any of our messages
+  message_t msg;      // The output from this routine
 
-  /* 2) Conduct Viterbi decoding and extract original message */
+  vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
+  
+  switch(tr_val) {
+  case 0: // safe_to_move_right_or_left
+    trace_msg = &the_viterbi_trace_dict[0];
+    msg = safe_to_move_right_or_left;  // Cheating - already know output result.
+    break;
+  case 1: // safe_to_move_right
+    trace_msg = &the_viterbi_trace_dict[1];
+    msg = safe_to_move_right_only;  // Cheating - already know output result.
+    break;
+  case 2: // safe_to_move_left
+    trace_msg = &the_viterbi_trace_dict[2];
+    msg = safe_to_move_left_only;  // Cheating - already know output result.
+    break;
+  case 3: // unsafe_to_move_left_or_right
+    trace_msg = &the_viterbi_trace_dict[3];
+    msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
+    break;
+  }
 
+  // Send through the viterbi decoder
+  uint8_t *result;
+  result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
 
-  /* 3) Return message */
+  // descramble the output
+  int psdusize = trace_msg->frame_p.psdu_size;
+  descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
 
-  return no_message;
+  // determine the message type
+  // Can check contents of "the_msg" to determine which message;
+  //   here we "cheat" and return the message indicated by the trace.
+  
+  return msg;
 }
 
 vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t message, vehicle_state_t vehicle_state)
