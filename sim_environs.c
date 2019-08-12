@@ -26,6 +26,21 @@ object_state_t* the_world[5][13]; // This is [lane][y-posn]
 object_state_t* the_objects;      // This is the master list of all currently live objects in the world.
 object_state_t my_car;
 
+char get_vis_char_of_object(object_state_t* world_objp) 
+{
+  char c;
+  switch(world_objp->object) {
+  case myself     : c = '*'; break;
+  case no_label   : c = '?'; break;
+  case car        : c = 'C'; break;
+  case truck      : c = 'T'; break;
+  case pedestrian : c = 'P'; break;
+  case bicycle    : c = 'B'; break;
+  default: c = '#'; break;
+  }
+  return c;
+}
+
 void
 print_object(object_state_t* st, int x, int y) {
   printf(" Object ");
@@ -127,7 +142,14 @@ iterate_sim_environs()
         // Create a new object (car) and add it to the lane at position [x][0]
         object_state_t* no_p = (object_state_t*)calloc(1, sizeof(object_state_t));
 	no_p->lane = x;
-	no_p->object = car;
+	//no_p->object = car; break;
+	int objn = (rand() % 4); // Return a value from [0,99]
+	switch(objn) { 
+	case 0: no_p->object = car; break;
+	case 1: no_p->object = truck; break;
+	case 2: no_p->object = pedestrian; break;
+	case 3: no_p->object = bicycle; break;
+	}
 	no_p->speed = 1;
 	no_p->previous = NULL;
 	no_p->next = the_objects;
@@ -209,7 +231,8 @@ visualize_world()
       if (the_world[x][y] == NULL) {
 	printf("  ");
       } else {
-	printf("X ");
+	//printf("X ");
+	printf("%c ", get_vis_char_of_object(the_world[x][y]));
       }
     }
     printf("|\n");
@@ -223,7 +246,8 @@ visualize_world()
     } else if (the_world[x][10] == NULL) {
       printf("  ");
     } else {
-      printf("X ");
+      //printf("X ");
+      printf("%c ", get_vis_char_of_object(the_world[x][10]));
     }
   }
   printf("|\n");
@@ -236,7 +260,8 @@ visualize_world()
       if (the_world[x][y] == NULL) {
 	printf("  ");
       } else {
-	printf("X ");
+	//printf("X ");
+	printf("%c ", get_vis_char_of_object(the_world[x][y]));
       }
     }
     printf("|\n");
