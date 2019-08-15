@@ -159,7 +159,7 @@ bool_t eof_vit_kernel()
   return feof(vit_trace);
 }
 
-label_t iterate_cv_kernel()
+label_t iterate_cv_kernel(vehicle_state_t vs)
 {
   /* Call Keras python functions */
 
@@ -182,7 +182,7 @@ label_t iterate_cv_kernel()
   return no_label;
 }
 
-distance_t iterate_rad_kernel()
+distance_t iterate_rad_kernel(vehicle_state_t vs)
 {
   /* 1) Read the next waveform from the trace */
   /* fread( ... ); */
@@ -199,20 +199,14 @@ distance_t iterate_rad_kernel()
  * trace values for the left, middle and right lanes
  * (i.e. which message if the autonomous car is in the 
  *  left, middle or right lane).
- * WE MUST KNOW WHICH LANE'S TRACE TO USE THIS TIME STEP
- *  otherwise we can report inconsistent state; should
- *  the car's lane be an input or a global variable?
- * We currntly assume a global: 
- *    GLOBAL_CURRENT_LANE = 0, 1, 2 (left, middle right)
  */
-extern int GLOBAL_CURRENT_LANE;
 
-message_t iterate_vit_kernel()
+message_t iterate_vit_kernel(vehicle_state_t vs)
 {
   unsigned tr_msg_vals[3];
   fscanf(vit_trace, "%u %u %u\n", &tr_msg_vals[0], &tr_msg_vals[1], &tr_msg_vals[2]); // Read next trace indicator
 
-  unsigned tr_val = tr_msg_vals[GLOBAL_CURRENT_LANE];  // Theproper message for this time step and car-lane
+  unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane
   
   char the_msg[1600]; // Return from decode; large enough for any of our messages
   message_t msg;      // The output from this routine

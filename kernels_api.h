@@ -63,9 +63,9 @@ bool_t eof_cv_kernel();
 bool_t eof_rad_kernel();
 bool_t eof_vit_kernel();
 
-label_t iterate_cv_kernel();
-distance_t iterate_rad_kernel();
-message_t iterate_vit_kernel();
+label_t iterate_cv_kernel(vehicle_state_t vs);
+distance_t iterate_rad_kernel(vehicle_state_t vs);
+message_t iterate_vit_kernel(vehicle_state_t vs);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 

@@ -93,14 +93,14 @@ int main(int argc, char *argv[])
      * next image in the input trace, and returns the corresponding
      * label. This process takes place locally (i.e. within this car).
      */
-    label = iterate_cv_kernel();
+    label = iterate_cv_kernel(vehicle_state);
 
 
     /* The radar kernel performs distance estimation on the next radar
      * data in the input trace, and returns the estimated distance to
      * the object.
      */
-    distance = iterate_rad_kernel();
+    distance = iterate_rad_kernel(vehicle_state);
 
 
     /* The Viterbi decoding kernel performs Viterbi decoding on the next
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
-    message = iterate_vit_kernel();
+    message = iterate_vit_kernel(vehicle_state);
 
 
     /* The plan_and_control() function makes planning and control decisions
