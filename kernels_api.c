@@ -40,6 +40,19 @@ FILE *vit_trace = NULL;
 
 char* keras_python_file;
 
+/* These are some top-level defines needed for CV kernel */
+#define IMAGE_SIZE  32  // What size are these?
+typedef struct {
+  unsigned int image_id;
+  label_t  object;
+  unsigned image_data[IMAGE_SIZE];
+} cv_dict_entry_t;
+
+unsigned int     num_cv_dictionary_items = 0;
+cv_dict_entry_t* the_cv_return_dict;
+
+
+
 /* These are some top-level defines needed for RADAR */
 typedef struct {
   unsigned int return_id;
@@ -73,6 +86,40 @@ extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, 
 
 status_t init_cv_kernel(char* trace_filename, char* py_file)
 {
+  DEBUG(printf("In the init_cv_kernel routine\n"));
+  // Read in the object images dictionary file
+  FILE *dictF = fopen("objects_dictionary.dfn","r");
+  if (!dictF)
+  {
+    printf("Error: unable to open trace file %s\n", trace_filename);
+    return error;
+  }
+  // Read the number of definitions
+  fscanf(dictF, "%u\n", &num_cv_dictionary_items);
+  DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
+  the_cv_return_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
+  if (the_cv_return_dict == NULL) 
+  {
+    printf("ERROR : Cannot allocate Cv Trace Dictionary memory space");
+    return error;
+  }
+
+  for (int di = 0; di < num_cv_dictionary_items; di++) {
+    unsigned entry_id;
+    unsigned object_id;
+    fscanf(dictF, "%u %u", &entry_id, &object_id);
+    DEBUG(printf("  Reading dictionary entry %u : %u %u\n", di, entry_id, object_id));
+    the_cv_return_dict[di].image_id = entry_id;
+    the_cv_return_dict[di].object   = object_id;
+    for (int i = 0; i < IMAGE_SIZE; i++) {
+      unsigned fin;
+      fscanf(dictF, "%u", &fin);
+      the_cv_return_dict[di].image_data[i] = fin;
+    }
+  }
+  fclose(dictF);
+
+  /* Now open the trace file */
   cv_trace = fopen(trace_filename,"r");
   if (!cv_trace)
   {
@@ -222,6 +269,12 @@ bool_t eof_vit_kernel()
 
 label_t iterate_cv_kernel(vehicle_state_t vs)
 {
+  DEBUG(printf("In iterate_cv_kernel\n"));
+  if (feof(cv_trace)) { 
+    printf("ERROR : invocation of iterate_cv_kernel indicates feof for cv trace\n");
+    printf("      : Are the traces inconsistent lengths?\n");
+    exit(-1);
+  }
   /* Call Keras python functions */
 
   /* NEED to enable this 
@@ -232,16 +285,25 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   PyObject* pModule = PyImport_Import(pName);
   */
 
-  /* 1) Read the next image frame from the trace */
+  /* 1) Read the next waveform from the trace */
   /* fread( ... ); */
+  unsigned tr_obj_vals[3];
+  fscanf(cv_trace, "%u %u %u\n", &tr_obj_vals[0], &tr_obj_vals[1], &tr_obj_vals[2]); // Read next trace indicator
+  DEBUG(printf("  Trace: %u %u %u\n", tr_obj_vals[0], tr_obj_vals[1], tr_obj_vals[2]));
 
+  unsigned tr_val = tr_obj_vals[vs.lane];  // The proper message for this time step and car-lane
+  
+  label_t object = tr_val;
 
+  unsigned * inputs = the_cv_return_dict[tr_val].image_data;
+  DEBUG(printf("  Using dist %u : distance %f\n", tr_val, the_cv_return_dict[tr_val].distance));
+  
   /* 2) Conduct object detection on the image frame */
-
+  DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
 
   /* 3) Return the label corresponding to the recognized object */
 
-  return no_label;
+  return object;
 }
 
 distance_t iterate_rad_kernel(vehicle_state_t vs)
