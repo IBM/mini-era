@@ -49,7 +49,7 @@ typedef struct {
 } cv_dict_entry_t;
 
 unsigned int     num_cv_dictionary_items = 0;
-cv_dict_entry_t* the_cv_return_dict;
+cv_dict_entry_t* the_cv_object_dict;
 
 
 
@@ -97,8 +97,8 @@ status_t init_cv_kernel(char* trace_filename, char* py_file)
   // Read the number of definitions
   fscanf(dictF, "%u\n", &num_cv_dictionary_items);
   DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
-  the_cv_return_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
-  if (the_cv_return_dict == NULL) 
+  the_cv_object_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
+  if (the_cv_object_dict == NULL) 
   {
     printf("ERROR : Cannot allocate Cv Trace Dictionary memory space");
     return error;
@@ -109,12 +109,12 @@ status_t init_cv_kernel(char* trace_filename, char* py_file)
     unsigned object_id;
     fscanf(dictF, "%u %u", &entry_id, &object_id);
     DEBUG(printf("  Reading dictionary entry %u : %u %u\n", di, entry_id, object_id));
-    the_cv_return_dict[di].image_id = entry_id;
-    the_cv_return_dict[di].object   = object_id;
+    the_cv_object_dict[di].image_id = entry_id;
+    the_cv_object_dict[di].object   = object_id;
     for (int i = 0; i < IMAGE_SIZE; i++) {
       unsigned fin;
       fscanf(dictF, "%u", &fin);
-      the_cv_return_dict[di].image_data[i] = fin;
+      the_cv_object_dict[di].image_data[i] = fin;
     }
   }
   fclose(dictF);
@@ -293,10 +293,10 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 
   unsigned tr_val = tr_obj_vals[vs.lane];  // The proper message for this time step and car-lane
   
-  label_t object = tr_val;
+  label_t object = the_cv_object_dict[tr_val].object;
 
-  unsigned * inputs = the_cv_return_dict[tr_val].image_data;
-  DEBUG(printf("  Using dist %u : distance %f\n", tr_val, the_cv_return_dict[tr_val].distance));
+  unsigned * inputs = the_cv_object_dict[tr_val].image_data;
+  DEBUG(printf("  Using dist %u : distance %f\n", tr_val, the_cv_object_dict[tr_val].distance));
   
   /* 2) Conduct object detection on the image frame */
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
