@@ -28,11 +28,15 @@ The trace format is:
     The stream of trace time-step entries.
 
 The trace dictionary is defined as follows:
+'''
    <n> = number of dictionary entries (message types)
+'''
  For each dictionary entry:
+'''
    n1 n2 n3 n4 n5 : OFDM parms: 
    m1 m2 m3 m4 m5 : FRAME parms:
    x1 x2 x3 ...   : The message bits (input to decode routine)
+'''
 
 Then after all dictionary entries, there is a stream of per-time-step, per-lane status indicators:
    t1_0 t2_0 t3_0 : Message per-lane (t1 = left, t2 = middle, t3 = right) for time step 0
