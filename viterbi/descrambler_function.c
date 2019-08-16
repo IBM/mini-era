@@ -71,8 +71,8 @@ char* descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_
 	  }
 	out_msg[msg_length] = '\0';
 
-	printf("\n");
 	if (verbose) {
+	  printf("\n");
 	  printf(">>>>>> Descrambler output is here: >>>>>> \n");
 	  int  des_error_count = 0;
 	  for (int i = 0; i < output_length ; i++)

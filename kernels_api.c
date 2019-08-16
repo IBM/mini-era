@@ -15,14 +15,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef VERBOSE
+#define DEBUG(x) x
+#else
+#define DEBUG(x) 
+#endif
+
 #include <python2.7/Python.h>
 #include<stdio.h>
 #include "kernels_api.h"
 
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
+//#include "viterbi/base.h"
 #include "viterbi/viterbi_decoder_generic.h"
-#include "viterbi/base.h"
 
 
 
@@ -115,7 +121,7 @@ status_t init_vit_kernel(char* trace_filename)
   // Read in each dictionary item
   for (int i = 0; i < num_dictionary_items; i++) 
   {
-    fscanf(vit_trace, "%u\n", &the_viterbi_trace_dict[i].msg_id);
+    the_viterbi_trace_dict[i].msg_id = i;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
     fscanf(vit_trace, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
@@ -156,7 +162,9 @@ bool_t eof_rad_kernel()
 
 bool_t eof_vit_kernel()
 {
-  return feof(vit_trace);
+  bool_t res = feof(vit_trace);
+  DEBUG(printf("In eof_vit_kernel feof = %u\n", res));
+  return res;
 }
 
 label_t iterate_cv_kernel(vehicle_state_t vs)
@@ -201,10 +209,18 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
  *  left, middle or right lane).
  */
 
+
 message_t iterate_vit_kernel(vehicle_state_t vs)
 {
+  DEBUG(printf("In iterate_vit_kernel\n"));
+  if (feof(vit_trace)) { 
+    printf("ERROR : invocation of iterate_vit_kernel indicates feof for vit trace\n");
+    printf("      : Are the traces inconsistent lengths?\n");
+    exit(-1);
+  }
   unsigned tr_msg_vals[3];
   fscanf(vit_trace, "%u %u %u\n", &tr_msg_vals[0], &tr_msg_vals[1], &tr_msg_vals[2]); // Read next trace indicator
+  DEBUG(printf("  Trace: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2]));
 
   unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane
   
@@ -217,34 +233,42 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   case 0: // safe_to_move_right_or_left
     trace_msg = &the_viterbi_trace_dict[0];
     msg = safe_to_move_right_or_left;  // Cheating - already know output result.
+    DEBUG(printf("  Using msg %u - safe_to_move_right_or_left\n", msg));
     break;
   case 1: // safe_to_move_right
     trace_msg = &the_viterbi_trace_dict[1];
     msg = safe_to_move_right_only;  // Cheating - already know output result.
+    DEBUG(printf("  Using msg %u - safe_to_move_right_only\n", msg));
     break;
   case 2: // safe_to_move_left
     trace_msg = &the_viterbi_trace_dict[2];
     msg = safe_to_move_left_only;  // Cheating - already know output result.
+    DEBUG(printf("  Using msg %u - safe_to_move_left_only\n", msg));
     break;
   case 3: // unsafe_to_move_left_or_right
     trace_msg = &the_viterbi_trace_dict[3];
     msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
+    DEBUG(printf("  Using msg %u - unsafe_to_move_right_or_left\n", msg));
     break;
   }
 
   // Send through the viterbi decoder
   uint8_t *result;
+  DEBUG(printf("  Calling the viterbi decode routine\n"));
   result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
 
   // descramble the output - put it in result
   int psdusize = trace_msg->frame_p.psdu_size;
+	DEBUG(printf("  Calling the viterbi descrambler routine\n"));
   descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
 
   // Can check contents of "the_msg" to determine which message;
   //   here we "cheat" and return the message indicated by the trace.
+  DEBUG(printf("The iterate_vit_kernel is returning msg %u\n", msg));
   
   return msg;
 }
+
 
 vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t message, vehicle_state_t vehicle_state)
 {

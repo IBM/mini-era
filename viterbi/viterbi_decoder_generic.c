@@ -27,6 +27,8 @@
  * Major modifications by adding SSE2 code by Bogdan Diaconescu
  */
 #include <stdio.h>
+#include <stdint.h>
+#include "base.h"
 #include "viterbi_decoder_generic.h"
 #include "viterbi_standalone.h"
 
