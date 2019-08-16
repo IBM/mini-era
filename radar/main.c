@@ -31,8 +31,8 @@ int main (int argc, char * argv[])
   }
   
   float * a;
-  a = malloc (2 * N * sizeof(float));
-  read_input_file (a, N, argv[1]);
+  a = malloc (2 * RADAR_N * sizeof(float));
+  read_input_file (a, RADAR_N, argv[1]);
   float dist = calculate_peak_dist_from_fmcw(a);
   printf("Distance of object from FMCW data = %.2f m\n", dist);
   free (a);

@@ -27,9 +27,8 @@
 
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
-//#include "viterbi/base.h"
 #include "viterbi/viterbi_decoder_generic.h"
-
+#include "radar/calc_fmcw_dist.h"
 
 
 
@@ -40,6 +39,18 @@ FILE *rad_trace = NULL;
 FILE *vit_trace = NULL;
 
 char* keras_python_file;
+
+/* These are some top-level defines needed for RADAR */
+typedef struct {
+  unsigned int return_id;
+  float distance;
+  float return_data[2 * RADAR_N];
+} radar_dict_entry_t;
+
+unsigned int        num_radar_dictionary_items = 0;
+radar_dict_entry_t* the_radar_return_dict;
+
+
 
 /* These are some top-level defines needed for VITERBI */
 typedef struct {
@@ -52,7 +63,7 @@ typedef struct {
 uint8_t descramble[1600]; // I think this covers our max use cases
 uint8_t actual_msg[1600];
 
-unsigned int      num_dictionary_items = 0;
+unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
@@ -76,6 +87,40 @@ status_t init_cv_kernel(char* trace_filename, char* py_file)
 
 status_t init_rad_kernel(char* trace_filename)
 {
+  DEBUG(printf("In init_rad_kernel...\n"));
+  // Read in the radar distances dictionary file
+  FILE *dictF = fopen("radar_dictionary.dfn","r");
+  if (!dictF)
+  {
+    printf("Error: unable to open trace file %s\n", trace_filename);
+    return error;
+  }
+  // Read the number of definitions
+  fscanf(dictF, "%u\n", &num_radar_dictionary_items);
+  DEBUG(printf("  There are %u dictionary entries\n", num_radar_dictionary_items));
+  the_radar_return_dict = (radar_dict_entry_t*)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
+  if (the_radar_return_dict == NULL) 
+  {
+    printf("ERROR : Cannot allocate Radar Trace Dictionary memory space");
+    return error;
+  }
+
+  for (int di = 0; di < num_radar_dictionary_items; di++) {
+    unsigned entry_id;
+    float entry_dist;
+    fscanf(dictF, "%u %f", &entry_id, &entry_dist);
+    DEBUG(printf("  Reading dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
+    the_radar_return_dict[di].return_id = entry_id;
+    the_radar_return_dict[di].distance =  entry_dist;
+    for (int i = 0; i < RADAR_N; i++) {
+      float fin;
+      fscanf(dictF, "%f", &fin);
+      the_radar_return_dict[di].return_data[i] = fin;
+    }
+  }
+  fclose(dictF);
+
+  /* Now open the radar trace */
   rad_trace = fopen(trace_filename,"r");
   if (!rad_trace)
   {
@@ -101,6 +146,7 @@ status_t init_rad_kernel(char* trace_filename)
 
 status_t init_vit_kernel(char* trace_filename)
 {
+  DEBUG(printf("In init_vit_kernel...\n"));
   vit_trace = fopen(trace_filename,"r");
   if (!vit_trace)
   {
@@ -110,8 +156,9 @@ status_t init_vit_kernel(char* trace_filename)
 
   // Read in the trace message dictionary from the trace file
   // Read the number of messages
-  fscanf(vit_trace, "%u\n", &num_dictionary_items);
-  the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_dictionary_items, sizeof(vit_dict_entry_t));
+  fscanf(vit_trace, "%u\n", &num_viterbi_dictionary_items);
+  DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
+  the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
   {
     printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
@@ -119,12 +166,14 @@ status_t init_vit_kernel(char* trace_filename)
   }
 
   // Read in each dictionary item
-  for (int i = 0; i < num_dictionary_items; i++) 
+  for (int i = 0; i < num_viterbi_dictionary_items; i++) 
   {
     the_viterbi_trace_dict[i].msg_id = i;
+    DEBUG(printf("  Reading dictionary entry %u\n", the_viterbi_trace_dict[i].msg_id));
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
     fscanf(vit_trace, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
+    DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
     the_viterbi_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
@@ -133,6 +182,7 @@ status_t init_vit_kernel(char* trace_filename)
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
     fscanf(vit_trace, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
+    DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
     the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
     the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
     the_viterbi_trace_dict[i].frame_p.n_pad          = in_pad;
@@ -143,10 +193,13 @@ status_t init_vit_kernel(char* trace_filename)
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
       fscanf(vit_trace, "%u ", &c); 
+      DEBUG(printf("%u ", c));
       the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
     }
+    DEBUG(printf("\n"));
   }
 
+  DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
   return success;
 }
 
@@ -171,12 +224,13 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 {
   /* Call Keras python functions */
 
+  /* NEED to enable this 
   Py_Initialize();
 
   PyObject* pName = PyString_FromString(keras_python_file);
 
   PyObject* pModule = PyImport_Import(pName);
-
+  */
 
   /* 1) Read the next image frame from the trace */
   /* fread( ... ); */
@@ -192,16 +246,33 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 
 distance_t iterate_rad_kernel(vehicle_state_t vs)
 {
+  DEBUG(printf("In iterate_rad_kernel\n"));
+  if (feof(rad_trace)) { 
+    printf("ERROR : invocation of iterate_rad_kernel indicates feof for radar trace\n");
+    printf("      : Are the traces inconsistent lengths?\n");
+    exit(-1);
+  }
   /* 1) Read the next waveform from the trace */
   /* fread( ... ); */
+  unsigned tr_dist_vals[3];
+  fscanf(rad_trace, "%u %u %u\n", &tr_dist_vals[0], &tr_dist_vals[1], &tr_dist_vals[2]); // Read next trace indicator
+  DEBUG(printf("  Trace: %u %u %u\n", tr_dist_vals[0], tr_dist_vals[1], tr_dist_vals[2]));
 
+  unsigned tr_val = tr_dist_vals[vs.lane];  // The proper message for this time step and car-lane
+  
+  distance_t dist;      // The output from this routine
 
+  float * inputs = the_radar_return_dict[tr_val].return_data;
+  DEBUG(printf("  Using dist %u : distance %f\n", tr_val, the_radar_return_dict[tr_val].distance));
+  
   /* 2) Conduct distance estimation on the waveform */
-
+  DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
+  dist = calculate_peak_dist_from_fmcw(inputs);
 
   /* 3) Return the estimated distance */
+  DEBUG(printf("  Returning distance %f\n", dist));
 
-  return 0.0;
+  return dist;
 }
 /* Each time-step of the trace, we read in the 
  * trace values for the left, middle and right lanes
@@ -218,6 +289,9 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
     printf("      : Are the traces inconsistent lengths?\n");
     exit(-1);
   }
+
+  /* 1) Read the next waveform from the trace */
+  /* fread( ... ); */
   unsigned tr_msg_vals[3];
   fscanf(vit_trace, "%u %u %u\n", &tr_msg_vals[0], &tr_msg_vals[1], &tr_msg_vals[2]); // Read next trace indicator
   DEBUG(printf("  Trace: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2]));
@@ -231,22 +305,22 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
-    trace_msg = &the_viterbi_trace_dict[0];
+    trace_msg = &(the_viterbi_trace_dict[0]);
     msg = safe_to_move_right_or_left;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u - safe_to_move_right_or_left\n", msg));
     break;
   case 1: // safe_to_move_right
-    trace_msg = &the_viterbi_trace_dict[1];
+    trace_msg = &(the_viterbi_trace_dict[1]);
     msg = safe_to_move_right_only;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u - safe_to_move_right_only\n", msg));
     break;
   case 2: // safe_to_move_left
-    trace_msg = &the_viterbi_trace_dict[2];
+    trace_msg = &(the_viterbi_trace_dict[2]);
     msg = safe_to_move_left_only;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u - safe_to_move_left_only\n", msg));
     break;
   case 3: // unsafe_to_move_left_or_right
-    trace_msg = &the_viterbi_trace_dict[3];
+    trace_msg = &(the_viterbi_trace_dict[3]);
     msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u - unsafe_to_move_right_or_left\n", msg));
     break;
