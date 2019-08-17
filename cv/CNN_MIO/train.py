@@ -29,7 +29,7 @@ FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('train_dir', '/tmp/model_build_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_steps', 10000,
+tf.app.flags.DEFINE_integer('max_steps', 5000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', True,
                             """Whether to log device placement.""")
@@ -77,10 +77,10 @@ def train():
         sess.run(iterator.initializer, feed_dict={features_placeholder:np_features, labels_placeholder:np_labels})
         train_op_value, loss_value, logits_value, labels_value = sess.run([train_op,loss, logits, labels])
         duration = time.time() - start_time
-        if step%500 == 0 or (step+1) == FLAGS.max_steps : 
-            #print('Step, loss, sec, logits', step, loss_value,duration, logits_value)
+        if (step%100 == 0 or (step+1) == FLAGS.max_steps) : 
+            #print('Step, loss, sec, labels', step, loss_value,duration, labels_value)
             print('Step, loss, sec\n', step, loss_value,duration)
-            if ((step+1) == FLAGS.max_steps):
+            if (step%1000 == 0 or (step+1) == FLAGS.max_steps):
                 ckpt_fname = 'mio_model.ckpt'
                 saver.save(sess,ckpt_fname,global_step=step)
 

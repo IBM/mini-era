@@ -22,7 +22,7 @@ from __future__ import print_function
 import tensorflow as tf
 #import tensorflow_datasets as tfds
 import numpy as np
-IMAGE_SIZE = 32
+IMAGE_SIZE = 24
 
 NUM_CLASSES = 5
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 500
@@ -50,18 +50,18 @@ def _get_images_labels(dsplit,batch_size,distords):
   if dsplit == 'train':  
     features = np.load("training_images.npy")
     labels = np.load("training_labels.npy")
-    shuffle_buffer_size = 10000
+    shuffle_buffer_size = 6000
   else:  
     features = np.load("test_images.npy")
     labels = np.load("test_labels.npy")
     shuffle_buffer_size = 1000
   assert features.shape[0] == labels.shape[0]
-  features_placeholder = tf.placeholder(tf.float16, features.shape)
+  features_placeholder = tf.placeholder(tf.float32, features.shape)
   labels_placeholder = tf.placeholder(tf.int32, labels.shape)
   dataset = tf.data.Dataset.from_tensor_slices({"image": features_placeholder, "label": labels_placeholder})
   dataset = dataset.map(DataPreprocessor(distords), num_parallel_calls=10)
   dataset = dataset.repeat()  ## repeating the dataset indefinitely ...
-  #dataset = dataset.shuffle(shuffle_buffer_size)
+  dataset = dataset.shuffle(shuffle_buffer_size)
   dataset = dataset.batch(batch_size)   ## Making buffer size the same as number of example size
   iterator = dataset.make_initializable_iterator()
   return iterator, features_placeholder, labels_placeholder, features, labels
@@ -78,8 +78,8 @@ class DataPreprocessor(object):
     """Process img for training or eval."""
     img = record['image']
     lab = record['label']
-    #img = tf.cast(img, tf.float32)
-    img = tf.cast(img, tf.float16)
+    img = tf.cast(img, tf.float32)
+    #img = tf.cast(img, tf.float16)
     if self._distords:  # training
       # Randomly crop a [height, width] section of the image.
       img = tf.random_crop(img, [IMAGE_SIZE, IMAGE_SIZE, 3])
@@ -96,7 +96,7 @@ class DataPreprocessor(object):
       img = tf.image.resize_image_with_crop_or_pad(img, IMAGE_SIZE, IMAGE_SIZE)
     # Subtract off the mean and divide by the variance of the pixels.
     img = tf.image.per_image_standardization(img)
-    img = tf.cast(img, tf.float16)
+    img = tf.cast(img, tf.float32)
     lab = tf.cast(lab, tf.int32)
     #return dict(input=img, target=record['label'])
     return dict(image=img, label=lab)

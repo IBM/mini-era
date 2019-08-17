@@ -46,7 +46,7 @@ FLAGS = tf.app.flags.FLAGS
 # Basic model parameters.
 tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_boolean('use_fp16', True,
+tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 
 # Global constants describing the CIFAR-10 data set.
@@ -61,6 +61,7 @@ MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
 INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
+#INITIAL_LEARNING_RATE = 0.001       # Initial learning rate.
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -181,11 +182,11 @@ def inference(images):
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 3, 64],
                                          stddev=5e-2,
-                                         wd=None)
+                                         wd=0.004)
     conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
     pre_activation = tf.nn.bias_add(conv, biases)
-    conv1 = tf.nn.relu(pre_activation, name=scope.name)
+    conv1 = tf.nn.tanh(pre_activation, name=scope.name)
     _activation_summary(conv1)
 
   # pool1
@@ -200,11 +201,11 @@ def inference(images):
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 64, 64],
                                          stddev=5e-2,
-                                         wd=None)
+                                         wd=0.004)
     conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
-    conv2 = tf.nn.relu(pre_activation, name=scope.name)
+    conv2 = tf.nn.tanh(pre_activation, name=scope.name)
     _activation_summary(conv2)
 
   # norm2
@@ -221,7 +222,7 @@ def inference(images):
     weights = _variable_with_weight_decay('weights', shape=[dim, 384],
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
-    local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
+    local3 = tf.nn.tanh(tf.matmul(reshape, weights) + biases, name=scope.name)
     _activation_summary(local3)
 
   # local4
@@ -229,7 +230,7 @@ def inference(images):
     weights = _variable_with_weight_decay('weights', shape=[384, 192],
                                           stddev=0.04, wd=0.004)
     biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
-    local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
+    local4 = tf.nn.tanh(tf.matmul(local3, weights) + biases, name=scope.name)
     _activation_summary(local4)
 
   # linear layer(WX + b),
@@ -238,7 +239,7 @@ def inference(images):
   # and performs the softmax internally for efficiency.
   with tf.variable_scope('softmax_linear') as scope:
     weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES],
-                                          stddev=1/192.0, wd=None)
+                                          stddev=1/192.0, wd=0.004)
     biases = _variable_on_cpu('biases', [NUM_CLASSES],
                               tf.constant_initializer(0.0))
     softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
@@ -328,6 +329,7 @@ def train(total_loss, global_step):
 
   # Compute gradients.
   with tf.control_dependencies([loss_averages_op]):
+    #opt = tf.train.AdamOptimizer(lr)
     opt = tf.train.GradientDescentOptimizer(lr)
     grads = opt.compute_gradients(total_loss)
 
