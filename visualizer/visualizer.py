@@ -144,7 +144,12 @@ def main():
         list_traces.append(prefix + num_str + ext)
     # print(list_traces)
     list_traces.reverse() # reverse order so popping gives earliest
-        
+
+    tr = 'traces/trace_ex.txt'
+    left, mid, right = parse_trace(tr)   
+    left.reverse()
+    mid.reverse()
+    right.reverse()
 
     # MAIN LOOP
     while not done:
@@ -155,29 +160,28 @@ def main():
             if event.type == move_down_event:
                 # print("down loop")
 
-                if len(list_traces) == 0:
+                if len(left) == 0:
                     break
-                # Loop through list of traces and parse
-                tr = list_traces.pop()
-                left, mid, right = parse_trace(tr) # get bits info of each lane for 1 trace
-                left_lane, mid_lane, right_lane = [], [], []
-                for i in range(len(left)):
-                    # entry is tuple (pixel distance from car/bottom, object bits)
-                    left_lane.append((get_dist(left[i]), get_object(left[i])))
-                    mid_lane.append((get_dist(mid[i]), get_object(mid[i])))
-                    right_lane.append((get_dist(right[i]), get_object(right[i])))
-                # print(left_lane)
-                # print(mid_lane)
-                # print(right_lane)
 
-                y_left = 500 - left_lane[0][0] # 500 - distance to get position
-                y_mid = 500 - mid_lane[0][0]
-                y_right = 500 - right_lane[0][0]
-                obj_l = left_lane[0][1]
-                obj_m = mid_lane[0][1]
-                obj_r = right_lane[0][1]
-                
+                # get next trace bits for each lane
+                left_bits = left.pop()
+                mid_bits = mid.pop()
+                right_bits = right.pop()
 
+                # parse trace bits into tuple: (pixel distance from tip of car, bits for object type)
+                left_tup = (get_dist(left_bits), get_object(left_bits))
+                mid_tup = (get_dist(mid_bits), get_object(mid_bits))
+                right_tup = (get_dist(right_bits), get_object(right_bits))
+
+                # update y positions and object types
+                y_left = 500 - left_tup[0] # (500 - distance) = y position
+                y_mid = 500 - mid_tup[0]
+                y_right = 500 - right_tup[0]
+                obj_l = left_tup[1]
+                obj_m = mid_tup[1]
+                obj_r = right_tup[1]
+
+\
         # Set background
         set_background()
 
@@ -204,4 +208,14 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # left_traces, mid_traces, right_traces = parse_trace('traces/trace_ex.txt')
+    # print('left traces: ')
+    # for l in left_traces:
+    #     print(l)
+    # print('mid traces: ')
+    # for m in mid_traces:
+    #     print(m)
+    # print('right traces: ')
+    # for r in right_traces:
+    #     print(r)
     
