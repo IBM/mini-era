@@ -18,6 +18,12 @@
 #ifndef _kernels_api_h
 #define _kernels_api_h
 
+#ifdef VERBOSE
+#define DEBUG(x) x
+#else
+#define DEBUG(x)
+#endif
+
 /* Types definitions */
 typedef float distance_t;
 typedef enum {false, true} bool_t;
@@ -50,9 +56,9 @@ typedef enum {
 /* These thresholds (in meters) are used by the plan_and_control()
  * function to make plan and control decisions.
  */
-#define THRESHOLD_1 10
-#define THRESHOLD_2 30
-#define THRESHOLD_3 50
+#define THRESHOLD_1 250
+#define THRESHOLD_2 400
+#define THRESHOLD_3 500
 
 /* Kernels initialization */
 status_t init_cv_kernel(char*, char*);
