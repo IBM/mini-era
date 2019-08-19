@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
    */
   vehicle_state.lane  = center;
   vehicle_state.speed = 50;
+  DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
 
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   while (!eof_cv_kernel() || !eof_rad_kernel() || !eof_vit_kernel())
@@ -118,6 +119,7 @@ int main(int argc, char *argv[])
      * vehicle state.
      */
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
+    DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
   }
 
