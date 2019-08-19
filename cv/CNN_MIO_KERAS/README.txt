@@ -7,5 +7,7 @@ The dataset is available on Rivendell.watson.ibm.com in /opt
 3-pedestrian
 4-truck
 
-python3 mio_dataset.py -- to parse dataset 
+Accuracy so far - 86%
+
+python3 mio_dataset.py -- to parse dataset into .npy files
 python3 mio.py -- training and inference
