@@ -15,14 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef VERBOSE
-#define DEBUG(x) x
-#else
-#define DEBUG(x) 
-#endif
-
 #include <python2.7/Python.h>
-#include<stdio.h>
+#include <stdio.h>
 #include "kernels_api.h"
 
 /* These are types, functions, etc. required for VITERBI */
@@ -285,7 +279,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   PyObject* pModule = PyImport_Import(pName);
   */
 
-  /* 1) Read the next waveform from the trace */
+  /* 1) Read the next image frame from the trace */
   /* fread( ... ); */
   unsigned tr_obj_vals[3];
   fscanf(cv_trace, "%u %u %u\n", &tr_obj_vals[0], &tr_obj_vals[1], &tr_obj_vals[2]); // Read next trace indicator
@@ -296,7 +290,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   label_t object = the_cv_object_dict[tr_val].object;
 
   unsigned * inputs = the_cv_object_dict[tr_val].image_data;
-  DEBUG(printf("  Using dist %u : distance %f\n", tr_val, the_cv_object_dict[tr_val].distance));
+  DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
   
   /* 2) Conduct object detection on the image frame */
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
@@ -352,7 +346,7 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
     exit(-1);
   }
 
-  /* 1) Read the next waveform from the trace */
+  /* 1) Read the next OFDM symbol (?) from the trace */
   /* fread( ... ); */
   unsigned tr_msg_vals[3];
   fscanf(vit_trace, "%u %u %u\n", &tr_msg_vals[0], &tr_msg_vals[1], &tr_msg_vals[2]); // Read next trace indicator
