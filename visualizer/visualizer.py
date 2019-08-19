@@ -181,7 +181,7 @@ def main():
                 obj_m = mid_tup[1]
                 obj_r = right_tup[1]
 
-\
+
         # Set background
         set_background()
 
