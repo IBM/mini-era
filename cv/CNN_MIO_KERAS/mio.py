@@ -63,7 +63,7 @@ if __name__ == "__main__":
     sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
   else: 
-    model.compile(optimizer=keras.optimizers.Adam(), loss=keras.losses.sparse_categorical_crossentropy, metrics=['accuracy'])
+    model.compile(optimizer=keras.optimizers.Adam(), loss=keras.losses.categorical_crossentropy, metrics=['accuracy'])
 
   model.fit(features, labels, batch_size=batch_size, epochs=epochs , verbose=1, callbacks=[ModelCheckpoint('model.h5')], shuffle=True)
   score = model.evaluate(test_features, test_labels, batch_size=batch_size)
