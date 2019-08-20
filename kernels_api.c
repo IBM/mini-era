@@ -146,18 +146,27 @@ status_t init_rad_kernel(char* trace_filename)
     return error;
   }
 
+  unsigned tot_dict_values = 0;
   for (int di = 0; di < num_radar_dictionary_items; di++) {
     unsigned entry_id;
     float entry_dist;
+    unsigned entry_dict_values = 0;
     fscanf(dictF, "%u %f", &entry_id, &entry_dist);
     DEBUG(printf("  Reading dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
     the_radar_return_dict[di].return_id = entry_id;
     the_radar_return_dict[di].distance =  entry_dist;
-    for (int i = 0; i < RADAR_N; i++) {
+    for (int i = 0; i < 2*RADAR_N; i++) {
       float fin;
       fscanf(dictF, "%f", &fin);
       the_radar_return_dict[di].return_data[i] = fin;
+      tot_dict_values++;
+      entry_dict_values++;
     }
+    DEBUG(printf("    Read in dict entry %u with %u total values\n", di, entry_dict_values));
+  }
+  DEBUG(printf("  Read %u dict entrie with %u values across them all\n", num_radar_dictionary_items, tot_dict_values));
+  if (!feof(dictF)) {
+    printf("NOTE: Did not hit eof on the radar dictionary file %s\n", "radar_dictionary.dfn");
   }
   fclose(dictF);
 
@@ -188,16 +197,17 @@ status_t init_rad_kernel(char* trace_filename)
 status_t init_vit_kernel(char* trace_filename)
 {
   DEBUG(printf("In init_vit_kernel...\n"));
-  vit_trace = fopen(trace_filename,"r");
-  if (!vit_trace)
+  // Read in the object images dictionary file
+  FILE *dictF = fopen("vit_dictionary.dfn","r");
+  if (!dictF)
   {
-    printf("Error: unable to open trace file %s\n", trace_filename);
+    printf("Error: unable to open viterbi dictionary definitiond file %s\n", "vit_dictionary.dfn");
     return error;
   }
 
   // Read in the trace message dictionary from the trace file
   // Read the number of messages
-  fscanf(vit_trace, "%u\n", &num_viterbi_dictionary_items);
+  fscanf(dictF, "%u\n", &num_viterbi_dictionary_items);
   DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
   the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
@@ -213,7 +223,7 @@ status_t init_vit_kernel(char* trace_filename)
     DEBUG(printf("  Reading dictionary entry %u\n", the_viterbi_trace_dict[i].msg_id));
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    fscanf(vit_trace, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
+    fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
     DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
@@ -222,7 +232,7 @@ status_t init_vit_kernel(char* trace_filename)
     the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    fscanf(vit_trace, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
+    fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
     the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
     the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
@@ -233,11 +243,19 @@ status_t init_vit_kernel(char* trace_filename)
     int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
-      fscanf(vit_trace, "%u ", &c); 
+      fscanf(dictF, "%u ", &c); 
       DEBUG(printf("%u ", c));
       the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
     }
     DEBUG(printf("\n"));
+  }
+  fclose(dictF);
+
+  vit_trace = fopen(trace_filename,"r");
+  if (!vit_trace)
+  {
+    printf("Error: unable to open trace file %s\n", trace_filename);
+    return error;
   }
 
   DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
@@ -281,12 +299,21 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 
   /* 1) Read the next image frame from the trace */
   /* fread( ... ); */
-  unsigned tr_obj_vals[3];
-  fscanf(cv_trace, "%u %u %u\n", &tr_obj_vals[0], &tr_obj_vals[1], &tr_obj_vals[2]); // Read next trace indicator
-  DEBUG(printf("  Trace: %u %u %u\n", tr_obj_vals[0], tr_obj_vals[1], tr_obj_vals[2]));
+  char     tr_obj_vals[3];
+  unsigned tr_dist_vals[3];
+  fscanf(cv_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
+  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
+  DEBUG(printf("  Tr_Obj : %c  %c  %c\n", tr_obj_vals[0], tr_obj_vals[1], tr_obj_vals[2]));
 
-  unsigned tr_val = tr_obj_vals[vs.lane];  // The proper message for this time step and car-lane
-  
+  unsigned tr_val = 0; // Default nothing
+  switch(tr_obj_vals[vs.lane]) {
+    case 'N' : tr_val = no_label; break;
+    case 'C' : tr_val = car; break;
+    case 'T' : tr_val = truck; break;
+    case 'P' : tr_val = pedestrian; break;
+    case 'B' : tr_val = bicycle; break;
+    default: printf("ERROR : Unknown object type in cv trace: '%c'\n", tr_obj_vals[vs.lane]); exit(-2);
+  }  
   label_t object = the_cv_object_dict[tr_val].object;
 
   //unsigned * inputs = the_cv_object_dict[tr_val].image_data;
@@ -310,12 +337,15 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   }
   /* 1) Read the next waveform from the trace */
   /* fread( ... ); */
+  char     tr_obj_vals[3];
   unsigned tr_dist_vals[3];
-  fscanf(rad_trace, "%u %u %u\n", &tr_dist_vals[0], &tr_dist_vals[1], &tr_dist_vals[2]); // Read next trace indicator
-  DEBUG(printf("  Trace: %u %u %u\n", tr_dist_vals[0], tr_dist_vals[1], tr_dist_vals[2]));
+  fscanf(rad_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
+  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
+  DEBUG(printf("  Tr_Dist:  %u  %u  %u\n", tr_dist_vals[0], tr_dist_vals[1], tr_dist_vals[2]));
 
   unsigned tr_val = tr_dist_vals[vs.lane];  // The proper message for this time step and car-lane
   
+  distance_t ddist = the_radar_return_dict[tr_val].distance;
   distance_t dist;      // The output from this routine
 
   float * inputs = the_radar_return_dict[tr_val].return_data;
@@ -326,10 +356,10 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   dist = calculate_peak_dist_from_fmcw(inputs);
 
   /* 3) Return the estimated distance */
-  DEBUG(printf("  Returning distance %f\n", dist));
+  DEBUG(printf("  Returning distance %f (vs %f)\n", dist, ddist));
 
   //return dist;
-  return the_radar_return_dict[tr_val].distance;
+  return ddist;
 }
 /* Each time-step of the trace, we read in the 
  * trace values for the left, middle and right lanes
@@ -349,10 +379,27 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
 
   /* 1) Read the next OFDM symbol (?) from the trace */
   /* fread( ... ); */
-  unsigned tr_msg_vals[3];
-  fscanf(vit_trace, "%u %u %u\n", &tr_msg_vals[0], &tr_msg_vals[1], &tr_msg_vals[2]); // Read next trace indicator
-  DEBUG(printf("  Trace: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2]));
+  char     tr_obj_vals[3];
+  unsigned tr_dist_vals[3];
+  fscanf(vit_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
+  DEBUG(printf("  Trace: %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
 
+  unsigned tr_msg_vals[3] = { 1, 0, 2}; // Defaults for all lanes clear : LL = only R; CL = L or R; RL = only L
+  if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < 2)) { 
+    // Some object is in the Center lane at distance 0 or 1
+    tr_msg_vals[0] = 3; // Unsafe to move from left  lane to right or left.
+    tr_msg_vals[2] = 3; // Unsafe to move from right lane to right or left.
+  }
+  if ((tr_obj_vals[0] != 'N') && (tr_dist_vals[0] < 2)) { 
+    // Some object is in the Left lane at distance 0 or 1
+    tr_msg_vals[1] += 1; // Unsafe to move from center lane to the left.
+  }
+  if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < 2)) { 
+    // Some object is in the Right lane at distance 0 or 1
+    tr_msg_vals[1] += 2; // Unsafe to move from center lane to the right.
+  }
+  
+  DEBUG(printf("  Tr_Msgs: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2]));
   unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane
   
   char the_msg[1600]; // Return from decode; large enough for any of our messages

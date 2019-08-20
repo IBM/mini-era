@@ -45,15 +45,18 @@ int main(int argc, char *argv[])
 
 
   /* Trace filename construction */
-  char cv_trace[strlen(argv[1]+5)];
-  char rad_trace[strlen(argv[1]+5)];
-  char vit_trace[strlen(argv[1]+5)];
-  strcpy(cv_trace,  argv[1]);
-  strcpy(rad_trace, argv[1]);
-  strcpy(vit_trace, argv[1]);
-  strcat(cv_trace,  ".cv");
-  strcat(rad_trace, ".rad");
-  strcat(vit_trace, ".vit");
+  /* char cv_trace[strlen(argv[1]+5)]; */
+  /* char rad_trace[strlen(argv[1]+5)]; */
+  /* char vit_trace[strlen(argv[1]+5)]; */
+  /* strcpy(cv_trace,  argv[1]); */
+  /* strcpy(rad_trace, argv[1]); */
+  /* strcpy(vit_trace, argv[1]); */
+  /* strcat(cv_trace,  ".cv"); */
+  /* strcat(rad_trace, ".rad"); */
+  /* strcat(vit_trace, ".vit"); */
+  char * cv_trace = argv[1];
+  char * rad_trace = argv[1];
+  char * vit_trace = argv[1];
 
   printf("Computer vision trace file: %s\n", cv_trace);
   printf("Radar trace file: %s\n", rad_trace);

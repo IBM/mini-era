@@ -3,7 +3,7 @@
 #define INCLUDED_CALC_FMCW_DIST_H
 
 /* Some constant definitions */
-#define RADAR_LOGN (15)
+#define RADAR_LOGN (14)
 #define RADAR_N (1 << RADAR_LOGN)
 #define RADAR_c 300000000
 #define RADAR_fs 32768000
