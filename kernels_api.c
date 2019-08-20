@@ -289,7 +289,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   
   label_t object = the_cv_object_dict[tr_val].object;
 
-  unsigned * inputs = the_cv_object_dict[tr_val].image_data;
+  //unsigned * inputs = the_cv_object_dict[tr_val].image_data;
   DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
   
   /* 2) Conduct object detection on the image frame */
@@ -328,7 +328,8 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   /* 3) Return the estimated distance */
   DEBUG(printf("  Returning distance %f\n", dist));
 
-  return dist;
+  //return dist;
+  return the_radar_return_dict[tr_val].distance;
 }
 /* Each time-step of the trace, we read in the 
  * trace values for the left, middle and right lanes
@@ -402,27 +403,40 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
 
 vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t message, vehicle_state_t vehicle_state)
 {
+  DEBUG(printf("In the plan_and_control routine : label %u distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
+	       label, distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
   vehicle_state_t new_vehicle_state = vehicle_state;
-
+  
   if ((label != no_label) && (distance <= THRESHOLD_1))
   {
-    /* Stop!!! */
-    new_vehicle_state.speed = 0;
+    switch (message) {
+      case safe_to_move_right_or_left   : new_vehicle_state.lane += 1; break; // prefer right lane
+      case safe_to_move_right_only      : new_vehicle_state.lane += 1; break;
+      case safe_to_move_left_only       : new_vehicle_state.lane -= 1; break;
+      case unsafe_to_move_left_or_right : new_vehicle_state.speed = 0; break; /* Stop!!! */
+    }
   }
+  /** For now we'll igfnore other thresholds, etc.
   else if ((label != no_label) && (distance <= THRESHOLD_2))
   {
-    /* Slow down! */
-    new_vehicle_state.speed -= 10;
-    if (new_vehicle_state.speed < 0)
-    {
-      new_vehicle_state.speed = 0;
-    }
+  switch (message) {
+  case safe_to_move_right_or_left   : new_vehicle_state.lane += 1; break; // prefer right lane
+  case safe_to_move_right_only      : new_vehicle_state.lane += 1; break;
+  case safe_to_move_left_only       : new_vehicle_state.lane -= 1; break;
+  case unsafe_to_move_left_or_right : new_vehicle_state.speed = 0; break; // Stop!!!
+  }
+  // Slow down!
+  new_vehicle_state.speed -= 10;
+  if (new_vehicle_state.speed < 0)
+  {
+  new_vehicle_state.speed = 0;
+  }
   }
   else if ((label == no_label) && (distance > THRESHOLD_3))
   {
-    /* Maintain speed */
+  // Maintain speed 
   }
-
+  **/
 
 
   return new_vehicle_state;

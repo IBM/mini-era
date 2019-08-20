@@ -4,7 +4,7 @@ CFLAGS = -pedantic -Wall -O0 -g
 #CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
 CFLAGS +=  -Xlinker -export-dynamic
 #UNCOMMENT FOR DEBUG-MESSAGES:
-#CFLAGS += -DVERBOSE 
+CFLAGS += -DVERBOSE 
 
 INCLUDES =  
 LFLAGS = -Lviterbi -Lradar 
