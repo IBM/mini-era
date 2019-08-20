@@ -22,34 +22,38 @@ bike_color = (1, 20, 59) # navy
 screen_width = 500
 screen_height = 500
 lane_width = screen_width / 5 # 3 lanes + 2 grass sides
-road_width = lane_width * 3
+road_width = lane_width * 3 # 3 lanes
 size = (screen_width, screen_height)
 screen = pygame.display.set_mode(size)
 bgY = 0 # for scrolling grass
-bgY2 = -screen_height
+bgY2 = -screen_height # for scrolling grass
 
 # Dictionary for images loaded
 img_lib = {}
 
 # Define road objects' start position
-x_left = 137.5
-y_left = 0 # updates
-x_mid = 237.5
-y_mid = 0 # updates
-x_right = 337.5
-y_right = 0 # updates
+x_left = 137.5 # places object in middle of left lane
+y_left = 0 
+x_mid = 237.5 # places object in middle of mid lane
+y_mid = 0 
+x_right = 337.5 # places object in middle of right lane
+y_right = 0 
 
 # Initialize object types
 obj_l = '11'
 obj_m = '11'
 obj_r = '11'
 
-# Frame update rate
+# Frame update rate for moving down
 MOVE_DOWN = 500 # every 500ms
 
 
 # HELPER FUNCTIONS
 def set_background():
+    """
+    Initializes Visualizer's screen.
+    Draws grass, road, and tree background.
+    """
     # Clear screen
     screen.fill(grass_color)
 
@@ -61,6 +65,11 @@ def set_background():
     screen.blit(get_img('images/trees_bg.png'), (0, bgY2))
 
 def get_img(path):
+    """
+    Returns: loaded image
+    Parameters: 
+        path: path of the image
+    """
     global img_lib
     image = img_lib.get(path)
     # Check if image is already loaded
@@ -69,7 +78,16 @@ def get_img(path):
         img_lib[path] = image
     return image
 
-def parse_trace(filename):   
+def parse_trace(filename):  
+    """
+    Parces trace files
+    Returns: 3 lists corresponding to 'columns' of trace file
+        left_lane: list containing left lane's trace info for each epoch; ex) [011010111100, 011011101110, 011100100000, ...]
+        mid_lane: list containing middle lane's trace info for each epoch
+        right_lane: list containing right lane's trace info for each epoch
+    Parameters:
+        filename: path name of the trace file
+    """ 
     left_lane = []
     mid_lane = []
     right_lane = []
@@ -129,22 +147,13 @@ def main():
     clock = pygame.time.Clock()
 
     # Create events
-    move_down_event = pygame.USEREVENT + 1
+    move_down_event = pygame.USEREVENT + 1 
 
     # Set timers
     pygame.time.set_timer(move_down_event, MOVE_DOWN)
 
     # Get traces
-    list_traces = []
-    prefix = 'traces/trace'
-    ext = '.txt'
-    for t in range(10):
-        num = t+1
-        num_str = str(num)
-        list_traces.append(prefix + num_str + ext)
-    # print(list_traces)
-    list_traces.reverse() # reverse order so popping gives earliest
-
+    # Trace format: 011010111100
     tr = 'traces/trace_ex.txt'
     left, mid, right = parse_trace(tr)   
     left.reverse()
@@ -156,14 +165,17 @@ def main():
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                done = True
+                # Catch event when window is closed, exit while loop
+                done = True 
             if event.type == move_down_event:
-                # print("down loop")
+                # Do all the object moving during "down" event
+                # So that the screen will refresh at the framerate defined by MOVE_DOWN
 
                 if len(left) == 0:
+                    # Stop once all entries of trace have been visualized
                     break
 
-                # get next trace bits for each lane
+                # Get next trace bits for each lane
                 left_bits = left.pop()
                 mid_bits = mid.pop()
                 right_bits = right.pop()
