@@ -12,7 +12,8 @@ LFLAGS = -Lviterbi -Lradar
 LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
 
 TARGET = main
-OBJECTS = kernels_api.o
+SRC = kernels_api.c
+OBJ = $(SRC:%.c=%.o)
 
 T_SRC 	= sim_environs.c
 T_OBJ	= $(T_SRC:%.c=%.o)
@@ -20,10 +21,11 @@ T_OBJ	= $(T_SRC:%.c=%.o)
 G_SRC 	= gen_trace.c
 G_OBJ	= $(G_SRC:%.c=%.o)
 
-all: $(TARGET) 
+$(TARGET): $(OBJ) libviterbi libfmcwdist
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) -o $(TARGET).exe $(TARGET).c $(LFLAGS) $(LIBS)
 
-$(TARGET): $(OBJECTS) libviterbi libfmcwdist
-	$(CC) $(OBJECTS) $(CFLAGS) $(INCLUDES) -o $(TARGET).exe $(TARGET).c $(LFLAGS) $(LIBS)
+
+all: $(TARGET) test tracegen
 
 
 test: $(T_OBJ) test.c
@@ -44,9 +46,24 @@ libfmcwdist:
 
 
 clean:
-	$(RM) $(TARGET).exe $(OBJECTS)
+	$(RM) $(TARGET).exe $(OBJ)
+	$(RM) test  $(T_OBJ)
+	$(RM) tracegen  $(G_OBJ)
 
 allclean: clean
 	cd radar; make clean
 	cd viterbi; make clean
+
+kernels_api.o: kernels_api.h 
+kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+kernels_api.o: radar/calc_fmcw_dist.h
+
+sim_environs.o: sim_environs.h
+sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
+
+gen_trace.o: gen_trace.h
+
+
+depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(SRC) $(T_SRC) $(G_SRC)
+# DO NOT DELETE THIS LINE -- make depend depends on it.
 

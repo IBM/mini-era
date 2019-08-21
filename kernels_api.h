@@ -56,9 +56,9 @@ typedef enum {
 /* These thresholds (in meters) are used by the plan_and_control()
  * function to make plan and control decisions.
  */
-#define THRESHOLD_1 250.0
-#define THRESHOLD_2 400.0
-#define THRESHOLD_3 500.0
+#define THRESHOLD_1 105.0
+#define THRESHOLD_2 205.0
+#define THRESHOLD_3 305.0
 
 /* Kernels initialization */
 status_t init_cv_kernel(char*, char*);

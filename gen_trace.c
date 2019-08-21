@@ -29,7 +29,7 @@ unsigned num_lanes = 3; // Left, Center, Right; 4 = add RHazard, 5 = add LHazard
 int min_lane;
 int max_lane;
   
-unsigned max_distance = 6; // Max distance in the "world"
+unsigned max_distance = 11; // Max distance idfentifier in the "world" (== INFINITY)
 bool_t   one_obstacle_per_lane = true; // false = unlimited
 bool_t   end_with_all_blocked = true;
 bool_t   did_last_insert = false;
