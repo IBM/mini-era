@@ -38,6 +38,8 @@ x_mid = 237.5 # places object in middle of mid lane
 y_mid = 0 
 x_right = 337.5 # places object in middle of right lane
 y_right = 0 
+x_main_car = x_mid # your car's x position, starts in mid lane
+y_main_car = 440 # your car's y position
 
 # Initialize object types
 obj_l = '11'
@@ -182,7 +184,7 @@ def main():
     # Set variables
     done = False # while loop condition
 
-    global x_left, y_left, x_mid, y_mid, x_right, y_right
+    global x_left, y_left, x_mid, y_mid, x_right, y_right, x_main_car
     global obj_l, obj_m, obj_r
     global MOVE_DOWN
 
@@ -238,6 +240,9 @@ def main():
                 obj_m = mid_tup[1]
                 obj_r = right_tup[1]
 
+                # Update lane position (x position) of your car
+                x_main_car = x_main_car # change this if car should switch lanes
+
 
         # Set background
         set_background()
@@ -252,7 +257,7 @@ def main():
             bgY2 = -500
 
         # Draw objects every epoch
-        screen.blit(get_img('images/red-car.png'), (x_mid, 440)) # your car
+        screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
         blit_obj(screen, obj_l, x_left, y_left-55) # left lane
         blit_obj(screen, obj_m, x_mid, y_mid-55) # middle lane
         blit_obj(screen, obj_r, x_right, y_right-55) # right lane
