@@ -17,6 +17,9 @@ OBJECTS = kernels_api.o
 T_SRC 	= sim_environs.c
 T_OBJ	= $(T_SRC:%.c=%.o)
 
+G_SRC 	= gen_trace.c
+G_OBJ	= $(G_SRC:%.c=%.o)
+
 all: $(TARGET) 
 
 $(TARGET): $(OBJECTS) libviterbi libfmcwdist
@@ -24,7 +27,10 @@ $(TARGET): $(OBJECTS) libviterbi libfmcwdist
 
 
 test: $(T_OBJ) test.c
-	$(CC) $(T_OBJ) $(CFLAGS) $(INCLUDES) -o test test.c $(LFLAGS) $(LIBS)
+	$(CC) $(T_OBJ) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
+
+tracegen: $(G_OBJ)
+	$(CC) $(G_OBJ) $(CFLAGS) $(INCLUDES) -o $@ 
 
 libviterbi: 
 	cd viterbi; make
