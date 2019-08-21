@@ -8,7 +8,7 @@ Visualization for Mini-Era using pygame.
 ![Demo](uploads/vis.gif)
 
 ## Longer Example:
-### Using trace1 - 10 files
+### Using trace_ex.txt 
 
 ![Demo2](uploads/longer_vis.gif)
 
