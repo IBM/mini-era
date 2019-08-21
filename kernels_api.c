@@ -348,8 +348,14 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   distance_t ddist = the_radar_return_dict[tr_val].distance;
   distance_t dist;      // The output from this routine
 
-  float * inputs = the_radar_return_dict[tr_val].return_data;
-  DEBUG(printf("  Using dist %u : distance %f\n", tr_val, the_radar_return_dict[tr_val].distance));
+  // We have to make a working copy of the inputs -- I think the calculate_peak_dist_from_fmcw alters the input data space
+  float inputs[2*RADAR_N];
+  float * ref_in = the_radar_return_dict[tr_val].return_data;
+  for (int ii = 0; ii < 2*RADAR_N; ii++) {
+    inputs[ii] = ref_in[ii];
+  }
+  
+  DEBUG(printf("  Using dist tr_val %u : in meters %f\n", tr_val, the_radar_return_dict[tr_val].distance));
   
   /* 2) Conduct distance estimation on the waveform */
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
@@ -361,13 +367,13 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   //return dist;
   return ddist;
 }
+
+
 /* Each time-step of the trace, we read in the 
  * trace values for the left, middle and right lanes
  * (i.e. which message if the autonomous car is in the 
  *  left, middle or right lane).
  */
-
-
 message_t iterate_vit_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_vit_kernel\n"));
