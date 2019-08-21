@@ -29,10 +29,12 @@ unsigned num_lanes = 3; // Left, Center, Right; 4 = add RHazard, 5 = add LHazard
 int min_lane;
 int max_lane;
   
-unsigned max_distance = 6; // Max distance in the "world"
+unsigned max_distance = 11; // Max distance idfentifier in the "world" (== INFINITY)
 bool_t   one_obstacle_per_lane = true; // false = unlimited
 bool_t   end_with_all_blocked = true;
 bool_t   did_last_insert = false;
+
+object_state_t* obj_in_lane[GLOBAL_MAX_LANES]; /* Indicates nearest object in lane */
 
 object_state_t* the_world[GLOBAL_MAX_LANES][GLOBAL_MAX_DISTANCE]; // This is [lane][distance] 
 object_state_t* the_objects;      // This is the master list of all currently live objects in the world.
@@ -109,10 +111,10 @@ init_environment(int argc, char* argv[])
 void
 insert_all_lanes()
 {
-  object_state_t* no_p = (object_state_t*)calloc(1, sizeof(object_state_t));
-
   for (int i = 1; i <=3; i++) {
+    object_state_t* no_p = (object_state_t*)calloc(1, sizeof(object_state_t));
     no_p->lane   = i;
+    no_p->distance = max_distance-1;
     no_p->object = car;
     no_p->speed  = 4;
     no_p->previous = NULL;
@@ -123,6 +125,9 @@ insert_all_lanes()
     the_world[i][max_distance-1] = no_p;
     printf("Adding Car : ");
     print_object(no_p, i, max_distance-1);
+    if (obj_in_lane[i] == NULL) {
+      obj_in_lane[i] = no_p;
+    }
   }
 }
 
@@ -134,6 +139,7 @@ insert_into_lane(int x)
     // Create a new object (car) and add it to the lane at position [x][0]
     object_state_t* no_p = (object_state_t*)calloc(1, sizeof(object_state_t));
     no_p->lane = x;
+    no_p->distance = max_distance-1;
     //no_p->object = car; break;
     int objn = (rand() % 100); // Return a value from [0,99]
     int spdn = (rand() % 100); // Return a value from [0,99]
@@ -158,6 +164,9 @@ insert_into_lane(int x)
     no_p->behind_in_lane = NULL; // FIXME
     the_world[x][max_distance-1] = no_p;
     printf("Adding %u : ", objn); print_object(no_p, x, max_distance-1);
+    if (obj_in_lane[x] == NULL) {
+      obj_in_lane[x] = no_p;
+    }
   }
 }
 
@@ -173,9 +182,8 @@ bool_t // indicates we've inserted and run to last items gone
 iterate_environment(bool_t doing_end_all_blocked) 
 {
   // Track whether there are any obstacles in a lane
-  bool_t obj_in_lane[GLOBAL_MAX_LANES];
   for (int i = 0; i < GLOBAL_MAX_LANES; i++) {
-    obj_in_lane[i] = false;
+    obj_in_lane[i] = NULL;
   }
   // For each lane in the world
   for (int x = min_lane; x < max_lane; x++) {
@@ -203,9 +211,12 @@ iterate_environment(bool_t doing_end_all_blocked)
 	    //exit(-1);
 	  }
 	  printf("Moving obj from %u %u to %u %u\n", x, y, x, ny);
+	  elem_p->distance = ny;
 	  the_world[x][ny] = elem_p;
 	  the_world[x][y] = NULL;
-	  obj_in_lane[x] = true;
+	  if (obj_in_lane[x] == NULL) { // Only keep the closest
+	    obj_in_lane[x] = elem_p;
+	  }
 	}
       }
     }	
@@ -216,84 +227,93 @@ iterate_environment(bool_t doing_end_all_blocked)
   if (doing_end_all_blocked) {
     bool_t no_insert = false;
     for (int i = 1; i < 4; i++) { // We only add to non-hazard lanes (ever)
-      no_insert |= obj_in_lane[i];
-      //printf("no_insert = %u from lane %u : %u\n", no_insert, i, obj_in_lane[i]);
+      no_insert |= (obj_in_lane[i] != NULL);
+      //printf("no_insert = %u from lane %u : %p", no_insert, i, obj_in_lane[i]);
     }
     if ((!did_last_insert) && (!no_insert)) {
       insert_all_lanes();
       did_last_insert = true;
-      for (int i = 1; i < 4; i++) { // We only add to non-hazard lanes (ever)
-	obj_in_lane[i] = true;
-      }
     }
   } else {
     for (int x = 1; x < 4; x++) { // We only add to non-hazard lanes (ever)
       if ((the_world[x][max_distance-1] == NULL) && // There is a space for a new object
-	  (!one_obstacle_per_lane || !obj_in_lane[x])) { // And there is no obstacle in lane already when that is restricted
+	  (!one_obstacle_per_lane || (obj_in_lane[x] == NULL))) { // And there is no obstacle in lane already when that is restricted
 	insert_into_lane(x);
-	obj_in_lane[x] = true;
-
       }
     }
   }
   visualize_world();
 
+    bool_t lanes_occupied = false;
+  //printf(" Lanes: ");
+  for (int i = 0; i < GLOBAL_MAX_LANES; i++) {
+    lanes_occupied |= (obj_in_lane[i] != NULL);
+    if (obj_in_lane[i] != NULL) {
+      printf("  Lane %i : ", i); print_object(obj_in_lane[i], obj_in_lane[i]->lane, obj_in_lane[i]->distance);
+    }
+    //printf("%p ", (void*)obj_in_lane[i]);
+  }
+  //printf("\n");
+  
+
   // Now we have the state for this (new) time step
   //  Use this to determine my_car's input data, e.g. 
   //  safe_to_move_L/R, etc.
   // NOTE: Currently I am ignoring moving INTO the hazard lanes...
-  message_t viterbi_in_state = -1;
-  switch (my_car.lane) {
-  case lhazard : 
-    if (the_world[1][10] == NULL) { 
-      viterbi_in_state = safe_to_move_right_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
+  label_t obj_in_state[5] = { 0, 0, 0};
+  char    cv_in_state[5] = {'N', 'N', 'N', 'N', 'N'};
+  for (int l = 0; l < GLOBAL_MAX_LANES; l++) {
+    if (obj_in_lane[l] != NULL) {
+      obj_in_state[l] = obj_in_lane[l]->object;
+      cv_in_state[l]  = mapLabelToChar[obj_in_state[l]];
+    } else {
+      obj_in_state[l] = no_label;
     }
-    break;
-  case left : 
-    if (the_world[2][10] == NULL) { 
-      viterbi_in_state = safe_to_move_right_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case center : 
-    if (the_world[3][10] == NULL) { 
-      if (the_world[1][10] == NULL) { 
-	viterbi_in_state = safe_to_move_right_or_left; 
-      } else {
-	viterbi_in_state = safe_to_move_right_only;
-      }
-    } else if (the_world[1][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only;      
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case right : 
-    if (the_world[2][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case rhazard : 
-    if (the_world[3][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  default: printf("ERROR "); 
   }
-  printf(" viterbi_in_state = %d\n", viterbi_in_state);
+    
+  label_t rad_in_state[5] = { 0, 0, 0, 0, 0};
+  for (int l = 0; l < GLOBAL_MAX_LANES; l++) {
+    if (obj_in_lane[l] != NULL) {
+      rad_in_state[l] = obj_in_lane[l]->distance;
+    } else {
+      rad_in_state[l] = max_distance;
+    }
+  }
+  printf("TRACE_LINE: %c%u %c%u %c%u\n", cv_in_state[1], rad_in_state[1], cv_in_state[2], rad_in_state[2], cv_in_state[3], rad_in_state[3]);
+  
+  message_t viterbi_in_state[5] = {0, 0, 0, 0, 0};
+  // Left Lane
+  if ((the_world[2][0] == NULL) && (the_world[2][1] == NULL)) {
+    viterbi_in_state[1] = safe_to_move_right_only; 
+  } else { 
+    viterbi_in_state[1] = unsafe_to_move_left_or_right;
+  }
+  // Middle Lane
+  if ((the_world[3][0] == NULL) && (the_world[3][1] == NULL)) {
+    if ((the_world[1][0] == NULL) && (the_world[1][1] == NULL)) {
+      viterbi_in_state[2] = safe_to_move_right_or_left; 
+    } else {
+      viterbi_in_state[2] = safe_to_move_right_only;
+    }
+  } else if ((the_world[1][0] == NULL) && (the_world[1][1] == NULL)) {
+    viterbi_in_state[2] = safe_to_move_left_only;      
+  } else { 
+    viterbi_in_state[2] = unsafe_to_move_left_or_right;
+  }
+  // Right Lane
+  if ((the_world[2][0] == NULL) && (the_world[2][1] == NULL)) {
+    viterbi_in_state[3] = safe_to_move_left_only; 
+  } else { 
+    viterbi_in_state[3] = unsafe_to_move_left_or_right;
+  }
+  /* case rhazard :  */
+  /*   if (the_world[3][10] == NULL) {  */
+  /*     viterbi_in_state = safe_to_move_left_only;  */
+  /*   } else {  */
+  /*     viterbi_in_state = unsafe_to_move_left_or_right; */
+  /*   } */
+  printf(" viterbi_in_state = %u %u %u\n", viterbi_in_state[1], viterbi_in_state[2], viterbi_in_state[3]);
 
-  bool_t lanes_occupied = false;
-  for (int i = 0; i < GLOBAL_MAX_LANES; i++) {
-    lanes_occupied |= obj_in_lane[i];
-    //printf("lanes_occ = %u from lane %u : %u\n", lanes_occupied, i, obj_in_lane[i]);
-  }
   bool_t res = did_last_insert && (!lanes_occupied);
   //printf("iterate results = %u && %u = %u\n", did_last_insert, !lanes_occupied, res);
   return res;
@@ -319,34 +339,34 @@ visualize_world()
     printf("|\n");
   }
   /**  
-  printf("%2d : ", 10);
-  for (int x = 0; x < 5; x++) {
-    printf("| ");
-    if (x == my_car.lane) {
-      printf("* ");
-    } else if (the_world[x][10] == NULL) {
-      printf("  ");
-    } else {
-      //printf("X ");
-      printf("%c ", get_vis_char_of_object(the_world[x][10]));
-    }
-  }
-  printf("|\n");
+       printf("%2d : ", 10);
+       for (int x = 0; x < 5; x++) {
+       printf("| ");
+       if (x == my_car.lane) {
+       printf("* ");
+       } else if (the_world[x][10] == NULL) {
+       printf("  ");
+       } else {
+       //printf("X ");
+       printf("%c ", get_vis_char_of_object(the_world[x][10]));
+       }
+       }
+       printf("|\n");
 
-  for (int y = 11; y < 13; y++) {
-    // For each lane in the world
-    printf("%2d : ", y);
-    for (int x = 0; x < 5; x++) {
-      printf("| ");
-      if (the_world[x][y] == NULL) {
-	printf("  ");
-      } else {
-	//printf("X ");
-	printf("%c ", get_vis_char_of_object(the_world[x][y]));
-      }
-    }
-    printf("|\n");
-  }
+       for (int y = 11; y < 13; y++) {
+       // For each lane in the world
+       printf("%2d : ", y);
+       for (int x = 0; x < 5; x++) {
+       printf("| ");
+       if (the_world[x][y] == NULL) {
+       printf("  ");
+       } else {
+       //printf("X ");
+       printf("%c ", get_vis_char_of_object(the_world[x][y]));
+       }
+       }
+       printf("|\n");
+       }
   **/
   printf("\n\n");
 }
@@ -363,7 +383,6 @@ int main(int argc, char *argv[])
   for (i = 0; i < 100; i++) {
     printf("\n\nTime Step %d\n", i);
     iterate_environment(false);
-    //visualize_world();
   }
   if (end_with_all_blocked) {
     do {

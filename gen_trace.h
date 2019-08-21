@@ -30,8 +30,11 @@ typedef enum {
   car,
   truck,
   pedestrian,
-  bicycle
+  bicycle,
+  num_label_t
 } label_t;
+
+static char mapLabelToChar[num_label_t] = {'N','C','T','P','B'};
 
 /* The potential (horizontal) positions of any object (i.e. lane indications) */
 typedef enum {
@@ -45,6 +48,7 @@ typedef enum {
 /* Object state; includes lane, type of object, and speed (0, 1, 2, ...) */
 typedef struct obj_struct {
   lane_t      lane;
+  unsigned    distance;
   label_t     object;
   unsigned    speed;
   struct obj_struct* previous;  // The previous object in the list
