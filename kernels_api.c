@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <python2.7/Python.h>
+//#include <python2.7/Python.h>
 #include <stdio.h>
 #include "kernels_api.h"
 
@@ -23,6 +23,8 @@
 #include "viterbi/utils.h"
 #include "viterbi/viterbi_decoder_generic.h"
 #include "radar/calc_fmcw_dist.h"
+
+#include "stdlib.h"
 
 
 
@@ -279,6 +281,33 @@ bool_t eof_vit_kernel()
   return res;
 }
 
+
+label_t run_object_classification(unsigned tr_val) 
+{
+  label_t object;	
+  char shell_cmd[100];
+  snprintf(shell_cmd, sizeof(shell_cmd), "sh cnn_shell.sh %s", "some_args");
+  FILE *testing = popen(shell_cmd, "r");
+  if (testing == NULL)
+  {
+    printf("FAIL to open CV kernel !\n");
+    return 1;
+  }
+  char pbuffer[100];
+  while (fgets(pbuffer, 100, testing) != NULL)
+  {
+	  ///printf(pbuffer);
+  }
+  printf("Label Prediction done \n");
+  printf(pbuffer);
+  int val = atoi(pbuffer);   //the last thing printed by the Keras code is the predicted label 
+  object = (label_t)val;
+  pclose(testing); 
+  return object;
+  
+}
+
+
 label_t iterate_cv_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_cv_kernel\n"));
@@ -308,16 +337,20 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   unsigned tr_val = 0; // Default nothing
   switch(tr_obj_vals[vs.lane]) {
     case 'N' : tr_val = no_label; break;
+    case 'B' : tr_val = bus; break;
     case 'C' : tr_val = car; break;
-    case 'T' : tr_val = truck; break;
     case 'P' : tr_val = pedestrian; break;
-    case 'B' : tr_val = bicycle; break;
+    case 'T' : tr_val = truck; break;
     default: printf("ERROR : Unknown object type in cv trace: '%c'\n", tr_obj_vals[vs.lane]); exit(-2);
-  }  
-  label_t object = the_cv_object_dict[tr_val].object;
+  }
+  // Call Keras Code  
+  label_t object = run_object_classification(tr_val); 
+  //label_t object = the_cv_object_dict[tr_val].object;
 
   //unsigned * inputs = the_cv_object_dict[tr_val].image_data;
-  DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
+  //DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
+  
+   DEBUG(printf("  Using obj %u : object %u\n", tr_val, object));
   
   /* 2) Conduct object detection on the image frame */
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));

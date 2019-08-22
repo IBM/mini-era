@@ -38,10 +38,10 @@ typedef struct
 /* Pre-defined labels used by the computer vision kernel */
 typedef enum {
   no_label,
+  bus,
   car,
-  truck,
   pedestrian,
-  bicycle
+  truck
 } label_t;
 
 /* Pre-defined messages used by the Viterbi decoding kernel */
@@ -69,6 +69,7 @@ bool_t eof_cv_kernel();
 bool_t eof_rad_kernel();
 bool_t eof_vit_kernel();
 
+label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
 distance_t iterate_rad_kernel(vehicle_state_t vs);
 message_t iterate_vit_kernel(vehicle_state_t vs);

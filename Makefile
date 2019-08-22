@@ -1,4 +1,4 @@
-CC = gcc -std=c99
+CC = gcc
 
 CFLAGS = -pedantic -Wall -O0 -g
 #CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
@@ -9,7 +9,8 @@ CFLAGS += -DVERBOSE
 INCLUDES =  
 LFLAGS = -Lviterbi -Lradar 
 #LFLAGS += 
-LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
+#LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
+LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
 
 TARGET = main
 SRC = kernels_api.c
