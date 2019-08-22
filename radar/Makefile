@@ -1,4 +1,4 @@
-CC = gcc -std=c99
+CC = gcc 
 CFLAGS = -pedantic -Wall -O0 -g -I ../fft/fft-1d
 
 AR      = ar rcs
