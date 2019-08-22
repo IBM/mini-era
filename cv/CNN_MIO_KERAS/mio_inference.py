@@ -1,7 +1,3 @@
-### This code picks a random image belonging to a object class  as an input, and predicts the label. The random image is assumed to come from a road object trace, which constains objects and distances of objects on each lane. The returned label is used to update the vehicle state.  
-
-import sys
-import argparse
 import numpy as np
 import os
 import keras
@@ -15,12 +11,12 @@ from keras import backend as K
 #from frontend.approxhpvm_translator import translate_to_approxhpvm
 import pdb
 
-batch_size = 1
+batch_size = 32
 num_classes = 5
 img_size = 32
-num_channels = 3
-run_dir = './cv/CNN_MIO_KERAS/'
-#run_dir = './'
+
+#run_dir = './cv/CNN_MIO_KERAS/'
+run_dir = './'
 
 
 def mio_model():
@@ -55,47 +51,22 @@ def _get_images_labels(dsplit):
   labels = labels_t 
   return features,labels
 
-def predict(imageid):
+if __name__ == "__main__":   
+
   K.set_image_data_format('channels_first')
 
 
-  test_image = np.zeros((1, num_channels, img_size, img_size), np.float32)
+  features,labels = _get_images_labels('train')
   test_features,test_labels = _get_images_labels('test')
-  test_image[0,:,:,:] = test_features[imageid,:,:,:]
   model = mio_model()
 
   model.load_weights(run_dir + 'model.h5')
 
-  outputs = model.predict(test_image, batch_size=batch_size)
+  outputs = model.predict(test_features, batch_size=batch_size)
   predicted_labels_t=(outputs.argmax(1))
   predicted_labels=np.reshape(predicted_labels_t, [predicted_labels_t.size, 1])
-  print("Predicted Label:")
-  print(predicted_labels[0,0])
+  inference_accuracy = 100*np.sum(test_labels == predicted_labels)/predicted_labels.size
+  print("Inference accuracy", inference_accuracy)
     
   # translate_to_approxhpvm(model, "data/lenet_hpvm/", X_test, Y_test, num_classes)
-
-def main(argv):
-
-  print('Running command:', str(sys.argv))
-  parser = argparse.ArgumentParser()
-	
-  parser.add_argument("-t", "--objecttype", type=int, help="Class from the road object trace")
-
-  args = parser.parse_args()
-  if args.objecttype == 4:
-      imageid = np.random.randint(4000,4999)
-  elif args.objecttype == 3:
-      imageid = np.random.randint(3000,3999)
-  elif args.objecttype == 2:
-      imageid = np.random.randint(2000,2999)
-  elif args.objecttype == 1:
-      imageid = np.random.randint(1000,1999)
-  else: 
-      imageid = np.random.randint(0,999)
-
-  predict(imageid)  
-
-if __name__ == "__main__":   
-  main(sys.argv[1:])
-
 
