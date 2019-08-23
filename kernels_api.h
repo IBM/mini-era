@@ -61,9 +61,9 @@ typedef enum {
 #define THRESHOLD_3 305.0
 
 /* Kernels initialization */
-status_t init_cv_kernel(char*, char*);
-status_t init_rad_kernel(char*);
-status_t init_vit_kernel(char*);
+status_t init_cv_kernel(char* tr_fn, char* py_file, char* dict_fn);
+status_t init_rad_kernel(char* tr_fn, char* dict_fn);
+status_t init_vit_kernel(char* tr_fn, char* dict_fn);
 
 bool_t eof_cv_kernel();
 bool_t eof_rad_kernel();

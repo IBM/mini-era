@@ -20,6 +20,10 @@
 #include "kernels_api.h"
 
 
+char * cv_dict  = "objects_dictionary.dfn";
+char * rad_dict = "radar_dictionary.dfn";
+char * vit_dict = "vit_dictionary.dfn";
+
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
@@ -65,17 +69,17 @@ int main(int argc, char *argv[])
   char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
   /* Kernels initialization */
-  if (!init_cv_kernel(cv_trace, cv_py_file))
+  if (!init_cv_kernel(cv_trace, cv_py_file, cv_dict))
   {
     printf("Error: the computer vision kernel couldn't be initialized properly.\n");
     return 1;
   }
-  if (!init_rad_kernel(rad_trace))
+  if (!init_rad_kernel(rad_trace, rad_dict))
   {
     printf("Error: the radar kernel couldn't be initialized properly.\n");
     return 1;
   }
-  if (!init_vit_kernel(vit_trace))
+  if (!init_vit_kernel(vit_trace, vit_dict))
   {
     printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
     return 1;

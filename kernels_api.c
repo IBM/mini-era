@@ -90,11 +90,11 @@ extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, 
 
 
 
-status_t init_cv_kernel(char* trace_filename, char* py_file)
+status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
   // Read in the object images dictionary file
-  FILE *dictF = fopen("objects_dictionary.dfn","r");
+  FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
     printf("Error: unable to open trace file %s\n", trace_filename);
@@ -138,11 +138,11 @@ status_t init_cv_kernel(char* trace_filename, char* py_file)
   return success;
 }
 
-status_t init_rad_kernel(char* trace_filename)
+status_t init_rad_kernel(char* trace_filename, char* dict_fn)
 {
   DEBUG(printf("In init_rad_kernel...\n"));
   // Read in the radar distances dictionary file
-  FILE *dictF = fopen("radar_dictionary.dfn","r");
+  FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
     printf("Error: unable to open trace file %s\n", trace_filename);
@@ -206,11 +206,11 @@ status_t init_rad_kernel(char* trace_filename)
  *  t1_1 t2_1 t3_1 : Message per-lane (t1 = left, t2 = middle, t3 = right) for time step 1
  */
 
-status_t init_vit_kernel(char* trace_filename)
+status_t init_vit_kernel(char* trace_filename, char* dict_fn)
 {
   DEBUG(printf("In init_vit_kernel...\n"));
   // Read in the object images dictionary file
-  FILE *dictF = fopen("vit_dictionary.dfn","r");
+  FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
     printf("Error: unable to open viterbi dictionary definitiond file %s\n", "vit_dictionary.dfn");
