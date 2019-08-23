@@ -127,5 +127,10 @@ int main(int argc, char *argv[])
   }
 
   /* All the traces have been fully consumed. Quitting... */
+  closeout_cv_kernel();
+  closeout_rad_kernel();
+  closeout_vit_kernel();
+
+  printf("\nDone.\n");
   return 0;
 }

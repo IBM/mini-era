@@ -76,4 +76,9 @@ message_t iterate_vit_kernel(vehicle_state_t vs);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
+// These routines are used for any finalk, end-of-run operations/output
+void closeout_cv_kernel();
+void closeout_rad_kernel();
+void closeout_vit_kernel();
+
 #endif

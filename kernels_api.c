@@ -17,14 +17,15 @@
 
 //#include <python2.7/Python.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
 #include "kernels_api.h"
 
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
 #include "viterbi/viterbi_decoder_generic.h"
 #include "radar/calc_fmcw_dist.h"
-
-#include "stdlib.h"
 
 
 
@@ -47,7 +48,9 @@ typedef struct {
 unsigned int     num_cv_dictionary_items = 0;
 cv_dict_entry_t* the_cv_object_dict;
 
-
+unsigned label_match = 0;  // Times CNN matched dictionary
+unsigned label_lookup = 0; // Times we used CNN for object classification
+  
 
 /* These are some top-level defines needed for RADAR */
 typedef struct {
@@ -59,6 +62,13 @@ typedef struct {
 unsigned int        num_radar_dictionary_items = 0;
 radar_dict_entry_t* the_radar_return_dict;
 
+unsigned radar_inf_errs = 0;
+unsigned radar_inf_noerr = 0;
+unsigned radar_zero_errs = 0;
+unsigned radar_zero_noerr = 0;
+unsigned radar_total_calc = 0;
+unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
+char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 
 /* These are some top-level defines needed for VITERBI */
@@ -284,9 +294,14 @@ bool_t eof_vit_kernel()
 
 label_t run_object_classification(unsigned tr_val) 
 {
+  DEBUG(printf("Entered run_object_classification...\n"));
   label_t object;	
+#ifdef BYPASS_KERAS_CV_CODE
+  object = (label_t)tr_val;
+#else
   char shell_cmd[100];
   snprintf(shell_cmd, sizeof(shell_cmd), "sh cnn_shell.sh %s", "some_args");
+  DEBUG(printf("  Invoking CV CNN using `%s`\n", shell_cmd));
   FILE *testing = popen(shell_cmd, "r");
   if (testing == NULL)
   {
@@ -296,15 +311,16 @@ label_t run_object_classification(unsigned tr_val)
   char pbuffer[100];
   while (fgets(pbuffer, 100, testing) != NULL)
   {
-	  ///printf(pbuffer);
+    //printf(pbuffer);
   }
-  printf("Label Prediction done \n");
-  printf(pbuffer);
+  DEBUG(printf("Label Prediction done \n"));
+  DEBUG(printf("pbuffer : %s\n", pbuffer));
   int val = atoi(pbuffer);   //the last thing printed by the Keras code is the predicted label 
   object = (label_t)val;
-  pclose(testing); 
-  return object;
-  
+  pclose(testing);
+  DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+#endif
+  return object;  
 }
 
 
@@ -343,6 +359,9 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
     case 'T' : tr_val = truck; break;
     default: printf("ERROR : Unknown object type in cv trace: '%c'\n", tr_obj_vals[vs.lane]); exit(-2);
   }
+  label_t d_object = (label_t)tr_val;
+
+  /* 2) Conduct object detection on the image frame */
   // Call Keras Code  
   label_t object = run_object_classification(tr_val); 
   //label_t object = the_cv_object_dict[tr_val].object;
@@ -350,14 +369,13 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   //unsigned * inputs = the_cv_object_dict[tr_val].image_data;
   //DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
   
-   DEBUG(printf("  Using obj %u : object %u\n", tr_val, object));
-  
-  /* 2) Conduct object detection on the image frame */
-  DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-
   /* 3) Return the label corresponding to the recognized object */
-
-  return object;
+  DEBUG(printf("  Returning d_object %u : object %u\n", d_object, object));
+  if (d_object == object) {
+    label_match++;
+  }
+  label_lookup++;
+  return d_object;
 }
 
 distance_t iterate_rad_kernel(vehicle_state_t vs)
@@ -394,6 +412,39 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
   dist = calculate_peak_dist_from_fmcw(inputs);
 
+  // Get an error estimate (Root-Squared?)
+  radar_total_calc++;
+  if (dist == INFINITY) {
+    if (ddist < 500.0) { // 100000.0) {
+      DEBUG(printf("%f vs %f => INF_PCT_ERR\n", dist, ddist));
+      radar_inf_errs++;
+    } else {
+      radar_inf_noerr++;
+    }      
+  } else if (ddist == 0.0) {
+    if (ddist != 0.0) {
+      DEBUG(printf("%f vs %f => INF_PCT_ERR\n", dist, ddist));
+      radar_zero_errs++;
+    } else {
+      radar_zero_noerr++;
+    }
+  } else {
+    float error   = (dist - ddist);
+    DEBUG(float abs_err = fabs(error));
+    float pct_err = error/ddist;
+    DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", dist, ddist, error, abs_err, pct_err));
+    if (pct_err == 0.0) {
+      hist_pct_errs[0]++;
+    } else if (pct_err < 0.01) {
+      hist_pct_errs[1]++;
+    } else if (pct_err < 0.1) {
+      hist_pct_errs[2]++;
+    } else if (pct_err < 1.00) {
+      hist_pct_errs[3]++;
+    } else {
+      hist_pct_errs[4]++;
+    }
+  }
   /* 3) Return the estimated distance */
   DEBUG(printf("  Returning distance %f (vs %f)\n", dist, ddist));
 
@@ -526,4 +577,31 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 
 
   return new_vehicle_state;
+}
+
+
+
+
+void closeout_cv_kernel()
+{
+  float label_correct_pctg = (100.0*label_match)/(1.0*label_lookup);
+  printf("\nFinal CV CNN Accuracy: %u correct of %u classifications = %.2f%%\n", label_match, label_lookup, label_correct_pctg);
+}
+
+void closeout_rad_kernel()
+{
+  printf("\nHistogram of Radar Distance ABS-PCT-ERROR:\n");
+  for (int i = 0; i < 5; i++) {
+    printf("%7s | %9u \n", hist_pct_err_label[i], hist_pct_errs[i]);
+  }
+  printf("%7s | %9u \n", "Inf_Err", radar_inf_errs);
+  printf("%7s | %9u \n", "Inf_OK", radar_inf_noerr);
+  printf("%7s | %9u \n", "Inf_Err", radar_zero_errs);
+  printf("%7s | %9u \n", "ZeroOk", radar_zero_noerr);
+  printf("%7s | %9u \n", "Total", radar_total_calc);
+}
+
+void closeout_vit_kernel()
+{
+  // Nothing to do?
 }
