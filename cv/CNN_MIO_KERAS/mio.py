@@ -58,7 +58,7 @@ def _get_images_labels(dsplit):
 def predict(imageid):
   K.set_image_data_format('channels_first')
 
-
+  print("received image type",imageid)
   test_image = np.zeros((1, num_channels, img_size, img_size), np.float32)
   test_features,test_labels = _get_images_labels('test')
   test_image[0,:,:,:] = test_features[imageid,:,:,:]
