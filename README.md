@@ -19,7 +19,7 @@ Xy Xy Xy
 
 where `X` is a character which identifies a type of obstacle object, and `y` is an unsigned integer representing a distance measure for that object. The "world" is viewed as a 2-dimensional space where the lanes are arranged left-to-right and the distances are from position zero (which is effectively the back of the car) to some maximum value N which represents the farthest out objects can occur/be tracked.
 
-<img src="/mini_era.png" width="48">
+<img src="/mini_era.png" width="500">
 
 In this implementation, the objects include:
 
@@ -146,7 +146,7 @@ Each kernel is implemented in a separate subdirectory space, consistent with the
 Most of the Mini-ERA is implemented in standard C code using GCC compilation. The CV CNN code, however, is a Keras implementation of a CNN and requires
 the system suport Keras python input, etc.
 
-![Alt text](/block_diagram.png?raw=true "Mini-ERA" | width=100)
+<img src="/block_diagram.png" width="500">
 
 
 ## Installation and Building
