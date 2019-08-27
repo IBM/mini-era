@@ -55,15 +55,24 @@ def _get_images_labels(dsplit):
   labels = labels_t 
   return features,labels
 
-def predict(imageid):
+def predict(imagetype):
   K.set_image_data_format('channels_first')
+  if imagetype == 4:
+      imageid = np.random.randint(4000,4999)
+  elif imagetype == 3:
+      imageid = np.random.randint(3000,3999)
+  elif imagetype == 2:
+      imageid = np.random.randint(2000,2999)
+  elif imagetype == 1:
+      imageid = np.random.randint(1000,1999)
+  else: 
+      imageid = np.random.randint(0,999)
+  print('Received image type',imagetype)
 
-  print("received image type",imageid)
   test_image = np.zeros((1, num_channels, img_size, img_size), np.float32)
   test_features,test_labels = _get_images_labels('test')
   test_image[0,:,:,:] = test_features[imageid,:,:,:]
   model = mio_model()
-
   model.load_weights(run_dir + 'model.h5')
 
   outputs = model.predict(test_image, batch_size=batch_size)
@@ -71,6 +80,7 @@ def predict(imageid):
   predicted_labels=np.reshape(predicted_labels_t, [predicted_labels_t.size, 1])
   print("Predicted Label:")
   print(predicted_labels[0,0])
+  return predicted_labels[0,0]
     
   # translate_to_approxhpvm(model, "data/lenet_hpvm/", X_test, Y_test, num_classes)
 
@@ -82,18 +92,7 @@ def main(argv):
   parser.add_argument("-t", "--objecttype", type=int, help="Class from the road object trace")
 
   args = parser.parse_args()
-  if args.objecttype == 4:
-      imageid = np.random.randint(4000,4999)
-  elif args.objecttype == 3:
-      imageid = np.random.randint(3000,3999)
-  elif args.objecttype == 2:
-      imageid = np.random.randint(2000,2999)
-  elif args.objecttype == 1:
-      imageid = np.random.randint(1000,1999)
-  else: 
-      imageid = np.random.randint(0,999)
-
-  predict(imageid)  
+  predict(args.objecttype)  
 
 if __name__ == "__main__":   
   main(sys.argv[1:])

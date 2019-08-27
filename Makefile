@@ -7,11 +7,12 @@ CFLAGS +=  -Xlinker -export-dynamic
 #CFLAGS += -DVERBOSE 
 
 INCLUDES =  
+PYTHONINCLUDES = -I/usr/include/python3.6m
 LFLAGS = -Lviterbi -Lradar 
 #LFLAGS += 
 #LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
 LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
-
+PYTHONLIBS = -lpython3.6m
 # The full mini-era target, etc.
 TARGET = main
 SRC = kernels_api.c main.c
@@ -30,16 +31,16 @@ G_SRC 	= gen_trace.c
 G_OBJ	= $(G_SRC:%.c=obj/%.o)
 
 $(TARGET): $(OBJ) libviterbi libfmcwdist
-	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) -o $@.exe $(LFLAGS) $(LIBS)
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 $(C_TARGET): $(C_OBJ) libviterbi libfmcwdist
-	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) -o $@.exe $(LFLAGS) $(LIBS)
+	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 v$(TARGET): $(OBJ_V) libviterbi libfmcwdist
-	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) -o $@.exe $(LFLAGS) $(LIBS)
+	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 v$(C_TARGET): $(C_OBJ_V) libviterbi libfmcwdist
-	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) -o $@.exe $(LFLAGS) $(LIBS)
+	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 
 all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) test tracegen
@@ -59,16 +60,16 @@ libfmcwdist:
 
 
 obj/%.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 obj_v/%.o: %.c
-	$(CC) $(CFLAGS) -DVERBOSE -o $@ -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 obj_c/%.o: %.c
-	$(CC) $(CFLAGS) -DBYPASS_KERAS_CV_CODE -o $@ -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 obj_cv/%.o: %.c
-	$(CC) $(CFLAGS) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 clean:
 	$(RM) $(TARGET).exe $(OBJ)
