@@ -18,7 +18,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "kernels_api.h"
-
+#include <stdlib.h>
 
 char * cv_dict  = "objects_dictionary.dfn";
 char * rad_dict = "radar_dictionary.dfn";

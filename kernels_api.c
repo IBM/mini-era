@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-//#include <python2.7/Python.h>
+#include <Python.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -28,14 +28,18 @@
 #include "radar/calc_fmcw_dist.h"
 
 
+PyObject *pName, *pModule, *pFunc;
+PyObject *pArgs, *pValue, *pretValue;
+#define PY_SSIZE_T_CLEAN
 
+char *python_module = "mio";
+char *python_func = "predict";	  
 
 /* File pointers to the computer vision, radar and Viterbi decoding traces */
 FILE *cv_trace = NULL;
 FILE *rad_trace = NULL;
 FILE *vit_trace = NULL;
 
-char* keras_python_file;
 
 /* These are some top-level defines needed for CV kernel */
 #define IMAGE_SIZE  32  // What size are these?
@@ -90,53 +94,6 @@ extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, 
 
 
 
-status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
-{
-  DEBUG(printf("In the init_cv_kernel routine\n"));
-  // Read in the object images dictionary file
-  FILE *dictF = fopen(dict_fn,"r");
-  if (!dictF)
-  {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-  // Read the number of definitions
-  fscanf(dictF, "%u\n", &num_cv_dictionary_items);
-  DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
-  the_cv_object_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
-  if (the_cv_object_dict == NULL) 
-  {
-    printf("ERROR : Cannot allocate Cv Trace Dictionary memory space");
-    return error;
-  }
-
-  for (int di = 0; di < num_cv_dictionary_items; di++) {
-    unsigned entry_id;
-    unsigned object_id;
-    fscanf(dictF, "%u %u", &entry_id, &object_id);
-    DEBUG(printf("  Reading dictionary entry %u : %u %u\n", di, entry_id, object_id));
-    the_cv_object_dict[di].image_id = entry_id;
-    the_cv_object_dict[di].object   = object_id;
-    for (int i = 0; i < IMAGE_SIZE; i++) {
-      unsigned fin;
-      fscanf(dictF, "%u", &fin);
-      the_cv_object_dict[di].image_data[i] = fin;
-    }
-  }
-  fclose(dictF);
-
-  /* Now open the trace file */
-  cv_trace = fopen(trace_filename,"r");
-  if (!cv_trace)
-  {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-
-  keras_python_file = py_file;
-
-  return success;
-}
 
 status_t init_rad_kernel(char* trace_filename, char* dict_fn)
 {
@@ -274,6 +231,66 @@ status_t init_vit_kernel(char* trace_filename, char* dict_fn)
   return success;
 }
 
+status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
+{
+  DEBUG(printf("In the init_cv_kernel routine\n"));
+  // Read in the object images dictionary file
+  FILE *dictF = fopen(dict_fn,"r");
+  if (!dictF)
+  {
+    printf("Error: unable to open trace file %s\n", trace_filename);
+    return error;
+  }
+  // Read the number of definitions
+  fscanf(dictF, "%u\n", &num_cv_dictionary_items);
+  DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
+  the_cv_object_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
+  if (the_cv_object_dict == NULL) 
+  {
+    printf("ERROR : Cannot allocate Cv Trace Dictionary memory space");
+    return error;
+  }
+
+  for (int di = 0; di < num_cv_dictionary_items; di++) {
+    unsigned entry_id;
+    unsigned object_id;
+    fscanf(dictF, "%u %u", &entry_id, &object_id);
+    DEBUG(printf("  Reading dictionary entry %u : %u %u\n", di, entry_id, object_id));
+    the_cv_object_dict[di].image_id = entry_id;
+    the_cv_object_dict[di].object   = object_id;
+    for (int i = 0; i < IMAGE_SIZE; i++) {
+      unsigned fin;
+      fscanf(dictF, "%u", &fin);
+      the_cv_object_dict[di].image_data[i] = fin;
+    }
+  }
+  fclose(dictF);
+
+  /* Now open the trace file */
+  cv_trace = fopen(trace_filename,"r");
+  if (!cv_trace)
+  {
+    printf("Error: unable to open trace file %s\n", trace_filename);
+    return error;
+  }
+
+  ;
+  // Initialization to run Keras CNN code 
+  Py_Initialize();
+  pName = PyUnicode_DecodeFSDefault(python_module);
+  pModule = PyImport_Import(pName);
+  Py_DECREF(pName);
+
+  if (pModule == NULL) {
+     PyErr_Print();
+     fprintf(stderr, "Failed to load Python program, perhaps pythonpath needs to be set");
+     return 1;
+  }
+  
+  return success;
+}
+
+
 bool_t eof_cv_kernel()
 {
   return feof(cv_trace);
@@ -292,7 +309,7 @@ bool_t eof_vit_kernel()
 }
 
 
-label_t run_object_classification(unsigned tr_val) 
+label_t run_object_classification_syscall(unsigned tr_val) 
 {
   DEBUG(printf("Entered run_object_classification...\n"));
   label_t object;	
@@ -300,7 +317,7 @@ label_t run_object_classification(unsigned tr_val)
   object = (label_t)tr_val;
 #else
   char shell_cmd[100];
-  snprintf(shell_cmd, sizeof(shell_cmd), "sh cnn_shell.sh %s", "some_args");
+  snprintf(shell_cmd, sizeof(shell_cmd), "sh cnn_shell.sh %u", tr_val);
   DEBUG(printf("  Invoking CV CNN using `%s`\n", shell_cmd));
   FILE *testing = popen(shell_cmd, "r");
   if (testing == NULL)
@@ -323,6 +340,57 @@ label_t run_object_classification(unsigned tr_val)
   return object;  
 }
 
+label_t run_object_classification(unsigned tr_val) 
+{
+  DEBUG(printf("Entered run_object_classification...\n"));
+  label_t object;	
+#ifdef BYPASS_KERAS_CV_CODE
+  object = (label_t)tr_val;
+#else
+  if (pModule != NULL) {
+          pFunc = PyObject_GetAttrString(pModule, python_func);
+  
+	  if (pFunc && PyCallable_Check(pFunc)) {
+	     pArgs = PyTuple_New(1);
+	     pValue = PyLong_FromLong(tr_val);
+	     if (!pValue) {
+		Py_DECREF(pArgs);
+		Py_DECREF(pModule);
+		fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
+		return 1;
+	      }
+	      PyTuple_SetItem(pArgs, 0, pValue);
+	      pretValue = PyObject_CallObject(pFunc, pArgs);
+	      Py_DECREF(pArgs);
+	      if (pretValue != NULL) {
+		printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue));
+		Py_DECREF(pretValue);
+	      }
+	      else {
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+		PyErr_Print();
+		printf("Trying to run CNN kernel : Python function call failed\n");
+		return 1;
+	       }
+	   }
+	   else {
+	      if (PyErr_Occurred())
+	      PyErr_Print();
+	      printf("Cannot find python function");
+	    }
+    //Py_DECREF(pModule);
+	  DEBUG(printf("Label Prediction done \n"));
+	  int val = PyLong_AsLong(pretValue);    
+	  object = (label_t)val;
+          DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+   }
+   
+   Py_XDECREF(pFunc);
+	  
+#endif
+  return object;  
+}
 
 label_t iterate_cv_kernel(vehicle_state_t vs)
 {
@@ -332,18 +400,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
     printf("      : Are the traces inconsistent lengths?\n");
     exit(-1);
   }
-  /* Call Keras python functions */
 
-  /* NEED to enable this 
-  Py_Initialize();
-
-  PyObject* pName = PyString_FromString(keras_python_file);
-
-  PyObject* pModule = PyImport_Import(pName);
-  */
-
-  /* 1) Read the next image frame from the trace */
-  /* fread( ... ); */
   char     tr_obj_vals[3];
   unsigned tr_dist_vals[3];
   fscanf(cv_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
@@ -586,6 +643,13 @@ void closeout_cv_kernel()
 {
   float label_correct_pctg = (100.0*label_match)/(1.0*label_lookup);
   printf("\nFinal CV CNN Accuracy: %u correct of %u classifications = %.2f%%\n", label_match, label_lookup, label_correct_pctg);
+
+#ifdef BYPASS_KERAS_CV_CODE
+    Py_DECREF(pModule);
+    if (Py_FinalizeEx() < 0) {
+           return;
+    }
+#endif   
 }
 
 void closeout_rad_kernel()
