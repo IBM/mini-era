@@ -32,6 +32,8 @@ PyObject *pName, *pModule, *pFunc;
 PyObject *pArgs, *pValue, *pretValue;
 #define PY_SSIZE_T_CLEAN
 
+char *python_module = "mio";
+char *python_func = "predict";	  
 
 /* File pointers to the computer vision, radar and Viterbi decoding traces */
 FILE *cv_trace = NULL;
@@ -274,22 +276,17 @@ status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
 
   ;
   // Initialization to run Keras CNN code 
-  char *python_module = "mio";
-  char *python_func = "predict";	  
   Py_Initialize();
   pName = PyUnicode_DecodeFSDefault(python_module);
   pModule = PyImport_Import(pName);
   Py_DECREF(pName);
 
-  if (pModule != NULL) {
-     pFunc = PyObject_GetAttrString(pModule, python_func);
-  }
-  else {
+  if (pModule == NULL) {
      PyErr_Print();
      fprintf(stderr, "Failed to load Python program, perhaps pythonpath needs to be set");
      return 1;
   }
-
+  
   return success;
 }
 
@@ -350,44 +347,47 @@ label_t run_object_classification(unsigned tr_val)
 #ifdef BYPASS_KERAS_CV_CODE
   object = (label_t)tr_val;
 #else
-  if (pFunc && PyCallable_Check(pFunc)) {
-     pArgs = PyTuple_New(1);
-     pValue = PyLong_FromLong(tr_val);
-     if (!pValue) {
-        Py_DECREF(pArgs);
-        Py_DECREF(pModule);
-        fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
-	return 1;
-      }
-      PyTuple_SetItem(pArgs, 0, pValue);
-      pretValue = PyObject_CallObject(pFunc, pArgs);
-      Py_DECREF(pArgs);
-      if (pretValue != NULL) {
-        printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue));
-        Py_DECREF(pretValue);
-      }
-      else {
-        Py_DECREF(pFunc);
-        Py_DECREF(pModule);
-        PyErr_Print();
-        printf("Trying to run CNN kernel : Python function call failed\n");
-        return 1;
-       }
-   }
-   else {
-      if (PyErr_Occurred())
-      PyErr_Print();
-      printf("Cannot find python function");
-    }
-    //Py_XDECREF(pFunc);
-    //Py_DECREF(pModule);
-     
-
-  DEBUG(printf("Label Prediction done \n"));
-  int val = PyLong_AsLong(pretValue);    
-  object = (label_t)val;
+  if (pModule != NULL) {
+          pFunc = PyObject_GetAttrString(pModule, python_func);
   
-  DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+	  if (pFunc && PyCallable_Check(pFunc)) {
+	     pArgs = PyTuple_New(1);
+	     pValue = PyLong_FromLong(tr_val);
+	     if (!pValue) {
+		Py_DECREF(pArgs);
+		Py_DECREF(pModule);
+		fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
+		return 1;
+	      }
+	      PyTuple_SetItem(pArgs, 0, pValue);
+	      pretValue = PyObject_CallObject(pFunc, pArgs);
+	      Py_DECREF(pArgs);
+	      if (pretValue != NULL) {
+		printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue));
+		Py_DECREF(pretValue);
+	      }
+	      else {
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+		PyErr_Print();
+		printf("Trying to run CNN kernel : Python function call failed\n");
+		return 1;
+	       }
+	   }
+	   else {
+	      if (PyErr_Occurred())
+	      PyErr_Print();
+	      printf("Cannot find python function");
+	    }
+    //Py_DECREF(pModule);
+	  DEBUG(printf("Label Prediction done \n"));
+	  int val = PyLong_AsLong(pretValue);    
+	  object = (label_t)val;
+          DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+   }
+   
+   Py_XDECREF(pFunc);
+	  
 #endif
   return object;  
 }
@@ -644,9 +644,12 @@ void closeout_cv_kernel()
   float label_correct_pctg = (100.0*label_match)/(1.0*label_lookup);
   printf("\nFinal CV CNN Accuracy: %u correct of %u classifications = %.2f%%\n", label_match, label_lookup, label_correct_pctg);
 
+#ifdef BYPASS_KERAS_CV_CODE
+    Py_DECREF(pModule);
     if (Py_FinalizeEx() < 0) {
            return;
     }
+#endif   
 }
 
 void closeout_rad_kernel()
