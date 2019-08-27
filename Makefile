@@ -1,10 +1,8 @@
-SCC = gcc
+CC = gcc
 
 CFLAGS = -pedantic -Wall -O0 -g
 #CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
 CFLAGS +=  -Xlinker -export-dynamic
-#UNCOMMENT FOR DEBUG-MESSAGES:
-#CFLAGS += -DVERBOSE 
 
 INCLUDES =  
 LFLAGS = -Lviterbi -Lradar 
@@ -25,6 +23,7 @@ C_OBJ_V = $(SRC:%.c=obj_cv/%.o)
 
 T_SRC 	= sim_environs.c
 T_OBJ	= $(T_SRC:%.c=obj/%.o)
+T_OBJ_V = $(T_SRC:%.c=obj_v/%.o)
 
 G_SRC 	= gen_trace.c
 G_OBJ	= $(G_SRC:%.c=obj/%.o)
@@ -42,11 +41,14 @@ v$(C_TARGET): $(C_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) -o $@.exe $(LFLAGS) $(LIBS)
 
 
-all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) test tracegen
+all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) test vtest tracegen
 
 
 test: $(T_OBJ) test.c
 	$(CC) $(T_OBJ) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
+
+vtest: $(T_OBJ_V) test.c
+	$(CC) $(T_OBJ_V) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
 
 tracegen: $(G_OBJ)
 	$(CC) $(G_OBJ) $(CFLAGS) $(INCLUDES) -o $@ 
@@ -99,7 +101,10 @@ obj_cv/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 obj_cv/kernels_api.o: radar/calc_fmcw_dist.h
 
 obj/sim_environs.o: sim_environs.h
-obj/sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
+
+obj_v/sim_environs.o: sim_environs.h
+
+#obj/sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
 
 obj/gen_trace.o: gen_trace.h
 

@@ -22,28 +22,19 @@
 
 /* These are structures, etc. used in the environment */
 
-object_state_t* the_world[5][13]; // This is [lane][y-posn]
-object_state_t* the_objects;      // This is the master list of all currently live objects in the world.
-object_state_t my_car;
+// This is the master list of all currently live objects in the world.
+//  This is a sorted list (by distance) of objects per lane
+unsigned global_object_id = 0;
+object_state_t* the_objects[5];
 
-char get_vis_char_of_object(object_state_t* world_objp) 
-{
-  char c;
-  switch(world_objp->object) {
-  case myself     : c = '*'; break;
-  case no_label   : c = '?'; break;
-  case car        : c = 'C'; break;
-  case truck      : c = 'T'; break;
-  case pedestrian : c = 'P'; break;
-  case bicycle    : c = 'B'; break;
-  default: c = '#'; break;
-  }
-  return c;
-}
+// This represents my car.
+object_state_t my_car;		
+
+
 
 void
-print_object(object_state_t* st, int x, int y) {
-  printf(" Object ");
+print_object(object_state_t* st) {
+  printf(" Object # %u ", st->obj_id);
   switch(st->object) {
   case myself: printf("My_Car "); break;
   case no_label : printf("No_Label "); break;
@@ -53,7 +44,7 @@ print_object(object_state_t* st, int x, int y) {
   case bicycle : printf("Bike "); break;
   default: printf("ERROR "); 
   }
-  printf("in ");
+  printf("size %.1f in ", st->size);
   switch(st->lane) {
   case lhazard : printf(" L-Hazard "); break;
   case left : printf(" Left "); break;
@@ -62,31 +53,23 @@ print_object(object_state_t* st, int x, int y) {
   case rhazard : printf(" R-Hazard "); break;
   default: printf("ERROR "); 
   }  
-  printf("at x %d y %d speed %u\n", x, y, st->speed);
+  printf("at distance %.1f speed %u\n", st->distance, st->speed);
 }  
 
 
 void
 init_sim_environs()
 {
-  for (int x = 0; x < 5; x++) {
-    for (int y = 0; y < 13; y++) {
-      the_world[x][y] = NULL;
-    }
+  for (int i = 0; i < 5; i++) {
+    the_objects[i] = NULL;
   }
-
-  the_objects = NULL;
 
   // Set up the default initial state of my car: Middle lane at medium speed.
   my_car.lane = center;
   my_car.object = myself;
-  my_car.speed = 2;
+  my_car.speed = 50;
   my_car.previous = NULL;	// not used for my_car
   my_car.next = NULL;		// not used for my_car
-  my_car.ahead_in_lane = NULL;	// not used for my_car
-  my_car.behind_in_lane = NULL; // not used for my_car
-
-  init_vit_kernel("vit_trace_v04.tr"); // Only gets dictionary!
 }
 
 
@@ -103,61 +86,77 @@ iterate_sim_environs()
 {
   // For each lane in the world
   for (int x = 0; x < 5; x++) {
-    // Move from y=12 downto y=0 and advance all objects in the world
-    for (int y = 12; y >= 0; y--) {
-      object_state_t* elem_p = the_world[x][y];
-      if (elem_p != NULL) { // We have an object at [x][y]
-	int delta_speed = my_car.speed - elem_p->speed;
-	int ny = y + delta_speed;
-	if (ny > 12) { // Object is "off the world" (we've passed it completely)
-	  // Delete the object from the universe!
-	  if (elem_p->next != NULL) {
-	    if (elem_p->previous != NULL) {
-	      elem_p->previous->next = elem_p->next;
-	      //} else {
-	      //elem_p->previous->next = NULL;
-	    }
-	  }
-	  //delete elem_p;
-	  the_world[x][y] = NULL;
-	} else if (delta_speed != 0) { // This object will move and still be in the world
-	  if (the_world[x][ny] != NULL) {
-	    printf("ERROR : cannot move object from [%d][%d] to [%d][%d]\n", x, y, x, ny);
-	    print_object(elem_p, x, y);
-	    //exit(-1);
-	  }
-	  the_world[x][ny] = elem_p;
-	  the_world[x][y] = NULL;
+    // Iterate through the objects in the lane from farthest to closest
+    // If this obstacle would move "past" (or "through") another obstacle,
+    //   adjust that obstacle's speed (downward) and check it will not collide
+    object_state_t* obj = the_objects[x];
+    float behind = MAX_DISTANCE;
+    while (obj != NULL) {
+      int delta_dist = my_car.speed - obj->speed;
+      float new_dist  = (obj->distance - (1.0 * delta_dist));
+      DEBUG(printf(" Lane %u ddist %d to new_dist %.1f for", x, delta_dist, new_dist); print_object(obj)); 
+      if (new_dist < 0) { // Object is "off the world" (we've passed it completely)
+	DEBUG(printf("  new_dist < 0 --> drop object from environment\n");
+	      printf("   OBJ :"); print_object(obj);
+	      printf("   LIST:"); print_object(the_objects[x]);
+	      if (obj->next != NULL) { printf("   NEXT:"); print_object(obj->next); }
+	      if (obj->previous != NULL) { printf("   PREVIOUS:"); print_object(obj->previous); }
+	      );
+	// Delete the object from the universe!
+	if (obj->previous != NULL) {
+	    obj->previous->next = obj->next;
 	}
+	if (obj->next != NULL) {
+	  obj->next->previous = obj->previous;
+	}
+	if (the_objects[x] == obj) {
+	  the_objects[x] = obj->next;
+	}
+      } else {
+	if (new_dist > behind) { //obj->previous->distance >= obj->distance) {
+	  // We would collide with the car behind us -- slow down
+	  unsigned slower = (int)(new_dist - behind + 0.999);
+	  obj->distance = behind;
+	  obj->speed -= slower;
+	  DEBUG(printf("  new_dist %.1f > %.1f behind value : speed drops to %u\n", new_dist, behind, obj->speed));
+	} else {
+	  obj->distance = new_dist;
+	}
+	behind = obj->distance - MIN_OBJECT_DIST;
+	DEBUG(printf("  RESULT: Lane %u OBJ", x); print_object(obj));
       }
-    }	
+      obj = obj->next; // move to the next object
+    }
   }
-
+  
   // Now determine for each major lane (i.e. Left, Middle, Right) 
   //   whether to add a new object or not...
   for (int x = 1; x < 4; x++) {
-    if (the_world[x][0] == NULL) { // There is a space for a new object
+    object_state_t * pobj = the_objects[x];
+    if ((pobj == NULL) || (pobj->distance < (MAX_DISTANCE - MAX_OBJECT_SIZE - MIN_OBJECT_DIST))) {
+      // There is space for a new object to enter
       int num = (rand() % (100)); // Return a value from [0,99]
       if (num > 90) {
         // Create a new object (car) and add it to the lane at position [x][0]
         object_state_t* no_p = (object_state_t*)calloc(1, sizeof(object_state_t));
+	no_p->obj_id = global_object_id++;
 	no_p->lane = x;
 	//no_p->object = car; break;
 	int objn = (rand() % 4); // Return a value from [0,99]
 	switch(objn) { 
-	case 0: no_p->object = car; break;
-	case 1: no_p->object = truck; break;
-	case 2: no_p->object = pedestrian; break;
-	case 3: no_p->object = bicycle; break;
+	case 0: no_p->object = car;        no_p->speed = 40;  no_p->size =  5.0; break;
+	case 1: no_p->object = truck;      no_p->speed = 30;  no_p->size = 10.0; break;
+	case 2: no_p->object = pedestrian; no_p->speed = 10;  no_p->size =  2.0; break;
+	case 3: no_p->object = bicycle;    no_p->speed = 20;  no_p->size =  5.0; break;
 	}
-	no_p->speed = 1;
+	no_p->distance = MAX_DISTANCE;
 	no_p->previous = NULL;
-	no_p->next = the_objects;
-	the_objects = no_p;
-	no_p->ahead_in_lane = NULL;
-	no_p->behind_in_lane = NULL; // FIXME
-	the_world[x][0] = no_p;
-	printf("Adding "); print_object(no_p, x, 0);
+	no_p->next = the_objects[x];
+	if (the_objects[x] != NULL) {
+	  the_objects[x]->previous = no_p;
+	}
+	the_objects[x] = no_p;
+	printf("Adding"); print_object(no_p);
       }
     }
   }
@@ -168,6 +167,7 @@ iterate_sim_environs()
   //  Use this to determine my_car's input data, e.g. 
   //  safe_to_move_L/R, etc.
   // NOTE: Currently I am ignoring moving INTO the hazard lanes...
+  /**
   message_t viterbi_in_state = -1;
   switch (my_car.lane) {
   case lhazard : 
@@ -215,185 +215,28 @@ iterate_sim_environs()
   }
   printf(" viterbi_in_state = %d\n", viterbi_in_state);
   do_viterbi_work(viterbi_in_state, false); // set "true" for debug output
-  
+  **/
 }
 
 
 void
 visualize_world()
 {
-  // For each position (distance)
-  for (int y = 0; y < 10; y++) {
-    // For each lane in the world
-    printf("%2d : ", y);
-    for (int x = 0; x < 5; x++) {
-      printf("| ");
-      if (the_world[x][y] == NULL) {
-	printf("  ");
-      } else {
-	//printf("X ");
-	printf("%c ", get_vis_char_of_object(the_world[x][y]));
-      }
-    }
-    printf("|\n");
-  }
-  
-  printf("%2d : ", 10);
+  // For each lane 
   for (int x = 0; x < 5; x++) {
-    printf("| ");
-    if (x == my_car.lane) {
-      printf("* ");
-    } else if (the_world[x][10] == NULL) {
-      printf("  ");
-    } else {
-      //printf("X ");
-      printf("%c ", get_vis_char_of_object(the_world[x][10]));
-    }
-  }
-  printf("|\n");
-
-  for (int y = 11; y < 13; y++) {
-    // For each lane in the world
-    printf("%2d : ", y);
-    for (int x = 0; x < 5; x++) {
-      printf("| ");
-      if (the_world[x][y] == NULL) {
-	printf("  ");
-      } else {
-	//printf("X ");
-	printf("%c ", get_vis_char_of_object(the_world[x][y]));
+    // List the objects in the lane
+    object_state_t* pobj = the_objects[x];
+    if (pobj != NULL) {
+      printf("Lane %u has :", x);
+      while (pobj != NULL) {
+	print_object(pobj);
+	pobj = pobj->next;
       }
+    } else {
+      printf("Lane %u is empty\n", x);
     }
-    printf("|\n");
   }
   printf("\n\n");
-}
-
-
-
-/* These are types, functions, etc. required for VITERBI */
-#include "viterbi/utils.h"
-#include "viterbi/viterbi_decoder_generic.h"
-#include "viterbi/base.h"
-
-/* These are some top-level defines needed for VITERBI */
-typedef struct {
-  unsigned int msg_id;
-  ofdm_param   ofdm_p;
-  frame_param  frame_p;
-  uint8_t      in_bits[MAX_ENCODED_BITS];
-} vit_dict_entry_t;
-
-uint8_t descramble[1600]; // I think this covers our max use cases
-uint8_t actual_msg[1600];
-
-unsigned int      num_dictionary_items = 0;
-vit_dict_entry_t* the_viterbi_trace_dict;
-
-extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
-
-
-status_t 
-init_vit_kernel(char* trace_filename)
-{
-  FILE * vit_trace = fopen(trace_filename,"r");
-  if (!vit_trace) {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-
-  // Read in the trace message dictionary from the trace file
-  // Read the number of messages
-  fscanf(vit_trace, "%u\n", &num_dictionary_items);
-  printf("Reading in %u Vitberi Message Dictionary entries...\n", num_dictionary_items);
-  the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_dictionary_items, sizeof(vit_dict_entry_t));
-  if (the_viterbi_trace_dict == NULL) {
-    printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
-    return error;
-  }
-
-  // Read in each dictionary item
-  for (int i = 0; i < num_dictionary_items; i++)  {
-    //fscanf(vit_trace, "%u\n", &the_viterbi_trace_dict[i].msg_id);
-    the_viterbi_trace_dict[i].msg_id = i;
-    printf("Reading in Message %u\n", the_viterbi_trace_dict[i].msg_id);
-
-    int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    fscanf(vit_trace, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
-    the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
-    the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
-    the_viterbi_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
-    the_viterbi_trace_dict[i].ofdm_p.n_dbps     = in_dbps;
-    the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
-
-    int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    fscanf(vit_trace, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
-    the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
-    the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
-    the_viterbi_trace_dict[i].frame_p.n_pad          = in_pad;
-    the_viterbi_trace_dict[i].frame_p.n_encoded_bits = in_encoded_bits;
-    the_viterbi_trace_dict[i].frame_p.n_data_bits    = in_data_bits;
-
-    int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
-    printf("  and which has %u input bits\n", num_in_bits);
-    for (int ci = 0; ci < num_in_bits; ci++) { 
-      unsigned c;
-      fscanf(vit_trace, "%u ", &c); 
-      the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
-    }
-  }
-
-  return success;
-}
-
-
-
-message_t 
-do_viterbi_work(message_t in_msg, bool_t debug)
-{
-  unsigned tr_val = in_msg;
-  
-  char the_msg[1600]; // Return from decode; large enough for any of our messages
-  message_t msg;      // The output from this routine
-
-  vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
-  if (debug) { printf("In do_viterbi_work for message %d\n", in_msg); }
-
-  switch(tr_val) {
-  case 0: // safe_to_move_right_or_left
-    trace_msg = &the_viterbi_trace_dict[0];
-    msg = safe_to_move_right_or_left;  // Cheating - already know output result.
-    break;
-  case 1: // safe_to_move_right
-    trace_msg = &the_viterbi_trace_dict[1];
-    msg = safe_to_move_right_only;  // Cheating - already know output result.
-    break;
-  case 2: // safe_to_move_left
-    trace_msg = &the_viterbi_trace_dict[2];
-    msg = safe_to_move_left_only;  // Cheating - already know output result.
-    break;
-  case 3: // unsafe_to_move_left_or_right
-    trace_msg = &the_viterbi_trace_dict[3];
-    msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
-    break;
-  }
-
-  // Send through the viterbi decoder
-  uint8_t *result;
-  if (debug) { printf("In do_viterbi_work calling decode\n"); }
-  result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
-  if (debug) { printf("In do_viterbi_work back from decode\n"); }
-
-  // descramble the output - put it in result
-  int psdusize = trace_msg->frame_p.psdu_size;
-  if (debug) { printf("In do_viterbi_work calling descrambler\n"); }
-  descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
-  if (debug) { printf("In do_viterbi_work back from descrambler\n"); }
-
-  // Can check contents of "the_msg" to determine which message;
-  //   here we "cheat" and return the message indicated by the trace.
-  if (debug) { printf("In do_viterbi_work creturning message %d\n", msg); }
-  return msg;
 }
 
 

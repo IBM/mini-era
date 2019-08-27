@@ -18,8 +18,18 @@
 #ifndef _sim_environs_h
 #define _sim_environs_h
 
+#ifdef VERBOSE
+ #define DEBUG(x) x
+#else
+ #define DEBUG(x)
+#endif
+
 /* Types definitions */
-typedef float distance_t;
+#define MAX_DISTANCE     500.0  // Max resolution distance of radar is < 500.0m
+#define MAX_OBJECT_SIZE   10.0  // Max size of an object
+#define MIN_OBJECT_DIST   MAX_OBJECT_SIZE
+
+typedef float distance_t; 
 typedef enum {false, true} bool_t;
 typedef enum {error, success} status_t;
 
@@ -44,13 +54,15 @@ typedef enum {
 
 /* Object state; includes lane, type of object, and speed (0, 1, 2, ...) */
 typedef struct obj_struct {
-  lane_t      lane;
+  unsigned    obj_id;
   label_t     object;
+  lane_t      lane;
   unsigned    speed;
+  distance_t  distance;
+  distance_t  size; // Size of object in distance_t units
+  
   struct obj_struct* previous;  // The previous object in the list
   struct obj_struct* next;      // The next object in the list
-  struct obj_struct* ahead_in_lane;
-  struct obj_struct* behind_in_lane;  
 } object_state_t;
 
 /* Pre-defined messages used by the Viterbi decoding kernel */
@@ -63,37 +75,26 @@ typedef enum {
 } message_t;
 
 
-/* This is the "world" which consists of the (5) lanes (horizontal) and N vertical slots (distances) *
+/* The "world" consists of the (5) lanes (horizontal) and N vertical distances *
  *       "x"     0         1         2         3       4
  *   "y"   | LHazard |   Left  |  Middle |  Right  | RHazard |
  *         |---------|---------|---------|---------|---------|
- *    0    |         |         |         | Truck   |         |
- *    1    |         |         |         |         |         |
- *    2    |         |  Car    |         |         |         |
- *    3    |         |         |         |         |         |
+ *    N    |         |         |         | Truck   |         |
+ *  N-1    |         |         |         |         |         |
+ *  N-2    |         |  Car    |         |         |         |
+ *  N-3    |         |         |         |         |         |
+ *  ...
  *    4    |         |         |         |         |         |
- *    5    |         |         |  Bike   |         |         |
- *    6    |         |         |         |         |         |
- *    7    |         |         |         |         |         |
- *    8    |         |         |         |         |         |
- *    9    |         |         |  Myself |         |         |
- *   10    |         |         |         |         |         |
- *   11    |         |  Pedest |         |         |         |
- *   12    |         |         |         |         |         |
+ *    3    |         |         |  Myself |         |         |
+ *    2    |         |         |         |         |         |
+ *    1    |         |  Pedest |         |         |         |
+ *    0    |         |         |         |         |         |
  */
 
-extern object_state_t* the_world[5][13]; // This is [lane][y-posn]
-
-
 // Function/interface declarations
-void print_object(object_state_t* st, int x, int y);
+void print_object(object_state_t* st);
 void init_sim_environs();
 void iterate_sim_environs();
 void visualize_world();
-
-status_t init_vit_kernel(char* trace_filename);
-message_t do_viterbi_work(message_t in_msg, bool_t debug);
-
-
 
 #endif
