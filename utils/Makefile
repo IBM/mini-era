@@ -13,9 +13,12 @@ INCLUDES =
 LIBS = -lm
 #PYTHONLIBS = -lpython3.6m
 
+OBJDIR = obj
+OBJ_V_DIR = obj_v
+
 T_SRC 	= sim_environs.c
-T_OBJ	= $(T_SRC:%.c=obj/%.o)
-T_OBJ_V = $(T_SRC:%.c=obj_v/%.o)
+T_OBJ	= $(T_SRC:%.c=$(OBJDIR)/%.o)
+T_OBJ_V = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
 
 G_SRC 	= gen_trace.c
 G_OBJ	= $(G_SRC:%.c=obj/%.o)
@@ -23,14 +26,21 @@ G_OBJ	= $(G_SRC:%.c=obj/%.o)
 all: test vtest tracegen
 
 
-test: $(T_OBJ) test.c
+test: $(OBJDIR) $(T_OBJ) test.c
 	$(CC) $(T_OBJ) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
 
-vtest: $(T_OBJ_V) test.c
+vtest: $(OBJ_V_DIR) $(T_OBJ_V) test.c
 	$(CC) $(T_OBJ_V) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
 
-tracegen: $(G_OBJ)
+tracegen: $(OBJDIR) $(G_OBJ)
 	$(CC) $(G_OBJ) $(CFLAGS) $(INCLUDES) -o $@ 
+
+obj:
+	mkdir obj
+
+obj_v:
+	mkdir obj_v
+
 
 obj/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
@@ -43,6 +53,9 @@ clean:
 	$(RM) vtest  $(T_OBJ_V)
 	$(RM) tracegen  $(G_OBJ)
 
+allclean: clean
+	$(RM) -rf $(OBJDIR)
+	$(RM) -rf $(OBJ_V_DIR)
 
 obj/sim_environs.o: sim_environs.h
 

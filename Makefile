@@ -11,16 +11,23 @@ LFLAGS = -Lviterbi -Lradar
 #LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
 LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
 PYTHONLIBS = -lpython3.6m
+
+OBJDIR = obj
+C_OBJDIR = obj_c
+OBJ_V_DIR = obj_v
+C_OBJ_V_DIR = obj_cv
+
+
 # The full mini-era target, etc.
 TARGET = main
 SRC = kernels_api.c main.c
-OBJ = $(SRC:%.c=obj/%.o)
-OBJ_V = $(SRC:%.c=obj_v/%.o)
+OBJ = $(SRC:%.c=$(OBJDIR)/%.o)
+OBJ_V = $(SRC:%.c=$(OBJ_V_DIR)/%.o)
 
 # The C-code only target (it bypasses KERAS Python code)
 C_TARGET = cmain
-C_OBJ = $(SRC:%.c=obj_c/%.o)
-C_OBJ_V = $(SRC:%.c=obj_cv/%.o)
+C_OBJ = $(SRC:%.c=$(C_OBJDIR)/%.o)
+C_OBJ_V = $(SRC:%.c=$(C_OBJ_V_DIR)/%.o)
 
 T_SRC 	= sim_environs.c
 T_OBJ	= $(T_SRC:%.c=obj/%.o)
@@ -29,16 +36,16 @@ T_OBJ_V = $(T_SRC:%.c=obj_v/%.o)
 G_SRC 	= utils/gen_trace.c
 G_OBJ	= $(G_SRC:%.c=obj/%.o)
 
-$(TARGET): $(OBJ) libviterbi libfmcwdist
+$(TARGET): $(OBJDIR)  $(OBJ) libviterbi libfmcwdist
 	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
-$(C_TARGET): $(C_OBJ) libviterbi libfmcwdist
+$(C_TARGET): $(C_OBJDIR) $(C_OBJ) libviterbi libfmcwdist
 	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
-v$(TARGET): $(OBJ_V) libviterbi libfmcwdist
+v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) libviterbi libfmcwdist
 	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
-v$(C_TARGET): $(C_OBJ_V) libviterbi libfmcwdist
+v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 
@@ -63,6 +70,17 @@ libviterbi:
 libfmcwdist:
 	cd radar; make
 
+obj:
+	mkdir obj
+
+obj_c:
+	mkdir obj_c
+
+obj_v:
+	mkdir obj_v
+
+obj_cv:
+	mkdir obj_cv
 
 obj/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
@@ -71,7 +89,7 @@ obj_v/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 obj_c/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 obj_cv/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
@@ -85,8 +103,14 @@ clean:
 	$(RM) tracegen  $(G_OBJ)
 
 allclean: clean
+	$(RM) -rf $(OBJDIR)
+	$(RM) -rf $(OBJ_V_DIR)
+	$(RM) -rf $(C_OBJDIR)
+	$(RM) -rf $(C_OBJ_V_DIR)
+	cd utils; make allclean
 	cd radar; make clean
 	cd viterbi; make clean
+
 
 obj/kernels_api.o: kernels_api.h 
 obj/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
