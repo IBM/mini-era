@@ -6,7 +6,7 @@ This is a top-level driver for the Mini-ERA workload.
 
 This version currently uses an input trace to drive the Mini-ERA behaviors, and the computer-vision, Viterbi and radar ranging functionality in the underlying kernels.
 
-There is an example trace (`test_trace.new`) to illustrate the funciton of the Mini-ERA, and a collection of dictionary files (e.g. `radar_dictionary.dfn`) which are used by the kernels in conjunction with the input trace to drive the proper kernel inputs (in response to the trace inputs).
+There is an example trace (`test_trace.new`) to illustrate the function of the Mini-ERA, and a collection of dictionary files (e.g. `radar_dictionary.dfn`) which are used by the kernels in conjunction with the input trace to drive the proper kernel inputs (in response to the trace inputs).
 
 
 ## Trace Format
@@ -31,7 +31,7 @@ In this implementation, the objects include:
   N - nothing
 ```
 
-In concert, the distances currently implemented are values between 0 and 11, corresponding to 50-meter increments from 0 to 500 (with the final value being "Infinity"). The following image illuestrates how a specific scenario at a given point in time is encoded in a trace entry:
+In concert, the distances currently implemented are values between 0 and 11, corresponding to 50-meter increments from 0 to 500 (with the final value being "Infinity"). The following image illustrates how a specific scenario at a given point in time is encoded in a trace entry:
 
 ```
   Distance | Left | Cntr | Right|
@@ -88,10 +88,10 @@ For each dictionary entry:
 
 ```
 4   	              - There are 4 messages in the dictionary
-1 48 24 0 13  	    - The OFDM paramteers for the first message (which is "Msg0")
+1 48 24 0 13  	    - The OFDM parameters for the first message (which is "Msg0")
 32 12 10 576 288    - The FRAME parameters for the first message (which is "Msg0")
 0 0 0 0 0 0 1 1 ... - The input bits for the first message (last bit ENDs this dictionary entry)
-1 48 24 0 13  	    - The OFDM paramteers for the second message (which is "Msg1")
+1 48 24 0 13  	    - The OFDM parameters for the second message (which is "Msg1")
 32 12 10 576 288    - The FRAME parameters for the second message (which is "Msg1")
 0 0 0 0 0 0 1 1 ... - The input bits for the second message (last bit ENDs this dictionary entry)
 ...
