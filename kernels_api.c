@@ -75,6 +75,8 @@ unsigned radar_total_calc = 0;
 unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
+#define INF_DISTANCE           550 // radar tops out at ~500m 
+#define RADAR_BUCKET_DISTANCE  50  // The radar is in steps of 50
 
 /* These are some top-level defines needed for VITERBI */
 typedef struct {
@@ -89,6 +91,8 @@ uint8_t actual_msg[1600];
 
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
+
+#define VIT_CLEAR_THRESHOLD  100
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
@@ -415,11 +419,11 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
     exit(-1);
   }
 
-  char     tr_obj_vals[3];
-  unsigned tr_dist_vals[3];
-  fscanf(cv_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
-  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
-  DEBUG(printf("  Tr_Obj : %c  %c  %c\n", tr_obj_vals[0], tr_obj_vals[1], tr_obj_vals[2]));
+  char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
+  unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+  fscanf(cv_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
+  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
+  DEBUG(printf("  Tr_Obj : %c  %c  %c\n", tr_obj_vals[1], tr_obj_vals[2], tr_obj_vals[3]));
 
   unsigned tr_val = 0; // Default nothing
   switch(tr_obj_vals[vs.lane]) {
@@ -459,13 +463,13 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   }
   /* 1) Read the next waveform from the trace */
   /* fread( ... ); */
-  char     tr_obj_vals[3];
-  unsigned tr_dist_vals[3];
-  fscanf(rad_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
-  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
-  DEBUG(printf("  Tr_Dist:  %u  %u  %u\n", tr_dist_vals[0], tr_dist_vals[1], tr_dist_vals[2]));
+  char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
+  unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+  fscanf(rad_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
+  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
+  DEBUG(printf("  Tr_Dist:  %u  %u  %u\n", tr_dist_vals[1], tr_dist_vals[2], tr_dist_vals[3]));
 
-  unsigned tr_val = tr_dist_vals[vs.lane];  // The proper message for this time step and car-lane
+  unsigned tr_val = tr_dist_vals[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
   
   distance_t ddist = the_radar_return_dict[tr_val].distance;
   distance_t dist;      // The output from this routine
@@ -540,24 +544,24 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
 
   /* 1) Read the next OFDM symbol (?) from the trace */
   /* fread( ... ); */
-  char     tr_obj_vals[3];
-  unsigned tr_dist_vals[3];
-  fscanf(vit_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
-  DEBUG(printf("  VitTrace: %c:%u,%c:%u,%c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
+  char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
+  unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+  fscanf(vit_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
+  DEBUG(printf("  VitTrace: %c:%u,%c:%u,%c:%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
 
-  unsigned tr_msg_vals[3] = { 1, 0, 2}; // Defaults for all lanes clear : LL = only R; CL = L or R; RL = only L
-  if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < 2)) { 
+  unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L
+  if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < VIT_CLEAR_THRESHOLD)) { 
     // Some object is in the Center lane at distance 0 or 1
-    tr_msg_vals[0] = 3; // Unsafe to move from left  lane to right or left.
-    tr_msg_vals[2] = 3; // Unsafe to move from right lane to right or left.
+    tr_msg_vals[1] = 3; // Unsafe to move from left  lane to right or left.
+    tr_msg_vals[3] = 3; // Unsafe to move from right lane to right or left.
   }
-  if ((tr_obj_vals[0] != 'N') && (tr_dist_vals[0] < 2)) { 
+  if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < VIT_CLEAR_THRESHOLD)) { 
     // Some object is in the Left lane at distance 0 or 1
-    tr_msg_vals[1] += 1; // Unsafe to move from center lane to the left.
+    tr_msg_vals[2] += 1; // Unsafe to move from center lane to the left.
   }
-  if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < 2)) { 
+  if ((tr_obj_vals[3] != 'N') && (tr_dist_vals[3] < VIT_CLEAR_THRESHOLD)) { 
     // Some object is in the Right lane at distance 0 or 1
-    tr_msg_vals[1] += 2; // Unsafe to move from center lane to the right.
+    tr_msg_vals[2] += 2; // Unsafe to move from center lane to the right.
   }
   
   DEBUG(printf("  Tr_Msgs: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2]));
@@ -638,7 +642,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   } else {
     // No obstacle-inspired lane change, so try now to occupy the center lane
     switch (vehicle_state.lane) {
-      /*case lhazard:*/
+    case lhazard:
     case left:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_right_only)) {
@@ -650,7 +654,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
       // No need to alter, already in the center
       break;
     case right:
-      /*case rhazard:*/
+    case rhazard:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_left_only)) {
 	DEBUG(printf("  Can_move_Left : Moving Left\n"));

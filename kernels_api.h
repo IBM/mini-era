@@ -31,7 +31,7 @@ typedef enum {error, success} status_t;
 
 typedef struct
 {
-  enum {/*lhazard,*/ left, center, right/*, rhazard*/} lane;
+  enum {lhazard, left, center, right, rhazard} lane;
   float speed;
 } vehicle_state_t;
 
@@ -59,6 +59,9 @@ typedef enum {
 #define THRESHOLD_1 105.0
 #define THRESHOLD_2 205.0
 #define THRESHOLD_3 305.0
+
+/* This is the number of lanes in the simulation */
+#define NUM_LANES   5
 
 /* Kernels initialization */
 status_t init_cv_kernel(char* tr_fn, char* py_file, char* dict_fn);
