@@ -549,23 +549,56 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   fscanf(vit_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
   DEBUG(printf("  VitTrace: %c:%u,%c:%u,%c:%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
 
-  unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L
-  if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < VIT_CLEAR_THRESHOLD)) { 
-    // Some object is in the Center lane at distance 0 or 1
-    tr_msg_vals[1] = 3; // Unsafe to move from left  lane to right or left.
-    tr_msg_vals[3] = 3; // Unsafe to move from right lane to right or left.
-  }
-  if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < VIT_CLEAR_THRESHOLD)) { 
-    // Some object is in the Left lane at distance 0 or 1
-    tr_msg_vals[2] += 1; // Unsafe to move from center lane to the left.
-  }
-  if ((tr_obj_vals[3] != 'N') && (tr_dist_vals[3] < VIT_CLEAR_THRESHOLD)) { 
-    // Some object is in the Right lane at distance 0 or 1
-    tr_msg_vals[2] += 2; // Unsafe to move from center lane to the right.
-  }
+  /* unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L */
+  /* if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < VIT_CLEAR_THRESHOLD)) {  */
+  /*   // Some object is in the Center lane at distance 0 or 1 */
+  /*   tr_msg_vals[1] = 3; // Unsafe to move from left  lane to right or left. */
+  /*   tr_msg_vals[3] = 3; // Unsafe to move from right lane to right or left. */
+  /* } */
+  /* if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < VIT_CLEAR_THRESHOLD)) {  */
+  /*   // Some object is in the Left lane at distance 0 or 1 */
+  /*   tr_msg_vals[2] += 1; // Unsafe to move from center lane to the left. */
+  /* } */
+  /* if ((tr_obj_vals[3] != 'N') && (tr_dist_vals[3] < VIT_CLEAR_THRESHOLD)) {  */
+  /*   // Some object is in the Right lane at distance 0 or 1 */
+  /*   tr_msg_vals[2] += 2; // Unsafe to move from center lane to the right. */
+  /* } */
   
-  DEBUG(printf("  Tr_Msgs: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2]));
-  unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane
+  /* DEBUG(printf("  Tr_Msgs: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2])); */
+  /* unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane */
+
+  unsigned tr_val;
+  switch (vs.lane) {
+  case lhazard:
+    if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < VIT_CLEAR_THRESHOLD)) {  
+      // Some object is in the left lane within threshold distance
+      tr_val = 3; // Unsafe to move from lhazard lane into the left lane 
+    } else {
+      tr_val = 1;
+    }
+    break;
+  case left:
+  case center:
+  case right:
+    tr_val = 0;
+    if ((tr_obj_vals[vs.lane-1] != 'N') && (tr_dist_vals[vs.lane-1] < VIT_CLEAR_THRESHOLD)) {
+      // Some object is in the Left lane at distance 0 or 1
+      tr_val += 1; // Unsafe to move from center lane to the left.
+    }
+    if ((tr_obj_vals[vs.lane+1] != 'N') && (tr_dist_vals[vs.lane+1] < VIT_CLEAR_THRESHOLD)) {
+      // Some object is in the Right lane at distance 0 or 1
+      tr_val += 2; // Unsafe to move from center lane to the right.
+    }
+    break;
+  case rhazard:
+    if ((tr_obj_vals[3] != 'N') && (tr_dist_vals[3] < VIT_CLEAR_THRESHOLD)) {
+      // Some object is in the right lane within threshold distance
+      tr_val = 3; // Unsafe to move from center lane to the right.
+    } else {
+      tr_val = 2;
+    }
+    break;
+  }
   
   char the_msg[1600]; // Return from decode; large enough for any of our messages
   message_t msg;      // The output from this routine
