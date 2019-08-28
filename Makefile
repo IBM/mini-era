@@ -45,14 +45,17 @@ v$(C_TARGET): $(C_OBJ_V) libviterbi libfmcwdist
 all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) test vtest tracegen
 
 
-test: $(T_OBJ) test.c
-	$(CC) $(T_OBJ) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
+utils:
+	cd utils; make all
 
-vtest: $(T_OBJ_V) test.c
-	$(CC) $(T_OBJ_V) $(CFLAGS) $(INCLUDES) -o $@ test.c $(LFLAGS) $(LIBS)
+test: 
+	cd utils; make test
 
-tracegen: $(G_OBJ)
-	$(CC) $(G_OBJ) $(CFLAGS) $(INCLUDES) -o $@ 
+vtest: 
+	cd utils; make vtest
+
+tracegen: 
+	cd utils; make tracegen
 
 libviterbi:
 	cd viterbi; make
