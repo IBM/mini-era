@@ -417,7 +417,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 
   char     tr_obj_vals[3];
   unsigned tr_dist_vals[3];
-  fscanf(cv_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
+  fscanf(cv_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
   DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
   DEBUG(printf("  Tr_Obj : %c  %c  %c\n", tr_obj_vals[0], tr_obj_vals[1], tr_obj_vals[2]));
 
@@ -461,7 +461,7 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
   /* fread( ... ); */
   char     tr_obj_vals[3];
   unsigned tr_dist_vals[3];
-  fscanf(rad_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
+  fscanf(rad_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
   DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
   DEBUG(printf("  Tr_Dist:  %u  %u  %u\n", tr_dist_vals[0], tr_dist_vals[1], tr_dist_vals[2]));
 
@@ -542,8 +542,8 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   /* fread( ... ); */
   char     tr_obj_vals[3];
   unsigned tr_dist_vals[3];
-  fscanf(vit_trace, "%c%u %c%u %c%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
-  DEBUG(printf("  Trace: %c%u %c%u %c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
+  fscanf(vit_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[0], &tr_dist_vals[0], &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2]); // Read next trace indicator
+  DEBUG(printf("  VitTrace: %c:%u,%c:%u,%c%u\n", tr_obj_vals[0], tr_dist_vals[0], tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2]));
 
   unsigned tr_msg_vals[3] = { 1, 0, 2}; // Defaults for all lanes clear : LL = only R; CL = L or R; RL = only L
   if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < 2)) { 
@@ -618,12 +618,49 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   if ((label != no_label) && (distance <= THRESHOLD_1))
   {
     switch (message) {
-      case safe_to_move_right_or_left   : new_vehicle_state.lane += 1; break; // prefer right lane
-      case safe_to_move_right_only      : new_vehicle_state.lane += 1; break;
-      case safe_to_move_left_only       : new_vehicle_state.lane -= 1; break;
-      case unsafe_to_move_left_or_right : new_vehicle_state.speed = 0; break; /* Stop!!! */
+      case safe_to_move_right_or_left   :
+	DEBUG(printf("   Safe_L_or_R : Moving Right\n"));
+	new_vehicle_state.lane += 1;
+	break; // prefer right lane
+      case safe_to_move_right_only      :
+	DEBUG(printf("   Safe_R_only : Moving Right\n"));
+	new_vehicle_state.lane += 1;
+	break;
+      case safe_to_move_left_only       :
+	DEBUG(printf("   Safe_L_Only : Moving Left\n"));
+	new_vehicle_state.lane -= 1;
+	break;
+      case unsafe_to_move_left_or_right :
+	DEBUG(printf("   No_Safe_Move : STOPPING\n"));
+	new_vehicle_state.speed = 0;
+	break; /* Stop!!! */
     }
-  }
+  } else {
+    // No obstacle-inspired lane change, so try now to occupy the center lane
+    switch (vehicle_state.lane) {
+    case lhazard:
+    case left:
+      if ((message == safe_to_move_right_or_left) ||
+	  (message == safe_to_move_right_only)) {
+	DEBUG(printf("  Can_move_Right: Moving Right\n"));
+	new_vehicle_state.lane += 1;
+      }
+      break;
+    case center:
+      // No need to alter, already in the center
+      break;
+    case right:
+    case rhazard:
+      if ((message == safe_to_move_right_or_left) ||
+	  (message == safe_to_move_left_only)) {
+	DEBUG(printf("  Can_move_Left : Moving Left\n"));
+	new_vehicle_state.lane += 1;
+      }
+      break;
+    }
+  } // else clause
+
+
   /** For now we'll igfnore other thresholds, etc.
   else if ((label != no_label) && (distance <= THRESHOLD_2))
   {

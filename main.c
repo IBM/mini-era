@@ -127,7 +127,6 @@ int main(int argc, char *argv[])
      */
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
-
   }
 
   /* All the traces have been fully consumed. Quitting... */
