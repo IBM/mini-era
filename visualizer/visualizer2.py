@@ -201,7 +201,7 @@ def main():
     # Trace format: 3 columns per epoch with the form XY
     #               where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck) and
     #               where Y is a 10-bit string representing distance from car (0 to 1023 in binary)
-    tr = 'traces/jd_trace.txt'
+    tr = './v2_trace.txt'
     mine, left, mid, right = parse_trace(tr)
     mine.reverse();
     left.reverse() # reverse list order so popping gives chronological order

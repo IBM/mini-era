@@ -26,7 +26,7 @@
 
 /* Types definitions */
 #define MAX_DISTANCE     500.0  // Max resolution distance of radar is < 500.0m
-#define MAX_OBJECT_SIZE   10.0  // Max size of an object
+#define MAX_OBJECT_SIZE   50.0  // Max size of an object
 #define MIN_OBJECT_DIST   MAX_OBJECT_SIZE
 
 typedef float distance_t; 
@@ -96,5 +96,5 @@ void print_object(object_state_t* st);
 void init_sim_environs();
 void iterate_sim_environs();
 void visualize_world();
-
+void dump_trace_record();
 #endif

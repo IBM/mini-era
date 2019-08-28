@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
   init_sim_environs();
 
   for (int i = 0; i < 1000; i++) {
-    printf("\n\nTime Step %d\n", i);
+    DEBUG(printf("\n\nTime Step %d\n", i));
     iterate_sim_environs();
     //visualize_world();
   }

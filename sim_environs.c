@@ -156,12 +156,13 @@ iterate_sim_environs()
 	  the_objects[x]->previous = no_p;
 	}
 	the_objects[x] = no_p;
-	printf("Adding"); print_object(no_p);
+	DEBUG(printf("Adding"); print_object(no_p));
       }
     }
   }
 
-  visualize_world();
+  DEBUG(visualize_world());
+  dump_trace_record();
 
   // Now we have the state for this (new) time step
   //  Use this to determine my_car's input data, e.g. 
@@ -237,6 +238,42 @@ visualize_world()
     }
   }
   printf("\n\n");
+}
+
+
+
+void
+dump_trace_record()
+{
+  // For each lane
+  DEBUG(printf("TRLN:"));
+  printf("%u", 2); // This is MY Car lane position
+  for (int x = 1; x < 4; x++) {
+    // List the objects in the lane
+    object_state_t* pobj = the_objects[x];
+    printf(",");
+    if (pobj != NULL) {
+      int num = 0;
+      while (pobj != NULL) {
+	if (num > 0) { printf(" "); }
+	switch(pobj->object) {
+	case myself     : printf("*:"); break;
+	case no_label   : printf("N:"); break;
+	case car        : printf("C:"); break;
+	case truck      : printf("T:"); break;
+	case pedestrian : printf("B:"); break;
+	case bicycle    : printf("B:"); break;
+	default: printf("ERROR "); 
+	}
+	printf("%u", (int)pobj->distance);
+	pobj = pobj->next;
+	num++;
+      }
+    } else {
+      printf("N:0");
+    }
+  }
+  printf("\n");
 }
 
 
