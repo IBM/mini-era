@@ -20,9 +20,9 @@
 #include "kernels_api.h"
 #include <stdlib.h>
 
-char * cv_dict  = "objects_dictionary.dfn";
-char * rad_dict = "radar_dictionary.dfn";
-char * vit_dict = "vit_dictionary.dfn";
+char * cv_dict  = "traces/objects_dictionary.dfn";
+char * rad_dict = "traces/radar_dictionary.dfn";
+char * vit_dict = "traces/vit_dictionary.dfn";
 
 int main(int argc, char *argv[])
 {
