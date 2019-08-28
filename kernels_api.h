@@ -31,7 +31,7 @@ typedef enum {error, success} status_t;
 
 typedef struct
 {
-  enum {lhazard, left, center, right, rhazard} lane;
+  enum {/*lhazard,*/ left, center, right/*, rhazard*/} lane;
   float speed;
 } vehicle_state_t;
 

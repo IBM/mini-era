@@ -638,7 +638,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   } else {
     // No obstacle-inspired lane change, so try now to occupy the center lane
     switch (vehicle_state.lane) {
-    case lhazard:
+      /*case lhazard:*/
     case left:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_right_only)) {
@@ -650,11 +650,11 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
       // No need to alter, already in the center
       break;
     case right:
-    case rhazard:
+      /*case rhazard:*/
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_left_only)) {
 	DEBUG(printf("  Can_move_Left : Moving Left\n"));
-	new_vehicle_state.lane += 1;
+	new_vehicle_state.lane -= 1;
       }
       break;
     }
