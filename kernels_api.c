@@ -331,7 +331,7 @@ label_t run_object_classification_syscall(unsigned tr_val)
   object = (label_t)tr_val;
 #else
   char shell_cmd[100];
-  snprintf(shell_cmd, sizeof(shell_cmd), "sh cnn_shell.sh %u", tr_val);
+  snprintf(shell_cmd, sizeof(shell_cmd), "sh utils/cnn_shell.sh %u", tr_val);
   DEBUG(printf("  Invoking CV CNN using `%s`\n", shell_cmd));
   FILE *testing = popen(shell_cmd, "r");
   if (testing == NULL)
