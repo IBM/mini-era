@@ -1,3 +1,8 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.npy
+
 # Prerequisites
 *.d
 
@@ -53,6 +58,5 @@ dkms.conf
 
 .project
 .DS_Store
-*.npy
 output.txt
 
