@@ -101,9 +101,9 @@ obj_cv/kernels_api.o: kernels_api.h
 obj_cv/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 obj_cv/kernels_api.o: radar/calc_fmcw_dist.h
 
-obj/sim_environs.o: sim_environs.h
+obj/sim_environs.o: utils/sim_environs.h
 
-obj_v/sim_environs.o: sim_environs.h
+obj_v/sim_environs.o: utils/sim_environs.h
 
 #obj/sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
 
