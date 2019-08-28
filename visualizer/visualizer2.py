@@ -11,6 +11,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+DARK_GREY = (231, 231, 231)
 LIGHT_GREY = (191, 191, 191)
 TANGERINE = (255, 210, 74)
 grass_color = (168, 235, 113)
@@ -21,8 +22,8 @@ bike_color = (1, 20, 59) # navy
 # Define screen info
 screen_width = 500
 screen_height = 500
-lane_width = screen_width / 5 # 3 lanes + 2 grass sides
-road_width = lane_width * 3 # 3 lanes
+lane_width = screen_width / 7 # 3 lanes + 2 grass sides
+road_width = lane_width * 5 # 3 lanes
 size = (screen_width, screen_height)
 screen = pygame.display.set_mode(size)
 bgY = 0 # for scrolling grass
@@ -32,11 +33,12 @@ bgY2 = -screen_height # for scrolling grass
 img_lib = {}
 
 # Define road objects' start position
-x_left = 137.5 # places object in middle of left lane.
-x_mid = 237.5 # places object in middle of mid lane
-y_mid = 0 
-x_right = 337.5 # places object in middle of right lane
-y_right = 0 
+x_lhaz  = 100
+x_left  = 170 # 137.5 # places object in middle of left lane.
+x_mid   = 237.5 # 237.5 # places object in middle of mid lane
+x_right = 310 # 337.5 # places object in middle of right lane
+x_rhaz  = 380
+
 x_main_car = x_mid # your car's x position, starts in mid lane
 y_main_car = 440 # your car's y position
 
@@ -58,6 +60,8 @@ def set_background():
     pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(lane_width, 0, road_width, screen_height)) # road
     pygame.draw.line(screen, TANGERINE, [lane_width*2, 0], [lane_width*2, screen_height], 3) # first road line
     pygame.draw.line(screen, TANGERINE, [lane_width*3, 0], [lane_width*3, screen_height], 3) # second road line
+    pygame.draw.line(screen, TANGERINE, [lane_width*4, 0], [lane_width*4, screen_height], 3) # third road line
+    pygame.draw.line(screen, TANGERINE, [lane_width*5, 0], [lane_width*5, screen_height], 3) # fourth road line
     screen.blit(get_img('images/trees_bg.png'), (0, bgY)) # scrolling grass bg
     screen.blit(get_img('images/trees_bg.png'), (0, bgY2))
 
@@ -184,7 +188,7 @@ def main():
     # Set variables
     done = False # while loop condition
 
-    global x_left, x_mid, x_right, x_main_car
+    global x_lhaz, x_left, x_mid, x_right, x_rhaz, x_main_car
     global MOVE_DOWN
     global obj_list
     
@@ -207,6 +211,9 @@ def main():
     left.reverse() # reverse list order so popping gives chronological order
     mid.reverse()
     right.reverse()
+
+    x_per_lane = (x_lhaz, x_left, x_mid, x_right, x_rhaz)
+
 
     # MAIN LOOP
     while not done:
@@ -232,7 +239,7 @@ def main():
 
                 print my_data, left_data, mid_data, right_data
                 # Update lane position (x position) of your car
-                x_main_car = 100*int(my_data) + 37.5; # change this if car should switch lanes
+                x_main_car = x_per_lane[int(my_data)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
 
                 # Create list of objects to display
                 #   Parse trace entries into tuples: (x-position, pixel distance from tip of car, object type)
