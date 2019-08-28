@@ -28,12 +28,13 @@
 #include "radar/calc_fmcw_dist.h"
 
 
-PyObject *pName, *pModule, *pFunc;
+PyObject *pName, *pModule, *pFunc, *pFunc_load;
 PyObject *pArgs, *pValue, *pretValue;
 #define PY_SSIZE_T_CLEAN
 
 char *python_module = "mio";
 char *python_func = "predict";	  
+char *python_func_load = "loadmodel";	  
 
 /* File pointers to the computer vision, radar and Viterbi decoding traces */
 FILE *cv_trace = NULL;
@@ -276,6 +277,7 @@ status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
 
   ;
   // Initialization to run Keras CNN code 
+#ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
   pName = PyUnicode_DecodeFSDefault(python_module);
   pModule = PyImport_Import(pName);
@@ -283,10 +285,22 @@ status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
 
   if (pModule == NULL) {
      PyErr_Print();
-     fprintf(stderr, "Failed to load Python program, perhaps pythonpath needs to be set");
+     printf("Failed to load Python program, perhaps pythonpath needs to be set; export PYTHONPATH=your_mini_era_dir/cv/CNN_MIO_KERAS");
      return 1;
+  } else {
+    pFunc_load = PyObject_GetAttrString(pModule, python_func_load);
+
+    if (pFunc_load && PyCallable_Check(pFunc_load)) {
+       PyObject_CallObject(pFunc_load, NULL);
+    }
+    else {
+        if (PyErr_Occurred())
+        PyErr_Print();
+        printf("Cannot find python function - loadmodel");
+    }
+    Py_XDECREF(pFunc_load);
   }
-  
+#endif  
   return success;
 }
 
@@ -355,6 +369,7 @@ label_t run_object_classification(unsigned tr_val)
 	     pValue = PyLong_FromLong(tr_val);
 	     if (!pValue) {
 		Py_DECREF(pArgs);
+		Py_DECREF(pFunc);
 		Py_DECREF(pModule);
 		fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
 		return 1;
@@ -363,7 +378,10 @@ label_t run_object_classification(unsigned tr_val)
 	      pretValue = PyObject_CallObject(pFunc, pArgs);
 	      Py_DECREF(pArgs);
 	      if (pretValue != NULL) {
-		printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue));
+		DEBUG(printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue)));
+	  	int val = PyLong_AsLong(pretValue);    
+	  	object = (label_t)val;
+          	DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
 		Py_DECREF(pretValue);
 	      }
 	      else {
@@ -379,14 +397,10 @@ label_t run_object_classification(unsigned tr_val)
 	      PyErr_Print();
 	      printf("Cannot find python function");
 	    }
+        Py_XDECREF(pFunc);
     //Py_DECREF(pModule);
-	  DEBUG(printf("Label Prediction done \n"));
-	  int val = PyLong_AsLong(pretValue);    
-	  object = (label_t)val;
-          DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
    }
    
-   Py_XDECREF(pFunc);
 	  
 #endif
   return object;  
@@ -644,7 +658,7 @@ void closeout_cv_kernel()
   float label_correct_pctg = (100.0*label_match)/(1.0*label_lookup);
   printf("\nFinal CV CNN Accuracy: %u correct of %u classifications = %.2f%%\n", label_match, label_lookup, label_correct_pctg);
 
-#ifdef BYPASS_KERAS_CV_CODE
+#ifndef BYPASS_KERAS_CV_CODE
     Py_DECREF(pModule);
     if (Py_FinalizeEx() < 0) {
            return;

@@ -22,10 +22,14 @@ num_channels = 3
 run_dir = './cv/CNN_MIO_KERAS/'
 #run_dir = './'
 
+model = None
+test_features = np.zeros((5000, num_channels, img_size, img_size), np.float32)
+test_labels = np.zeros((5000,1),np.uint64)
+
 
 def mio_model():
-    model = Sequential()
 
+    model = Sequential()
     model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(3, img_size, img_size)))
     model.add(Conv2D(32, (3, 3), activation='relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -40,22 +44,26 @@ def mio_model():
     model.add(Dense(256, activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(num_classes, activation='softmax'))
+
+    model.load_weights(run_dir + 'model.h5')
+  
     return model
 
-def _get_images_labels(dsplit):
-  if dsplit == 'train':  
-    features = np.load(run_dir + 'training_images.npy')
-    labels_t = np.load(run_dir + 'training_labels.npy')
-    shuffle_buffer_size = 6000
-  else:  
-    features = np.load(run_dir + 'test_images.npy')
-    labels_t = np.load(run_dir + 'test_labels.npy')
-    shuffle_buffer_size = 1000
-  assert features.shape[0] == labels_t.shape[0]
-  labels = labels_t 
-  return features,labels
+
+def _get_images_labels():
+  global test_features
+  global test_labels
+  test_features = np.load(run_dir + 'test_images.npy')
+  test_labels = np.load(run_dir + 'test_labels.npy')
+
+def loadmodel():
+    K.set_image_data_format('channels_first')
+    global model
+    model = load_model(run_dir + 'model.h5')
+    _get_images_labels()
 
 def predict(imagetype):
+
   K.set_image_data_format('channels_first')
   if imagetype == 4:
       imageid = np.random.randint(4000,4999)
@@ -67,13 +75,10 @@ def predict(imagetype):
       imageid = np.random.randint(1000,1999)
   else: 
       imageid = np.random.randint(0,999)
-  print('Received image type',imagetype)
+
 
   test_image = np.zeros((1, num_channels, img_size, img_size), np.float32)
-  test_features,test_labels = _get_images_labels('test')
   test_image[0,:,:,:] = test_features[imageid,:,:,:]
-  model = mio_model()
-  model.load_weights(run_dir + 'model.h5')
 
   outputs = model.predict(test_image, batch_size=batch_size)
   predicted_labels_t=(outputs.argmax(1))
@@ -92,6 +97,8 @@ def main(argv):
   parser.add_argument("-t", "--objecttype", type=int, help="Class from the road object trace")
 
   args = parser.parse_args()
+  global model
+  loadmodel()
   predict(args.objecttype)  
 
 if __name__ == "__main__":   
