@@ -26,7 +26,7 @@ T_SRC 	= sim_environs.c
 T_OBJ	= $(T_SRC:%.c=obj/%.o)
 T_OBJ_V = $(T_SRC:%.c=obj_v/%.o)
 
-G_SRC 	= gen_trace.c
+G_SRC 	= utils/gen_trace.c
 G_OBJ	= $(G_SRC:%.c=obj/%.o)
 
 $(TARGET): $(OBJ) libviterbi libfmcwdist
