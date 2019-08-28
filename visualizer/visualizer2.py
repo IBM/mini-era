@@ -11,7 +11,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-DARK_GREY = (231, 231, 231)
+DARK_GREY = (131, 131, 131)
 LIGHT_GREY = (191, 191, 191)
 TANGERINE = (255, 210, 74)
 grass_color = (168, 235, 113)
@@ -57,7 +57,8 @@ def set_background():
     screen.fill(grass_color)
 
     # Draw background
-    pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+    pygame.draw.rect(screen, DARK_GREY , pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+    pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(2*lane_width, 0, 3*lane_width, screen_height)) # road
     pygame.draw.line(screen, TANGERINE, [lane_width*2, 0], [lane_width*2, screen_height], 3) # first road line
     pygame.draw.line(screen, TANGERINE, [lane_width*3, 0], [lane_width*3, screen_height], 3) # second road line
     pygame.draw.line(screen, TANGERINE, [lane_width*4, 0], [lane_width*4, screen_height], 3) # third road line
@@ -127,7 +128,7 @@ def get_dist(dist_str):
     dist_scale = 1 # 500 / 1023
     int_dist = int(dist_str) # in units out of 1023
     pix_dist = int_dist * dist_scale # distance away in pixels, y-position is (500 - pix_dist)
-    print dist_str, int_dist, dist_scale, pix_dist
+    #DEBUG print dist_str, int_dist, dist_scale, pix_dist
     return int(pix_dist)
 
 # def get_color(bits):
@@ -237,7 +238,7 @@ def main():
                 mid_data   = mid.pop()
                 right_data = right.pop()
 
-                print my_data, left_data, mid_data, right_data
+                #DEBUG print my_data, left_data, mid_data, right_data
                 # Update lane position (x position) of your car
                 x_main_car = x_per_lane[int(my_data)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
 
@@ -280,7 +281,7 @@ def main():
         screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
         for obj in obj_list:
             blit_obj(screen, obj[2], obj[0], obj[1]-55)
-            print obj[2], obj[0], obj[1]
+            #DEBUG print obj[2], obj[0], obj[1]
 
         # Update screen to display changes
         pygame.display.flip()
