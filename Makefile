@@ -49,10 +49,10 @@ v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 
-all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) test vtest tracegen
+all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) util_prog
 
 
-utils:
+util_prog:
 	cd utils; make all
 
 test: 
