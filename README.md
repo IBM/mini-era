@@ -20,7 +20,7 @@ cd cv/CNN_MIO_KERAS
 python3 mio_dataset.py
 ```
 
-This last step (`python3 mio_dataset.py`) has to be run *only once* to create test images as `.npy` files. Then:
+This last step (`python3 mio_dataset.py`) has to be run **only once** to create test images as `.npy` files. Then:
 
 ```
 make allclean
