@@ -29,11 +29,17 @@ typedef float distance_t;
 typedef enum {false, true} bool_t;
 typedef enum {error, success} status_t;
 
+/* This is the number of lanes in the simulation */
+#define NUM_LANES     5
+#define NUM_OBJECTS   5
+#define NUM_MESSAGES  4
+
 typedef struct
 {
   enum {lhazard, left, center, right, rhazard} lane;
   float speed;
 } vehicle_state_t;
+
 
 /* Pre-defined labels used by the computer vision kernel */
 typedef enum {
@@ -44,6 +50,7 @@ typedef enum {
   truck
 } label_t;
 
+
 /* Pre-defined messages used by the Viterbi decoding kernel */
 /*  These now conform to version 0.4 of the specification   */
 typedef enum {
@@ -53,15 +60,16 @@ typedef enum {
   unsafe_to_move_left_or_right = 3 
 } message_t;
 
+extern char* lane_names[NUM_LANES];
+extern char* message_names[NUM_MESSAGES];
+extern char* object_names[NUM_OBJECTS];
+
 /* These thresholds (in meters) are used by the plan_and_control()
  * function to make plan and control decisions.
  */
-#define THRESHOLD_1 105.0
+#define THRESHOLD_1 155.0
 #define THRESHOLD_2 205.0
 #define THRESHOLD_3 305.0
-
-/* This is the number of lanes in the simulation */
-#define NUM_LANES   5
 
 /* Kernels initialization */
 status_t init_cv_kernel(char* tr_fn, char* py_file, char* dict_fn);

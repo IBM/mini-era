@@ -22,6 +22,12 @@
 
 #include "kernels_api.h"
 
+#ifdef VERBOSE
+char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
+char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
+#endif
+char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
+
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
 #include "viterbi/viterbi_decoder_generic.h"
@@ -53,8 +59,8 @@ typedef struct {
 unsigned int     num_cv_dictionary_items = 0;
 cv_dict_entry_t* the_cv_object_dict;
 
-unsigned label_match = 0;  // Times CNN matched dictionary
-unsigned label_lookup = 0; // Times we used CNN for object classification
+unsigned label_match[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0};  // Times CNN matched dictionary
+unsigned label_lookup[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0}; // Times we used CNN for object classification
   
 
 /* These are some top-level defines needed for RADAR */
@@ -92,7 +98,7 @@ uint8_t actual_msg[1600];
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
-#define VIT_CLEAR_THRESHOLD  100
+#define VIT_CLEAR_THRESHOLD  THRESHOLD_1
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
@@ -445,11 +451,13 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   //DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
   
   /* 3) Return the label corresponding to the recognized object */
-  DEBUG(printf("  Returning d_object %u : object %u\n", d_object, object));
+  DEBUG(printf("  Returning d_object %u %s : object %u %s\n", d_object, object_names[d_object], object, object_names[object]));
   if (d_object == object) {
-    label_match++;
+    label_match[d_object]++;
+    label_match[NUM_OBJECTS]++;
   }
-  label_lookup++;
+  label_lookup[NUM_OBJECTS]++;
+  label_lookup[d_object]++;
   return d_object;
 }
 
@@ -547,7 +555,8 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
   unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
   fscanf(vit_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
-  DEBUG(printf("  VitTrace: %c:%u,%c:%u,%c:%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
+  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
+  DEBUG(printf("  VizTrace: %u,%c:%u,%c:%u,%c:%u\n", vs.lane, tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
 
   /* unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L */
   /* if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < VIT_CLEAR_THRESHOLD)) {  */
@@ -581,13 +590,18 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   case center:
   case right:
     tr_val = 0;
+    DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane, 
+		 vs.lane-1, tr_obj_vals[vs.lane-1], tr_dist_vals[vs.lane-1],
+		 vs.lane+1, tr_obj_vals[vs.lane+1], tr_dist_vals[vs.lane+1]));
     if ((tr_obj_vals[vs.lane-1] != 'N') && (tr_dist_vals[vs.lane-1] < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the Left lane at distance 0 or 1
-      tr_val += 1; // Unsafe to move from center lane to the left.
+      DEBUG(printf("    Marking unsafe to move left\n"));
+      tr_val += 1; // Unsafe to move from this lane to the left.
     }
     if ((tr_obj_vals[vs.lane+1] != 'N') && (tr_dist_vals[vs.lane+1] < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the Right lane at distance 0 or 1
-      tr_val += 2; // Unsafe to move from center lane to the right.
+      DEBUG(printf("    Marking unsafe to move right\n"));
+      tr_val += 2; // Unsafe to move from this lane to the right.
     }
     break;
   case rhazard:
@@ -599,7 +613,7 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
     }
     break;
   }
-  
+  DEBUG(printf("Viterbi message for lane %u %s = %u\n", vs.lane, lane_names[vs.lane], tr_val));	
   char the_msg[1600]; // Return from decode; large enough for any of our messages
   message_t msg;      // The output from this routine
 
@@ -609,22 +623,22 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   case 0: // safe_to_move_right_or_left
     trace_msg = &(the_viterbi_trace_dict[0]);
     msg = safe_to_move_right_or_left;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u - safe_to_move_right_or_left\n", msg));
+    DEBUG(printf("  Using msg %u : %s = safe_to_move_right_or_left\n", msg, message_names[msg]));
     break;
   case 1: // safe_to_move_right
     trace_msg = &(the_viterbi_trace_dict[1]);
     msg = safe_to_move_right_only;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u - safe_to_move_right_only\n", msg));
+    DEBUG(printf("  Using msg %u : %s = safe_to_move_right_only\n", msg, message_names[msg]));
     break;
   case 2: // safe_to_move_left
     trace_msg = &(the_viterbi_trace_dict[2]);
     msg = safe_to_move_left_only;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u - safe_to_move_left_only\n", msg));
+    DEBUG(printf("  Using msg %u : %s = safe_to_move_left_only\n", msg, message_names[msg]));
     break;
   case 3: // unsafe_to_move_left_or_right
     trace_msg = &(the_viterbi_trace_dict[3]);
     msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u - unsafe_to_move_right_or_left\n", msg));
+    DEBUG(printf("  Using msg %u : %s = unsafe_to_move_right_or_left\n", msg, message_names[msg]));
     break;
   }
 
@@ -729,9 +743,13 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 
 void closeout_cv_kernel()
 {
-  float label_correct_pctg = (100.0*label_match)/(1.0*label_lookup);
-  printf("\nFinal CV CNN Accuracy: %u correct of %u classifications = %.2f%%\n", label_match, label_lookup, label_correct_pctg);
-
+  float label_correct_pctg = (100.0*label_match[NUM_OBJECTS])/(1.0*label_lookup[NUM_OBJECTS]);
+  printf("\nFinal CV CNN Accuracy: %u correct of %u classifications = %.2f%%\n", label_match[NUM_OBJECTS], label_lookup[NUM_OBJECTS], label_correct_pctg);
+  for (int i = 0; i < NUM_OBJECTS; i++) {
+    label_correct_pctg = (100.0*label_match[i])/(1.0*label_lookup[i]);
+    printf("  CV CNN Accuracy for %10s : %u correct of %u classifications = %.2f%%\n", object_names[i], label_match[i], label_lookup[i], label_correct_pctg);
+  }
+  
 #ifndef BYPASS_KERAS_CV_CODE
     Py_DECREF(pModule);
     if (Py_FinalizeEx() < 0) {

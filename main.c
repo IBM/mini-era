@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   while (!eof_cv_kernel() || !eof_rad_kernel() || !eof_vit_kernel())
   {
-
+    DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
     /* The computer vision kernel performs object recognition on the
      * next image in the input trace, and returns the corresponding
      * label. This process takes place locally (i.e. within this car).
