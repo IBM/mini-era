@@ -529,10 +529,11 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
     }
   }
   /* 3) Return the estimated distance */
-  DEBUG(printf("  Returning distance %f (vs %f)\n", dist, ddist));
+  float tdist = 1.0*tr_dist_vals[vs.lane];
+  DEBUG(printf("  Returning distance %f (vs %f and %f)\n", tdist, dist, ddist));
 
   //return dist;
-  return ddist;
+  return tdist; // ddist;
 }
 
 
@@ -662,8 +663,8 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
 
 vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t message, vehicle_state_t vehicle_state)
 {
-  DEBUG(printf("In the plan_and_control routine : label %u distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
-	       label, distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
+  DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
+	       label, object_names[label], distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
   vehicle_state_t new_vehicle_state = vehicle_state;
   
   if ((label != no_label) && (distance <= THRESHOLD_1))

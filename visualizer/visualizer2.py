@@ -43,7 +43,7 @@ x_main_car = x_mid # your car's x position, starts in mid lane
 y_main_car = 440 # your car's y position
 
 # Frame update rate for moving down
-MOVE_DOWN = 500 # every 500ms
+MOVE_DOWN = 100 # 500 # every 500ms
 
 obj_list = []
 
