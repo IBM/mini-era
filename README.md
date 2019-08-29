@@ -41,7 +41,7 @@ There is an example trace (`test_trace.new`) to illustrate the funciton of the M
 The trace is a simple ASCII file. The general format of the trace file is a 3-tuple with one set of information per lane (left, center, right) representing information about the contents of that lane for that time-step. The general format of a trace entry is:
 
 ```
-Xy Xy Xy
+X:y,X:y,X:y
 ```
 
 where `X` is a character which identifies a type of obstacle object, and `y` is an unsigned integer representing a distance measure for that object. The "world" is viewed as a 2-dimensional space where the lanes are arranged left-to-right and the distances are from position zero (which is effectively the back of the car) to some maximum value N which represents the farthest out objects can occur/be tracked.
@@ -54,28 +54,28 @@ In this implementation, the objects include:
   C - a car
   T - a truck
   P - a pedestrian
-  B - a bus
+  B - a bike
   N - nothing
 ```
 
-In concert, the distances currently implemented are values between 0 and 11, corresponding to 50-meter increments from 0 to 500 (with the final value being "Infinity"). The following image illuestrates how a specific scenario at a given point in time is encoded in a trace entry:
+In concert, the distances currently implemented are values between 0 and 550, corresponding to 50-meter increments from 0 to 500 (with the final value, 550, being "Infinity"). The following image illustrates how a specific scenario at a given point in time is encoded in a trace entry:
 
 ```
   Distance | Left | Cntr | Right|
   -------------------------------
-  |  10    |      |      |      |
-  |   9    |      |      |      |
-  |   8    |      |  T   |      |
-  |   7    |      |      |      |
-  |   6    |  C   |      |      |
-  |   5    |      |      |      |
-  |   4    |      |      |      |
-  |   3    |      |      |      |
-  |   2    |      |      |  P   |
-  |   1    |      |      |      |
-  |   0    |      |      |      |
+  |  500  |      |      |      |
+  |  450  |      |      |      |
+  |  400  |      |  T   |      |
+  |  350  |      |      |      |
+  |  300  |  C   |      |      |
+  |  250  |      |      |      |
+  |  200  |      |      |      |
+  |  150  |      |      |      |
+  |  100  |      |      |  P   |
+  |   50  |      |      |      |
+  |    0  |      |      |      |
 
-Corresponding trace entry:  C6 T8 P2 
+Corresponding trace entry:  C:300,T:400,P:100 
 ```
 
 ## Dictionary Files
@@ -186,23 +186,34 @@ To build Mini-ERA:
 
 ```
   cd mini-era
-  make
+  make all
 ```
 
 To build the trace-generation program:
 
+_DEPRECATED_
 ```
   make tracegen
 ```
 
 To generate a trace:
 
+_DEPRECATED_
 ```
   ./tracegen | grep TRACE_LINE | awk '{print $2,$3,$4;}' > <target_trace_file>
 ```
 
 Note that this should reproduce the `test_trace.new` file.
 
+## Invocation and Usage
+
+The main mini-era program is invoked using the program main.exe, but there is also a debugging (verbose) version named vmain.exe.
+The invocation also requires an input trace file to be specifed:
+```
+  main.exe traces/test_trace1.new
+```
+
+The visualizer can also be used to visualize the operation of the simulation.  The visualizer sits in the visualizer subdirectory, and currently requires its own version of the trace to operate. Please see the visualizer README.md file in the visualizer subdirectory.
 
 ## Programs
 
