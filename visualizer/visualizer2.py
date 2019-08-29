@@ -180,6 +180,11 @@ def blit_obj(screen, obj, x, y):
         screen.blit(get_img('images/motorcycle.png'), (x, y))
 
 
+def usage_and_exit(exit_code):
+    print("usage: %s [--help] [--debug] [--trace=<trace_file>] [--framerate=<N>]\n" % (sys.argv[0]));
+    sys.exit(exit_code)
+
+    
 # MAIN FUNCTION
 def main(argv):
     """
@@ -192,6 +197,23 @@ def main(argv):
     global MOVE_DOWN
     global obj_list
     
+    tr = './v2_trace.txt' # Default value
+    # parse command line arguments
+    # So far getopt seems to not work here...
+    for i in range(0, len(argv[1:])):
+        ii = i+1
+        print argv[ii]
+        if ((argv[ii] == "-h") | (argv[ii] == "--help")) :
+            usage_and_exit(2)
+        elif ((argv[ii] == "-t") | (argv[ii] == "--trace")) :
+            tr = argv[ii+1];
+            print("%s tracefile = %s\n" % (argv[0], tr));
+        elif ((argv[ii] == "-f") | (argv[ii] == "--framerate")) :
+            MOVE_DOWN = int(argv[ii+1])
+            print("%s framerate %u\n" % (argv[0], MOVE_DOWN));
+
+    print("Reading trace %s\n" % tr);
+
     # Establish clock
     clock = pygame.time.Clock()
 
@@ -201,18 +223,7 @@ def main(argv):
     # Set timers
     pygame.time.set_timer(move_down_event, MOVE_DOWN)
 
-    tr = './v2_trace.txt' # Default value
-    # parse command line arguments
-    #for arg in sys.argv[1:]:
-    for arg in argv[1:]:        
-        print arg
-        if ((arg == "-h") | (arg == "--help")) :
-            print("%s tracefile\n" % argv[0]);
-        else :
-            tr = arg;
 
-    print("Reading trace %s\n" % tr);
-    
     # Get traces
     # Trace format: 3 columns per epoch with the form XY
     #               where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck) and
