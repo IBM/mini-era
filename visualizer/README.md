@@ -2,25 +2,37 @@
 
 Visualization for Mini-Era using pygame.
 
-## Simple Example:
-### Using trace_test - trace_test3 files
+# Overview
+The visualizer is a simple pygame-based 5-lane simulation of the focus car (drawn in red) driving on a straight 3-lane highway at some speed, and overtaking various other vehicles (obstacle objects) on the road.  These obstacle objects will occupy positions initially ahead of the focus car, and can include other cars (drawn in blue), trucks, and bikes.  All of these obstacle objects will be moving slower than the focus car, and therefore progress down the screen closer and closer to the focus car, which must eventually take actions to avoid collisions.
 
-![Demo](uploads/vis.gif)
+# Invocation
+The visualizer is a python program, invocation is as follows:
+```
+  python visulaizer2.py -t <tracefile> -f <framerate>
+```
 
-## Longer Example:
-### Using trace_ex.txt 
+The tracefile is the input to the visualizer, and there is a default value if a tracefile is not specified ("v2_trace.txt").
+The framwrate is a "delay" value between frames (in milliseconds), with a defaul of 500 (i.e. 2 frames per second).
 
-![Demo2](uploads/longer_vis.gif)
+# Input Trace Format
+The input trace format is very similar to the mini-era format, but also incudes the current lane position of the focus car:
+```
+  L,X:y,X:y,X:y
+```
+Here, the L is the lane indicator, and each X is an object type (N = none, C = car, T = truck, B = bike) and y is a distance (in the range [0, 550]).
+Each lane X:y is sepatated from the next by a comma character, so the first X:y is the left lane, the second X:y is the center lane, and the third is the right lane. A simple example:
+```
+  2,C:350,N:550,T:150
+```
+This specifies a time step where the focus car is in lane 2 (Center lane) and there is a car in the left lane at distance 350, and a truck in the right lane at distance 150 (and nothing in the center lane).
 
-## Trace Format
-3 columns per epoch with the form XY, where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck), and where Y is a 10-bit string representing distance from car (0 to 1023 in binary)
+The visualizer also supports multipel obstacle objects per lane, which are then separated by space characters.  An example:
+```
+  2,C:350 B:450,N:550,T:150 C:300 B:450
+```
+This specifies a time step where the focus car is in lane 2 (Center lane) and there is a car in the left lane at distance 350 and a Bike farther off in the left lane (At distance 450), a truck in the right lane at distance 150 with a car beyond it (at distance 300) and a bike beyond that (at distance 450).  There is still nothing visible in the center lane.
 
-Example (one row):
+# Contacts and Current Maintainers
 
-LEFT MIDDLE RIGHT
-
-011010111100 011001011000 110100101100
-
-## Contact
-
-Alice Song (Alice.Song1@ibm.com)
+ - Alice Song (Alice.Song1@ibm.com)
+ - J-D Wellman (wellman@us.ibm.com)
