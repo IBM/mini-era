@@ -8,7 +8,7 @@ Mini-ERA has been successfully built and executed using the following set-up:
  - Ubuntu 18.04
  - Python 3.0
  
-Ubuntu 16.04 platforms with older Python versions (e.g. 2.7) may also work.
+Ubuntu 16.04 platforms with older Python versions (e.g. 2.7) may also work but have not been tested.
 
 
 ## Installation and Execution
