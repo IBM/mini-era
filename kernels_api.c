@@ -28,6 +28,13 @@ char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only"
 #endif
 char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
 
+/* These are globals that influence behavior, etc. */
+
+/* These are global trace record data; set each epoch by read_next_trace_record */
+char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
+unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+
+
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
 #include "viterbi/viterbi_decoder_generic.h"
@@ -42,10 +49,8 @@ char *python_module = "mio";
 char *python_func = "predict";	  
 char *python_func_load = "loadmodel";	  
 
-/* File pointers to the computer vision, radar and Viterbi decoding traces */
-FILE *cv_trace = NULL;
-FILE *rad_trace = NULL;
-FILE *vit_trace = NULL;
+/* File pointer to the input trace */
+FILE *input_trace = NULL;
 
 
 /* These are some top-level defines needed for CV kernel */
@@ -81,9 +86,6 @@ unsigned radar_total_calc = 0;
 unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
-#define INF_DISTANCE           550 // radar tops out at ~500m 
-#define RADAR_BUCKET_DISTANCE  50  // The radar is in steps of 50
-
 /* These are some top-level defines needed for VITERBI */
 typedef struct {
   unsigned int msg_id;
@@ -98,22 +100,35 @@ uint8_t actual_msg[1600];
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
-#define VIT_CLEAR_THRESHOLD  THRESHOLD_1
-
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
 
 
 
 
-status_t init_rad_kernel(char* trace_filename, char* dict_fn)
+status_t init_trace_reader(char* trace_filename)
+{
+  DEBUG(printf("In init_trace_reader...\n"));
+  /* Now open the mini-ERA trace */
+  input_trace = fopen(trace_filename,"r");
+  if (!input_trace)
+  {
+    printf("Error: unable to open trace file %s\n", trace_filename);
+    return error;
+  }
+
+  return success;
+}
+
+
+status_t init_rad_kernel(char* dict_fn)
 {
   DEBUG(printf("In init_rad_kernel...\n"));
   // Read in the radar distances dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
-    printf("Error: unable to open trace file %s\n", trace_filename);
+    printf("Error: unable to open dictionary file %s\n", dict_fn);
     return error;
   }
   // Read the number of definitions
@@ -150,14 +165,6 @@ status_t init_rad_kernel(char* trace_filename, char* dict_fn)
   }
   fclose(dictF);
 
-  /* Now open the radar trace */
-  rad_trace = fopen(trace_filename,"r");
-  if (!rad_trace)
-  {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-
   return success;
 }
 
@@ -174,7 +181,7 @@ status_t init_rad_kernel(char* trace_filename, char* dict_fn)
  *  t1_1 t2_1 t3_1 : Message per-lane (t1 = left, t2 = middle, t3 = right) for time step 1
  */
 
-status_t init_vit_kernel(char* trace_filename, char* dict_fn)
+status_t init_vit_kernel(char* dict_fn)
 {
   DEBUG(printf("In init_vit_kernel...\n"));
   // Read in the object images dictionary file
@@ -231,25 +238,18 @@ status_t init_vit_kernel(char* trace_filename, char* dict_fn)
   }
   fclose(dictF);
 
-  vit_trace = fopen(trace_filename,"r");
-  if (!vit_trace)
-  {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-
   DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
   return success;
 }
 
-status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
+status_t init_cv_kernel(char* py_file, char* dict_fn)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
   // Read in the object images dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
-    printf("Error: unable to open trace file %s\n", trace_filename);
+    printf("Error: unable to open dictionary file %s\n", dict_fn);
     return error;
   }
   // Read the number of definitions
@@ -277,15 +277,6 @@ status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
   }
   fclose(dictF);
 
-  /* Now open the trace file */
-  cv_trace = fopen(trace_filename,"r");
-  if (!cv_trace)
-  {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-
-  ;
   // Initialization to run Keras CNN code 
 #ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
@@ -315,20 +306,10 @@ status_t init_cv_kernel(char* trace_filename, char* py_file, char* dict_fn)
 }
 
 
-bool_t eof_cv_kernel()
+bool_t eof_trace_reader()
 {
-  return feof(cv_trace);
-}
-
-bool_t eof_rad_kernel()
-{
-  return feof(rad_trace);
-}
-
-bool_t eof_vit_kernel()
-{
-  bool_t res = feof(vit_trace);
-  DEBUG(printf("In eof_vit_kernel feof = %u\n", res));
+  bool_t res = feof(input_trace);
+  DEBUG(printf("In eof_trace_reader feof = %u\n", res));
   return res;
 }
 
@@ -416,20 +397,28 @@ label_t run_object_classification(unsigned tr_val)
   return object;  
 }
 
-label_t iterate_cv_kernel(vehicle_state_t vs)
+void read_next_trace_record(vehicle_state_t vs)
 {
-  DEBUG(printf("In iterate_cv_kernel\n"));
-  if (feof(cv_trace)) { 
-    printf("ERROR : invocation of iterate_cv_kernel indicates feof for cv trace\n");
-    printf("      : Are the traces inconsistent lengths?\n");
+  DEBUG(printf("In read_next_trace_record\n"));
+  if (feof(input_trace)) { 
+    printf("ERROR : invocation of read_next_trace_record indicates feof\n");
     exit(-1);
   }
 
-  char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-  unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
-  fscanf(cv_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
+  /* 1) Read the next entry (line, epoch) from the trace */
+  for (int i = 0; i < NUM_LANES; i++) {
+    tr_obj_vals[i] = 'N';
+    tr_dist_vals[i] = INF_DISTANCE;
+  }
+  
+  fscanf(input_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
   DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
-  DEBUG(printf("  Tr_Obj : %c  %c  %c\n", tr_obj_vals[1], tr_obj_vals[2], tr_obj_vals[3]));
+  DEBUG(printf("  VizTrace: %u,%c:%u,%c:%u,%c:%u\n", vs.lane, tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
+}
+
+label_t iterate_cv_kernel(vehicle_state_t vs)
+{
+  DEBUG(printf("In iterate_cv_kernel\n"));
 
   unsigned tr_val = 0; // Default nothing
   switch(tr_obj_vals[vs.lane]) {
@@ -464,18 +453,6 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 distance_t iterate_rad_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_rad_kernel\n"));
-  if (feof(rad_trace)) { 
-    printf("ERROR : invocation of iterate_rad_kernel indicates feof for radar trace\n");
-    printf("      : Are the traces inconsistent lengths?\n");
-    exit(-1);
-  }
-  /* 1) Read the next waveform from the trace */
-  /* fread( ... ); */
-  char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-  unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
-  fscanf(rad_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
-  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
-  DEBUG(printf("  Tr_Dist:  %u  %u  %u\n", tr_dist_vals[1], tr_dist_vals[2], tr_dist_vals[3]));
 
   unsigned tr_val = tr_dist_vals[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
   
@@ -544,20 +521,6 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
  */
 message_t iterate_vit_kernel(vehicle_state_t vs)
 {
-  DEBUG(printf("In iterate_vit_kernel\n"));
-  if (feof(vit_trace)) { 
-    printf("ERROR : invocation of iterate_vit_kernel indicates feof for vit trace\n");
-    printf("      : Are the traces inconsistent lengths?\n");
-    exit(-1);
-  }
-
-  /* 1) Read the next OFDM symbol (?) from the trace */
-  /* fread( ... ); */
-  char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-  unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
-  fscanf(vit_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
-  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
-  DEBUG(printf("  VizTrace: %u,%c:%u,%c:%u,%c:%u\n", vs.lane, tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
 
   /* unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L */
   /* if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < VIT_CLEAR_THRESHOLD)) {  */
@@ -740,6 +703,10 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 }
 
 
+void closeout_trace_reader()
+{
+  fclose(input_trace);
+}
 
 
 void closeout_cv_kernel()

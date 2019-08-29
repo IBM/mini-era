@@ -29,11 +29,25 @@ typedef float distance_t;
 typedef enum {false, true} bool_t;
 typedef enum {error, success} status_t;
 
-/* This is the number of lanes in the simulation */
+/* These are GLOBAL and affect the underlying world, etc. */
 #define NUM_LANES     5
 #define NUM_OBJECTS   5
 #define NUM_MESSAGES  4
 
+#define INF_DISTANCE           550 // radar tops out at ~500m 
+#define RADAR_BUCKET_DISTANCE  50  // The radar is in steps of 50
+
+/* These thresholds (in meters) are used by the plan_and_control()
+ * function to make plan and control decisions.
+ */
+#define THRESHOLD_1 155.0
+#define THRESHOLD_2 205.0
+#define THRESHOLD_3 305.0
+
+#define VIT_CLEAR_THRESHOLD  THRESHOLD_1
+
+
+/* These are some global type defines, etc. */
 typedef struct
 {
   enum {lhazard, left, center, right, rhazard} lane;
@@ -64,21 +78,18 @@ extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
 
-/* These thresholds (in meters) are used by the plan_and_control()
- * function to make plan and control decisions.
- */
-#define THRESHOLD_1 155.0
-#define THRESHOLD_2 205.0
-#define THRESHOLD_3 305.0
+
+/* Input Trace Functions */
+status_t init_trace_reader(char * tr_fn);
+bool_t eof_trace_reader();
+void read_next_trace_record(vehicle_state_t vs);
+void closeout_trace_reader();
 
 /* Kernels initialization */
-status_t init_cv_kernel(char* tr_fn, char* py_file, char* dict_fn);
-status_t init_rad_kernel(char* tr_fn, char* dict_fn);
-status_t init_vit_kernel(char* tr_fn, char* dict_fn);
+status_t init_cv_kernel(char* py_file, char* dict_fn);
+status_t init_rad_kernel(char* dict_fn);
+status_t init_vit_kernel(char* dict_fn);
 
-bool_t eof_cv_kernel();
-bool_t eof_rad_kernel();
-bool_t eof_vit_kernel();
 
 label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
