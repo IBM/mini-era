@@ -2,6 +2,33 @@
 
 This is a top-level driver for the Mini-ERA workload.
 
+## Requirements
+
+Mini-ERA has been successfully built and executed using the following set-up:
+ - Ubuntu 18.04 (Check out wiki for 18.04 installation)
+ - Python 3.0
+ 
+Ubuntu 16.04 platforms with older Python versions (e.g. 2.7) may also work.
+
+
+## Installation and Execution
+
+```
+git clone https://github.com/IBM/mini-era.git
+cd mini-era
+cd cv/CNN_MIO_KERAS
+python3 mio_dataset.py
+```
+
+This last step (`python3 mio_dataset.py`) has to be run *only once* to create test images as `.npy` files. Then:
+
+```
+make allclean
+make
+./main.exe <trace_name>     (e.g. traces/test_trace1.new)
+```
+
+ 
 ## Status
 
 This version currently uses an input trace to drive the Mini-ERA behaviors, and the computer-vision, Viterbi and radar ranging functionality in the underlying kernels.
