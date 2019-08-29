@@ -196,7 +196,7 @@ To build the trace-generation program:
   make tracegen
 ```
 
-To generate a trace:
+To generate an input trace:
 ```
   ./tracegen > <target_trace_file>
 ```
@@ -213,10 +213,10 @@ The invocation also requires an input trace file to be specifed:
 
 The visualizer can also be used to visualize the operation of the simulation.  The visualizer sits in the visualizer subdirectory, and currently requires its own version of the trace to operate. Please see the visualizer README.md file in the visualizer subdirectory.
 
-## Programs
-
-The current distribution primarily consists of the top-level mini-era scaffolding application, and includes a developing trace-generation program.
-
+To drive th evisualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself driven by a Mini-ERA input trace) is to run the verbose version of Mini-ERA and pull out the Visualizer trace data from that output stream.  This is easily done as follows:
+```
+  ./vmain.exe traces/test_trace1.new | grep VizTrace | awk '{print $2;}' > visualizer/traces/viz_tet_trace1.new
+```
 
 ## Contacts and Current Maintainers
 
