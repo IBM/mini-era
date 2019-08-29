@@ -191,19 +191,17 @@ To build Mini-ERA:
 
 To build the trace-generation program:
 
-_DEPRECATED_
 ```
+  cd utils
   make tracegen
 ```
 
 To generate a trace:
-
-_DEPRECATED_
 ```
-  ./tracegen | grep TRACE_LINE | awk '{print $2,$3,$4;}' > <target_trace_file>
+  ./tracegen > <target_trace_file>
 ```
 
-Note that this should reproduce the `test_trace.new` file.
+Note that this should reproduce the `test_trace1.new` file.
 
 ## Invocation and Usage
 

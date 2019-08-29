@@ -229,59 +229,6 @@ iterate_sim_environs()
   DEBUG(visualize_world());
   dump_trace_record();
 
-  // Now we have the state for this (new) time step
-  //  Use this to determine my_car's input data, e.g. 
-  //  safe_to_move_L/R, etc.
-  // NOTE: Currently I am ignoring moving INTO the hazard lanes...
-  /**
-  message_t viterbi_in_state = -1;
-  switch (my_car.lane) {
-  case lhazard : 
-    if (the_world[1][10] == NULL) { 
-      viterbi_in_state = safe_to_move_right_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case left : 
-    if (the_world[2][10] == NULL) { 
-      viterbi_in_state = safe_to_move_right_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case center : 
-    if (the_world[3][10] == NULL) { 
-      if (the_world[1][10] == NULL) { 
-	viterbi_in_state = safe_to_move_right_or_left; 
-      } else {
-	viterbi_in_state = safe_to_move_right_only;
-      }
-    } else if (the_world[1][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only;      
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case right : 
-    if (the_world[2][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case rhazard : 
-    if (the_world[3][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  default: printf("ERROR "); 
-  }
-  printf(" viterbi_in_state = %d\n", viterbi_in_state);
-  do_viterbi_work(viterbi_in_state, false); // set "true" for debug output
-  **/
 }
 
 
@@ -312,11 +259,13 @@ dump_trace_record()
 {
   // For each lane
   DEBUG(printf("TRLN:"));
-  printf("%u", 2); // This is MY Car lane position
+#ifdef FOR_VIS
+  printf("%u,", 2); // This is MY Car lane position
+#endif
   for (int x = 1; x < 4; x++) {
     // List the objects in the lane
     object_state_t* pobj = the_objects[x];
-    printf(",");
+    if (x > 1) { printf(","); }
     if (pobj != NULL) {
       int num = 0;
       while (pobj != NULL) {
