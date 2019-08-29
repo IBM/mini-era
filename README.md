@@ -5,7 +5,7 @@ This is a top-level driver for the Mini-ERA workload.
 ## Requirements
 
 Mini-ERA has been successfully built and executed using the following set-up:
- - Ubuntu 18.04 (Check out wiki for 18.04 installation)
+ - Ubuntu 18.04
  - Python 3.0
  
 Ubuntu 16.04 platforms with older Python versions (e.g. 2.7) may also work.
