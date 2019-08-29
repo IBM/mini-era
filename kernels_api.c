@@ -634,19 +634,25 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   {
     switch (message) {
       case safe_to_move_right_or_left   :
-	DEBUG(printf("   Safe_L_or_R : Moving Right\n"));
-	new_vehicle_state.lane += 1;
+	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
+	if (vehicle_state.lane < right) { 
+	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state.lane]));
+	  new_vehicle_state.lane += 1;
+	} else {
+	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state.lane]));
+	  new_vehicle_state.lane -= 1;
+	}	  
 	break; // prefer right lane
       case safe_to_move_right_only      :
-	DEBUG(printf("   Safe_R_only : Moving Right\n"));
+	DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane += 1;
 	break;
       case safe_to_move_left_only       :
-	DEBUG(printf("   Safe_L_Only : Moving Left\n"));
+	DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane -= 1;
 	break;
       case unsafe_to_move_left_or_right :
-	DEBUG(printf("   No_Safe_Move : STOPPING\n"));
+	DEBUG(printf("   In %s with No_Safe_Move : STOPPING\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.speed = 0;
 	break; /* Stop!!! */
     }
@@ -657,7 +663,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
     case left:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_right_only)) {
-	DEBUG(printf("  Can_move_Right: Moving Right\n"));
+	DEBUG(printf("  In %s with Can_move_Right: Moving Right\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane += 1;
       }
       break;
@@ -668,7 +674,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
     case rhazard:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_left_only)) {
-	DEBUG(printf("  Can_move_Left : Moving Left\n"));
+	DEBUG(printf("  In %s with Can_move_Left : Moving Left\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane -= 1;
       }
       break;
