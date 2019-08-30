@@ -128,35 +128,35 @@ def get_dist(bit_str):
     pix_dist = int_dist * dist_scale # distance away in pixels, y-position is (500 - pix_dist)
     return int(pix_dist)
 
-def get_color(bits):
-    """
-    Objective: Get object's corresponding color
-    Returns: RGB color tuple
-    Parameters:
-        bits: 12-bit lengthed trace
-    """
-    obj = get_object(bits)
-    if obj == "01":
-        return car_color
-    elif obj == "10":
-        return motor_color
-    elif obj == "11":
-        return bike_color
-    else:
-        return LIGHT_GREY # background, return road's color
+# def get_color(bits):
+#     """
+#     Objective: Get object's corresponding color
+#     Returns: RGB color tuple
+#     Parameters:
+#         bits: 12-bit lengthed trace
+#     """
+#     obj = get_object(bits)
+#     if obj == "01":
+#         return car_color
+#     elif obj == "10":
+#         return motor_color
+#     elif obj == "11":
+#         return bike_color
+#     else:
+#         return LIGHT_GREY # background, return road's color
 
-def draw_obj(screen, color, x, y, w, h):
-    """
-    Objective: Draw a rectangle on the screen
-    Parameters:
-        screen: variable containing the visualizer's screen
-        color: RGB color tuple
-        x: rectangle's starting x position
-        y: rectangle's starting y position
-        w: width of rectangle
-        h: height of rectangle
-    """
-    pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
+# def draw_obj(screen, color, x, y, w, h):
+#     """
+#     Objective: Draw a rectangle on the screen
+#     Parameters:
+#         screen: variable containing the visualizer's screen
+#         color: RGB color tuple
+#         x: rectangle's starting x position
+#         y: rectangle's starting y position
+#         w: width of rectangle
+#         h: height of rectangle
+#     """
+#     pygame.draw.rect(screen, color, pygame.Rect(x, y, w, h))
 
 def blit_obj(screen, obj, x, y):
     """
