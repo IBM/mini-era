@@ -33,7 +33,11 @@ for c in classes:
         img = cv2.resize(img, (IMG_HEIGHT,IMG_WIDTH))
         nimg = np.zeros((IMG_HEIGHT,IMG_WIDTH))
         nimg = cv2.normalize(img, nimg, 0, 1, cv2.NORM_MINMAX, dtype=cv2.CV_32F)
-        np_img_reshape = nimg.reshape(NUM_CHANNELS, IMG_HEIGHT, IMG_WIDTH)
+        np_img_reshape = nimg.reshape([NUM_CHANNELS, IMG_HEIGHT, IMG_WIDTH])
+        for ch in range(0,NUM_CHANNELS):
+            np_img_reshape[ch, 0:IMG_HEIGHT, 0:IMG_WIDTH] = nimg[:,:,ch]
+
+
         np_features[ind,:,:,:]=np_img_reshape
         np_labels[ind,:] = cid
         ind+=1
@@ -56,7 +60,9 @@ for c in classes:
           img = cv2.resize(img, (IMG_HEIGHT,IMG_WIDTH))
           nimg = np.zeros((IMG_HEIGHT,IMG_WIDTH))
           nimg = cv2.normalize(img, nimg, 0, 1, cv2.NORM_MINMAX,dtype=cv2.CV_32F)
-          np_img_reshape = nimg.reshape(NUM_CHANNELS, IMG_HEIGHT, IMG_WIDTH)
+          np_img_reshape = nimg.reshape([NUM_CHANNELS, IMG_HEIGHT, IMG_WIDTH])
+          for ch in range(0,NUM_CHANNELS):
+            np_img_reshape[ch, 0:IMG_HEIGHT, 0:IMG_WIDTH] = nimg[:,:,ch]
           np_test_features[ind,:,:,:]=np_img_reshape
           np_test_labels[ind,:] = cid
           ind+=1
