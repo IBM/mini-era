@@ -46,13 +46,13 @@ bool_t   one_obstacle_per_lane = true; // false = unlimited
 #define NUM_PERSON_SPEEDS   2
 
 unsigned car_speeds[NUM_CAR_SPEEDS]        = { 45, 40, 35, 30, 25 };  // The possible speeds
-unsigned car_sp_thds[NUM_CAR_SPEEDS]       = { 15, 65, 85, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
+unsigned car_sp_thds[NUM_CAR_SPEEDS]       = { 35, 85, 93, 97, 100 }; // The thresholds for each speed (RAND: 0-99)
 
 unsigned truck_speeds[NUM_TRUCK_SPEEDS]    = { 40, 35, 30, 25 };
-unsigned truck_sp_thds[NUM_TRUCK_SPEEDS]   = { 20, 65, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
+unsigned truck_sp_thds[NUM_TRUCK_SPEEDS]   = { 40, 85, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
 
-unsigned bike_speeds[NUM_BIKE_SPEEDS]      = { 30, 25, 20 };
-unsigned bike_sp_thds[NUM_BIKE_SPEEDS]     = { 30, 75, 100 }; // The thresholds for each speed (RAND: 0-99)
+unsigned bike_speeds[NUM_BIKE_SPEEDS]      = { 35, 30, 25 };
+unsigned bike_sp_thds[NUM_BIKE_SPEEDS]     = { 70, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
 
 unsigned person_speeds[NUM_PERSON_SPEEDS]  = { 15, 10 };
 unsigned person_sp_thds[NUM_PERSON_SPEEDS] = { 50, 100 }; // The thresholds for each speed (RAND: 0-99)
