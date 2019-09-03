@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, getopt
 import time
 import pygame
 
@@ -11,6 +11,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+DARK_GREY = (131, 131, 131)
 LIGHT_GREY = (191, 191, 191)
 TANGERINE = (255, 210, 74)
 grass_color = (168, 235, 113)
@@ -21,8 +22,8 @@ bike_color = (1, 20, 59) # navy
 # Define screen info
 screen_width = 500
 screen_height = 500
-lane_width = screen_width / 5 # 3 lanes + 2 grass sides
-road_width = lane_width * 3 # 3 lanes
+lane_width = screen_width / 7 # 3 lanes + 2 grass sides
+road_width = lane_width * 5 # 3 lanes
 size = (screen_width, screen_height)
 screen = pygame.display.set_mode(size)
 bgY = 0 # for scrolling grass
@@ -32,23 +33,19 @@ bgY2 = -screen_height # for scrolling grass
 img_lib = {}
 
 # Define road objects' start position
-x_left = 137.5 # places object in middle of left lane
-y_left = 0 
-x_mid = 237.5 # places object in middle of mid lane
-y_mid = 0 
-x_right = 337.5 # places object in middle of right lane
-y_right = 0 
+x_lhaz  = 100
+x_left  = 170 # 137.5 # places object in middle of left lane.
+x_mid   = 237.5 # 237.5 # places object in middle of mid lane
+x_right = 310 # 337.5 # places object in middle of right lane
+x_rhaz  = 380
+
 x_main_car = x_mid # your car's x position, starts in mid lane
 y_main_car = 440 # your car's y position
 
-# Initialize object types
-obj_l = '11'
-obj_m = '11'
-obj_r = '11'
-
 # Frame update rate for moving down
-MOVE_DOWN = 500 # every 500ms
+MOVE_DOWN = 100 # 500 # every 500ms
 
+obj_list = []
 
 # HELPER FUNCTIONS
 def set_background():
@@ -60,9 +57,12 @@ def set_background():
     screen.fill(grass_color)
 
     # Draw background
-    pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+    pygame.draw.rect(screen, DARK_GREY , pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+    pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(2*lane_width, 0, 3*lane_width, screen_height)) # road
     pygame.draw.line(screen, TANGERINE, [lane_width*2, 0], [lane_width*2, screen_height], 3) # first road line
     pygame.draw.line(screen, TANGERINE, [lane_width*3, 0], [lane_width*3, screen_height], 3) # second road line
+    pygame.draw.line(screen, TANGERINE, [lane_width*4, 0], [lane_width*4, screen_height], 3) # third road line
+    pygame.draw.line(screen, TANGERINE, [lane_width*5, 0], [lane_width*5, screen_height], 3) # fourth road line
     screen.blit(get_img('images/trees_bg.png'), (0, bgY)) # scrolling grass bg
     screen.blit(get_img('images/trees_bg.png'), (0, bgY2))
 
@@ -83,37 +83,41 @@ def get_img(path):
 def parse_trace(filename):  
     """
     Objective: Parces trace files
-    Returns: 3 lists corresponding to 'columns' of trace file
-        left_lane: list containing left lane's trace info for each epoch; ex) [011010111100, 011011101110, 011100100000, ...]
-        mid_lane: list containing middle lane's trace info for each epoch
+    Trace_Format:  One epoch per line: my_lane, Left-Lane Objs, Mid-Lane Objs, Right-Lane-Objs\n
+    Returns: 4 lists corresponding to 'columns' of trace file
+        my_lane   : list of lane positions for my car for each epoch
+        left_lane : list containing left lane's trace info for each epoch; ex) [Cdist Bdist, N0, Tdist Bdist Cdist, ... ]
+        mid_lane  : list containing middle lane's trace info for each epoch
         right_lane: list containing right lane's trace info for each epoch
     Parameters:
         filename: path name of the trace file
     """ 
-    left_lane = []
-    mid_lane = []
+    my_lane    = []
+    left_lane  = []
+    mid_lane   = []
     right_lane = []
 
     with open(filename) as f:
         lines = f.readlines()
     for line in lines:
-        tokens = line.split(" ")
-        left_lane.append(tokens[0])
-        mid_lane.append(tokens[1])
-        right_lane.append(tokens[2].strip("\n"))
-    return left_lane, mid_lane, right_lane
+        tokens = line.split(",")
+        my_lane.append(tokens[0])
+        left_lane.append(tokens[1])
+        mid_lane.append(tokens[2])
+        right_lane.append(tokens[3].strip("\n"))
+    return my_lane, left_lane, mid_lane, right_lane
 
-def get_object(bit_str):
-    """
-    Objective: Get the type of object in the lane
-    Returns: String of first 2 bits of the trace info; ex) '01' for car
-    Parameters:
-        bit_str: 12-bit lengthed trace
-    """
-    obj = bit_str[0:2]
-    return obj # return first 2 bits
+# def get_object(bit_str):
+#     """
+#     Objective: Get the type of object in the lane
+#     Returns: String of first 2 bits of the trace info; ex) '01' for car
+#     Parameters:
+#         bit_str: 12-bit lengthed trace
+#     """
+#     obj = bit_str[0:2]
+#     return obj # return first 2 bits
 
-def get_dist(bit_str):
+def get_dist(dist_str):
     """
     Objective: Calculate how far away an object is from the main car
     Returns: Int of distance away in pixels
@@ -121,11 +125,10 @@ def get_dist(bit_str):
         bit_str: 12-bit lengthed trace
     """
     # Define distance scale
-    dist_scale = 500 / 1023
-    
-    dist = bit_str[2:] # get last 10 bits
-    int_dist = int(dist, 2) # in units out of 1023
+    dist_scale = 1 # 500 / 1023
+    int_dist = int(dist_str) # in units out of 1023
     pix_dist = int_dist * dist_scale # distance away in pixels, y-position is (500 - pix_dist)
+    #DEBUG print dist_str, int_dist, dist_scale, pix_dist
     return int(pix_dist)
 
 # def get_color(bits):
@@ -167,26 +170,49 @@ def blit_obj(screen, obj, x, y):
         x: object's starting x position
         y: object's starting y position
     """
-    if obj == '01': # car
+    if obj == 'C': # Car
         screen.blit(get_img('images/blue-car.png'), (x, y))
-    if obj == '10': # motorcycle
+    if obj == 'B': # Bike
         screen.blit(get_img('images/motorcycle.png'), (x, y))
-    if obj == '11': # truck
+    if obj == 'T': # Truck
         screen.blit(get_img('images/truck.png'), (x, y))
+    if obj == 'P': # Person
+        screen.blit(get_img('images/motorcycle.png'), (x, y))
 
 
+def usage_and_exit(exit_code):
+    print("usage: %s [--help] [--debug] [--trace=<trace_file>] [--framerate=<N>]\n" % (sys.argv[0]));
+    sys.exit(exit_code)
+
+    
 # MAIN FUNCTION
-def main():
+def main(argv):
     """
     Objective: Illustrate the Visualizer
     """
-
     # Set variables
     done = False # while loop condition
 
-    global x_left, y_left, x_mid, y_mid, x_right, y_right, x_main_car
-    global obj_l, obj_m, obj_r
+    global x_lhaz, x_left, x_mid, x_right, x_rhaz, x_main_car
     global MOVE_DOWN
+    global obj_list
+    
+    tr = './v2_trace.txt' # Default value
+    # parse command line arguments
+    # So far getopt seems to not work here...
+    for i in range(0, len(argv[1:])):
+        ii = i+1
+        print argv[ii]
+        if ((argv[ii] == "-h") | (argv[ii] == "--help")) :
+            usage_and_exit(2)
+        elif ((argv[ii] == "-t") | (argv[ii] == "--trace")) :
+            tr = argv[ii+1];
+            print("%s tracefile = %s\n" % (argv[0], tr));
+        elif ((argv[ii] == "-f") | (argv[ii] == "--framerate")) :
+            MOVE_DOWN = int(argv[ii+1])
+            print("%s framerate %u\n" % (argv[0], MOVE_DOWN));
+
+    print("Reading trace %s\n" % tr);
 
     # Establish clock
     clock = pygame.time.Clock()
@@ -197,15 +223,19 @@ def main():
     # Set timers
     pygame.time.set_timer(move_down_event, MOVE_DOWN)
 
+
     # Get traces
     # Trace format: 3 columns per epoch with the form XY
     #               where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck) and
     #               where Y is a 10-bit string representing distance from car (0 to 1023 in binary)
-    tr = 'traces/trace_ex.txt'
-    left, mid, right = parse_trace(tr)   
+    mine, left, mid, right = parse_trace(tr)
+    mine.reverse();
     left.reverse() # reverse list order so popping gives chronological order
     mid.reverse()
     right.reverse()
+
+    x_per_lane = (x_lhaz, x_left, x_mid, x_right, x_rhaz)
+
 
     # MAIN LOOP
     while not done:
@@ -220,28 +250,40 @@ def main():
 
                 if len(left) == 0:
                     # Stop once all entries of trace have been visualized
+                    done = True
                     break
 
-                # Get next trace bits for each lane
-                left_bits = left.pop()
-                mid_bits = mid.pop()
-                right_bits = right.pop()
+                # Get next trace data for each lane
+                my_data    = mine.pop()
+                left_data  = left.pop()
+                mid_data   = mid.pop()
+                right_data = right.pop()
 
-                # Parse trace bits into tuple: (pixel distance from tip of car, bits for object type)
-                left_tup = (get_dist(left_bits), get_object(left_bits))
-                mid_tup = (get_dist(mid_bits), get_object(mid_bits))
-                right_tup = (get_dist(right_bits), get_object(right_bits))
-
-                # Update y positions and object types
-                y_left = 500 - left_tup[0] # (500 - distance) = y position
-                y_mid = 500 - mid_tup[0]
-                y_right = 500 - right_tup[0]
-                obj_l = left_tup[1]
-                obj_m = mid_tup[1]
-                obj_r = right_tup[1]
-
+                #DEBUG print my_data, left_data, mid_data, right_data
                 # Update lane position (x position) of your car
-                x_main_car = x_main_car # change this if car should switch lanes
+                x_main_car = x_per_lane[int(my_data)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
+
+                # Create list of objects to display
+                #   Parse trace entries into tuples: (x-position, pixel distance from tip of car, object type)
+                obj_list = []
+                lobjs = left_data.split(" ")
+                for obj in lobjs:
+                    (trtype, trdist) = obj.split(":")
+                    trtup  = (x_left, 500 - get_dist(trdist), trtype) # get_object(trtype))
+                    obj_list.append(trtup);
+
+                mobjs = mid_data.split(" ")
+                for obj in mobjs:
+                    (trtype, trdist) = obj.split(":")
+                    trtup  = (x_mid, 500 - get_dist(trdist), trtype) #get_object(trtype))
+                    obj_list.append(trtup);
+
+                robjs = right_data.split(" ")
+                for obj in robjs:
+                    (trtype, trdist) = obj.split(":")
+                    trtup  = (x_right, 500 - get_dist(trdist), trtype) #get_object(trtype))
+                    obj_list.append(trtup);
+
 
 
         # Set background
@@ -258,9 +300,9 @@ def main():
 
         # Draw objects every epoch
         screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
-        blit_obj(screen, obj_l, x_left, y_left-55) # left lane
-        blit_obj(screen, obj_m, x_mid, y_mid-55) # middle lane
-        blit_obj(screen, obj_r, x_right, y_right-55) # right lane
+        for obj in obj_list:
+            blit_obj(screen, obj[2], obj[0], obj[1]-55)
+            #DEBUG print obj[2], obj[0], obj[1]
 
         # Update screen to display changes
         pygame.display.flip()
@@ -269,5 +311,5 @@ def main():
     pygame.quit()
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv)
     
