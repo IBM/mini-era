@@ -177,7 +177,7 @@ def blit_obj(screen, obj, x, y):
     if obj == 'T': # Truck
         screen.blit(get_img('images/truck.png'), (x, y))
     if obj == 'P': # Person
-        screen.blit(get_img('images/motorcycle.png'), (x, y))
+        screen.blit(get_img('images/runner.png'), (x, y))
 
 
 def usage_and_exit(exit_code):

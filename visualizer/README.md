@@ -12,7 +12,12 @@ The visualizer is a python program, invocation is as follows:
 ```
 
 The tracefile is the input to the visualizer, and there is _NO_ default value so a tracefile _MUST_ be specified.
-The frame delay is a delay value between frames (in milliseconds), with a defaul of 500 (i.e. 2 frames per second).
+The frame delay is a delay value between frames (in milliseconds), with a default of 500 (i.e. 2 frames per second).
+
+There are some example trace files proveded, which correspond to the example trace files of the main Mini-ERA program,
+i.e. the visualizer trace ```tt00.viz``` corresponds to the Mini-ERA input trace ```tt00.new``` and similarly with the
+```tt01.*``` and ```tt02.*``` traces (and also the ```test_trace1.new``` and ```test_trace1.viz``` files).
+
 
 # Input Trace Format
 The input trace format is very similar to the mini-era format, but also incudes the current lane position of the focus car:

@@ -58,8 +58,6 @@ In this implementation, the objects include:
   N - nothing
 ```
 
-Note: Currently the visualizer does not support Pedestrians, and so the pedestrians are represented there as Bikes.
-
 In concert, the distances currently implemented are values between 0 and 550, corresponding to 50-meter increments from 0 to 500 (with the final value, 550, being "Infinity"). The following image illustrates how a specific scenario at a given point in time is encoded in a trace entry:
 
 ```
@@ -211,8 +209,8 @@ To generate an input trace:
 ```
 
 Note that some example traces have been provided, in the traces directory.
-The '''test_trace1.new''' is a relatively short trace, and the
-'''tt00.new''' and '''tt01.new''' files are other (longer) example traces.
+The '''test_trace1.new''' is a short trace, and the
+'''tt00.new''' and '''tt01.new''' and '''tt02.new''' files are longer example traces.
 
 ## Invocation and Usage
 

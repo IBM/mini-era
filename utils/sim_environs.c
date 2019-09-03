@@ -275,7 +275,7 @@ dump_trace_record()
 	case no_label   : printf("N:"); break;
 	case car        : printf("C:"); break;
 	case truck      : printf("T:"); break;
-	case pedestrian : printf("B:"); break;
+	case pedestrian : printf("P:"); break;
 	case bicycle    : printf("B:"); break;
 	default: printf("ERROR "); 
 	}
