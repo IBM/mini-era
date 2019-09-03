@@ -82,7 +82,7 @@ extern char* object_names[NUM_OBJECTS];
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);
 bool_t eof_trace_reader();
-void read_next_trace_record(vehicle_state_t vs);
+bool_t read_next_trace_record(vehicle_state_t vs);
 void closeout_trace_reader();
 
 /* Kernels initialization */

@@ -205,7 +205,7 @@ def main(argv):
     # So far getopt seems to not work here...
     for i in range(0, len(argv[1:])):
         ii = i+1
-        print argv[ii]
+        #print argv[ii]
         if ((argv[ii] == "-h") | (argv[ii] == "--help")) :
             usage_and_exit(2)
         elif ((argv[ii] == "-t") | (argv[ii] == "--trace")) :

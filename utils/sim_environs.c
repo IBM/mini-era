@@ -31,9 +31,9 @@ object_state_t* the_objects[5];
 object_state_t my_car;		
 
 // This controls whether we can have multiple obstacles in a lane at a time
-bool_t   one_obstacle_per_lane = true; // false = unlimited
+bool_t   one_obstacle_per_lane = false; // false = unlimited
 
-#define NEW_OBJ_THRESHOLD 90     // RAND > this to create new obstacle object
+#define NEW_OBJ_THRESHOLD 97     // RAND > this to create new obstacle object
 
 // These are a succession of checks:
 #define NEW_OBJ_CAR_THRESHOLD    45   // RAND < this -- it is a car
@@ -46,12 +46,12 @@ bool_t   one_obstacle_per_lane = true; // false = unlimited
 #define NUM_PERSON_SPEEDS   2
 
 unsigned car_speeds[NUM_CAR_SPEEDS]        = { 45, 40, 35, 30, 25 };  // The possible speeds
-unsigned car_sp_thds[NUM_CAR_SPEEDS]       = { 35, 85, 93, 97, 100 }; // The thresholds for each speed (RAND: 0-99)
+unsigned car_sp_thds[NUM_CAR_SPEEDS]       = { 15, 75, 90, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
 
 unsigned truck_speeds[NUM_TRUCK_SPEEDS]    = { 40, 35, 30, 25 };
-unsigned truck_sp_thds[NUM_TRUCK_SPEEDS]   = { 40, 85, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
+unsigned truck_sp_thds[NUM_TRUCK_SPEEDS]   = { 50, 85, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
 
-unsigned bike_speeds[NUM_BIKE_SPEEDS]      = { 35, 30, 25 };
+unsigned bike_speeds[NUM_BIKE_SPEEDS]      = { 35, 30, 20 };
 unsigned bike_sp_thds[NUM_BIKE_SPEEDS]     = { 70, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
 
 unsigned person_speeds[NUM_PERSON_SPEEDS]  = { 15, 10 };

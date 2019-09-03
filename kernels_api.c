@@ -28,12 +28,6 @@ char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only"
 #endif
 char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
 
-/* These are globals that influence behavior, etc. */
-
-/* These are global trace record data; set each epoch by read_next_trace_record */
-char     tr_obj_vals[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-unsigned tr_dist_vals[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
-
 
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
@@ -397,7 +391,65 @@ label_t run_object_classification(unsigned tr_val)
   return object;  
 }
 
-void read_next_trace_record(vehicle_state_t vs)
+
+/* These are globals for the trace read parsing routines */
+#define MAX_TR_LINE_SZ   256
+
+char in_line_buf[MAX_TR_LINE_SZ];
+int last_i = 0;
+int in_tok = 0;
+int in_lane = 0;
+
+#define MAX_OBJ_IN_LANE  16
+
+unsigned obj_in_lane[NUM_LANES];
+unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE];
+char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE];
+
+char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
+unsigned nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+
+void
+get_object_token(char c)
+{
+  //DEBUG(printf("  get_object_token TK %u c %c last_i %u for %s\n", in_tok, c, last_i, &in_line_buf[last_i]));
+  if (in_tok == 0) { // 0 => the object character
+    char objc; 
+    sscanf(&in_line_buf[last_i], "%c", &objc);
+    lane_obj[in_lane][obj_in_lane[in_lane]] = objc;
+    //if (obj_in_lane[in_lane] == 0) { // LAST is nearest -- but should be safer than that!
+    nearest_obj[in_lane] = objc;
+  } else { // a distance
+    printf("ERROR : trace syntax is weird!\n");
+    printf(" LINE : %s\n", in_line_buf);
+    printf(" TOKN : %u hit %c from %s\n", last_i, c, &in_line_buf[last_i]);
+    exit(-3);
+  }
+  in_tok = 1 - in_tok; // Flip to expect distance token
+}
+
+void
+get_distance_token(char c)
+{
+  //DEBUG(printf("  get_distance_token TK %u c %c last_i %u for %s\n", in_tok, c, last_i, &in_line_buf[last_i]));
+  if (in_tok == 1) { // 0 => the distance value
+    unsigned distv;
+    sscanf(&in_line_buf[last_i], "%u", &distv);
+    lane_dist[in_lane][obj_in_lane[in_lane]] = distv;
+    //if (obj_in_lane[in_lane] == 0) {
+    nearest_dist[in_lane] = distv;
+    obj_in_lane[in_lane]++;
+
+  } else { // a distance
+    printf("ERROR : trace syntax is weird!\n");
+    printf(" LINE : %s\n", in_line_buf);
+    printf(" TOKN : %u hit %c from %s\n", last_i, c, &in_line_buf[last_i]);
+    exit(-4);
+  }
+  in_tok = 1 - in_tok; // Flip to expect object char token
+}
+
+bool_t read_next_trace_record(vehicle_state_t vs)
 {
   DEBUG(printf("In read_next_trace_record\n"));
   if (feof(input_trace)) { 
@@ -405,15 +457,77 @@ void read_next_trace_record(vehicle_state_t vs)
     exit(-1);
   }
 
-  /* 1) Read the next entry (line, epoch) from the trace */
   for (int i = 0; i < NUM_LANES; i++) {
-    tr_obj_vals[i] = 'N';
-    tr_dist_vals[i] = INF_DISTANCE;
+    obj_in_lane[i] = 0;
+    nearest_obj[i]  = 'N';
+    nearest_dist[i] = INF_DISTANCE;
   }
   
-  fscanf(input_trace, "%c:%u,%c:%u,%c:%u\n", &tr_obj_vals[1], &tr_dist_vals[1], &tr_obj_vals[2], &tr_dist_vals[2], &tr_obj_vals[3], &tr_dist_vals[3]); // Read next trace indicator
-  DEBUG(printf("  Trace  : %c%u %c%u %c%u\n", tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
-  DEBUG(printf("  VizTrace: %u,%c:%u,%c:%u,%c:%u\n", vs.lane, tr_obj_vals[1], tr_dist_vals[1], tr_obj_vals[2], tr_dist_vals[2], tr_obj_vals[3], tr_dist_vals[3]));
+  /* 1) Read the next entry (line, epoch) from the trace */
+  void* fres = fgets(in_line_buf, MAX_TR_LINE_SZ, input_trace);
+  if (fres == NULL) { // If fgets returns NULL then we hit EOF
+    printf(" FGETS returned NULL - feof = %u\n", feof(input_trace));
+    return false; // Indicate we didn't read from the trace (EOF)
+  }
+  
+  if ((strlen(in_line_buf) > 0) &&
+      (in_line_buf[strlen (in_line_buf) - 1] == '\n')) {
+    in_line_buf[strlen (in_line_buf) - 1] = '\0';
+  }
+  DEBUG(printf("IN_LINE : %s\n", in_line_buf));
+  DEBUG(printf("  VizTrace: %u,%s\n", vs.lane, in_line_buf));
+  last_i = 0;
+  in_tok = 0;
+  in_lane = 1;
+  for (int i = 0; i < 256; i++) { // Scan the input line
+    // Find the token seperators
+    char c = in_line_buf[i];
+    //DEBUG(printf("TR_CHAR '%c'\n", c));
+    switch(c) {
+    case ':':
+      in_line_buf[i] = '\0';
+      get_object_token(c);
+      last_i = i+1;
+      break;
+    case ',':
+      in_line_buf[i] = '\0';
+      get_distance_token(c);
+      last_i = i+1;
+      in_lane++;
+      break;
+    case ' ':
+      in_line_buf[i] = '\0';
+      get_distance_token(c);
+      last_i = i+1;
+      break;
+    case '\0':
+    case '\n':
+      in_line_buf[i] = '\0';
+      get_distance_token(c);
+      last_i = i+1;
+      i = 256;
+      break;
+    }
+  }
+
+
+#ifdef SUPER_VERBOSE
+  for (int i = 1; i < (NUM_LANES-1); i++) {
+    printf("  Lane %u %8s : ", i, lane_names[i]);
+    if (obj_in_lane[i] > 0) {
+      for (int j = 0; j < obj_in_lane[i]; j++) {
+	if (j > 0) {
+	  printf(", ");
+	}
+	printf("%c:%u", lane_obj[i][j], lane_dist[i][j]);
+      }
+      printf("\n");
+    } else {
+      printf("%c:%u\n", 'N', INF_DISTANCE);
+    }
+  }
+#endif
+  return true;
 }
 
 label_t iterate_cv_kernel(vehicle_state_t vs)
@@ -421,13 +535,13 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   DEBUG(printf("In iterate_cv_kernel\n"));
 
   unsigned tr_val = 0; // Default nothing
-  switch(tr_obj_vals[vs.lane]) {
+  switch(nearest_obj[vs.lane]) {
     case 'N' : tr_val = no_label; break;
     case 'B' : tr_val = bus; break;
     case 'C' : tr_val = car; break;
     case 'P' : tr_val = pedestrian; break;
     case 'T' : tr_val = truck; break;
-    default: printf("ERROR : Unknown object type in cv trace: '%c'\n", tr_obj_vals[vs.lane]); exit(-2);
+    default: printf("ERROR : Unknown object type in cv trace: '%c'\n", nearest_obj[vs.lane]); exit(-2);
   }
   label_t d_object = (label_t)tr_val;
 
@@ -454,7 +568,7 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_rad_kernel\n"));
 
-  unsigned tr_val = tr_dist_vals[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
+  unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
   
   distance_t ddist = the_radar_return_dict[tr_val].distance;
   distance_t dist;      // The output from this routine
@@ -506,7 +620,7 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
     }
   }
   /* 3) Return the estimated distance */
-  float tdist = 1.0*tr_dist_vals[vs.lane];
+  float tdist = 1.0*nearest_dist[vs.lane];
   DEBUG(printf("  Returning distance %f (vs %f and %f)\n", tdist, dist, ddist));
 
   //return dist;
@@ -523,16 +637,16 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
 {
 
   /* unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L */
-  /* if ((tr_obj_vals[2] != 'N') && (tr_dist_vals[2] < VIT_CLEAR_THRESHOLD)) {  */
+  /* if ((nearest_obj[2] != 'N') && (nearest_dist[2] < VIT_CLEAR_THRESHOLD)) {  */
   /*   // Some object is in the Center lane at distance 0 or 1 */
   /*   tr_msg_vals[1] = 3; // Unsafe to move from left  lane to right or left. */
   /*   tr_msg_vals[3] = 3; // Unsafe to move from right lane to right or left. */
   /* } */
-  /* if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < VIT_CLEAR_THRESHOLD)) {  */
+  /* if ((nearest_obj[1] != 'N') && (nearest_dist[1] < VIT_CLEAR_THRESHOLD)) {  */
   /*   // Some object is in the Left lane at distance 0 or 1 */
   /*   tr_msg_vals[2] += 1; // Unsafe to move from center lane to the left. */
   /* } */
-  /* if ((tr_obj_vals[3] != 'N') && (tr_dist_vals[3] < VIT_CLEAR_THRESHOLD)) {  */
+  /* if ((nearest_obj[3] != 'N') && (nearest_dist[3] < VIT_CLEAR_THRESHOLD)) {  */
   /*   // Some object is in the Right lane at distance 0 or 1 */
   /*   tr_msg_vals[2] += 2; // Unsafe to move from center lane to the right. */
   /* } */
@@ -543,7 +657,7 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   unsigned tr_val;
   switch (vs.lane) {
   case lhazard:
-    if ((tr_obj_vals[1] != 'N') && (tr_dist_vals[1] < VIT_CLEAR_THRESHOLD)) {  
+    if ((nearest_obj[1] != 'N') && (nearest_dist[1] < VIT_CLEAR_THRESHOLD)) {  
       // Some object is in the left lane within threshold distance
       tr_val = 3; // Unsafe to move from lhazard lane into the left lane 
     } else {
@@ -555,21 +669,21 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   case right:
     tr_val = 0;
     DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane, 
-		 vs.lane-1, tr_obj_vals[vs.lane-1], tr_dist_vals[vs.lane-1],
-		 vs.lane+1, tr_obj_vals[vs.lane+1], tr_dist_vals[vs.lane+1]));
-    if ((tr_obj_vals[vs.lane-1] != 'N') && (tr_dist_vals[vs.lane-1] < VIT_CLEAR_THRESHOLD)) {
+		 vs.lane-1, nearest_obj[vs.lane-1], nearest_dist[vs.lane-1],
+		 vs.lane+1, nearest_obj[vs.lane+1], nearest_dist[vs.lane+1]));
+    if ((nearest_obj[vs.lane-1] != 'N') && (nearest_dist[vs.lane-1] < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the Left lane at distance 0 or 1
       DEBUG(printf("    Marking unsafe to move left\n"));
       tr_val += 1; // Unsafe to move from this lane to the left.
     }
-    if ((tr_obj_vals[vs.lane+1] != 'N') && (tr_dist_vals[vs.lane+1] < VIT_CLEAR_THRESHOLD)) {
+    if ((nearest_obj[vs.lane+1] != 'N') && (nearest_dist[vs.lane+1] < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the Right lane at distance 0 or 1
       DEBUG(printf("    Marking unsafe to move right\n"));
       tr_val += 2; // Unsafe to move from this lane to the right.
     }
     break;
   case rhazard:
-    if ((tr_obj_vals[3] != 'N') && (tr_dist_vals[3] < VIT_CLEAR_THRESHOLD)) {
+    if ((nearest_obj[3] != 'N') && (nearest_dist[3] < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the right lane within threshold distance
       tr_val = 3; // Unsafe to move from center lane to the right.
     } else {
