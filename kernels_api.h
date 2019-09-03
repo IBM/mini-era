@@ -24,6 +24,8 @@
 #define DEBUG(x)
 #endif
 
+#define TIME
+
 /* Types definitions */
 typedef float distance_t;
 typedef enum {false, true} bool_t;

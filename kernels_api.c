@@ -295,6 +295,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     }
     Py_XDECREF(pFunc_load);
   }
+  DEBUG(printf("CV Kernel Init done\n"));
 #endif  
   return success;
 }

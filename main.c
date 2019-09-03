@@ -19,7 +19,8 @@
 #include <string.h>
 #include "kernels_api.h"
 #include <stdlib.h>
-
+#include <sys/time.h>
+#define TIME
 char * cv_dict  = "traces/objects_dictionary.dfn";
 char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
@@ -85,8 +86,11 @@ int main(int argc, char *argv[])
   vehicle_state.lane  = center;
   vehicle_state.speed = 50;
   DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
-
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
+  #ifdef TIME
+  	  int loop=0;
+	  struct timeval stop, start;
+  #endif
   while (!eof_trace_reader())
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
@@ -122,13 +126,27 @@ int main(int argc, char *argv[])
      */
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
+    
+    #ifdef TIME  
+          loop++;
+          if (loop == 1) { 
+  	  gettimeofday(&start, NULL);
+	  }
+    #endif	  
   }
+
+  #ifdef TIME
+  	gettimeofday(&stop, NULL);
+  #endif 
 
   /* All the traces have been fully consumed. Quitting... */
   closeout_cv_kernel();
   closeout_rad_kernel();
   closeout_vit_kernel();
 
+  #ifdef TIME
+  	printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+  #endif 
   printf("\nDone.\n");
   return 0;
 }
