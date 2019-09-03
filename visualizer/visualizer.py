@@ -181,7 +181,10 @@ def blit_obj(screen, obj, x, y):
 
 
 def usage_and_exit(exit_code):
-    print("usage: %s [--help] [--debug] [--trace=<trace_file>] [--framerate=<N>]\n" % (sys.argv[0]));
+    print("usage: %s OPTIONS" % (sys.argv[0]));
+    print(" OPTIONS: -h or --help  : print this usage info");
+    print("          -t <TF> or --trace=<TF> : specifies the input trace file <TF>");
+    print("          -d <N>  or --delay=<N>  : specifies the delay (in ms) between frames");
     sys.exit(exit_code)
 
     
@@ -197,7 +200,7 @@ def main(argv):
     global MOVE_DOWN
     global obj_list
     
-    tr = './v2_trace.txt' # Default value
+    tracefile = '' # NO Default value
     # parse command line arguments
     # So far getopt seems to not work here...
     for i in range(0, len(argv[1:])):
@@ -206,13 +209,17 @@ def main(argv):
         if ((argv[ii] == "-h") | (argv[ii] == "--help")) :
             usage_and_exit(2)
         elif ((argv[ii] == "-t") | (argv[ii] == "--trace")) :
-            tr = argv[ii+1];
-            print("%s tracefile = %s\n" % (argv[0], tr));
-        elif ((argv[ii] == "-f") | (argv[ii] == "--framerate")) :
+            tracefile = argv[ii+1];
+            print("%s tracefile = %s\n" % (argv[0], tracefile));
+        elif ((argv[ii] == "-d") | (argv[ii] == "--delay")) :
             MOVE_DOWN = int(argv[ii+1])
-            print("%s framerate %u\n" % (argv[0], MOVE_DOWN));
+            print("%s per frame delay is %u ms\n" % (argv[0], MOVE_DOWN));
 
-    print("Reading trace %s\n" % tr);
+    if (tracefile == '') :
+        print("You must specify a trace file (using -t or --tracefile=)");
+        usage_and_exit(4);
+        
+    print("Reading trace %s\n" % tracefile);
 
     # Establish clock
     clock = pygame.time.Clock()
@@ -228,7 +235,7 @@ def main(argv):
     # Trace format: 3 columns per epoch with the form XY
     #               where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck) and
     #               where Y is a 10-bit string representing distance from car (0 to 1023 in binary)
-    mine, left, mid, right = parse_trace(tr)
+    mine, left, mid, right = parse_trace(tracefile)
     mine.reverse();
     left.reverse() # reverse list order so popping gives chronological order
     mid.reverse()
@@ -246,7 +253,7 @@ def main(argv):
                 done = True 
             if event.type == move_down_event:
                 # Do all the object moving during "down" event
-                # So that the screen will refresh at the framerate defined by MOVE_DOWN
+                # So that the screen will refresh at the frame delay defined by MOVE_DOWN
 
                 if len(left) == 0:
                     # Stop once all entries of trace have been visualized
