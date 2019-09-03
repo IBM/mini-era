@@ -8,11 +8,11 @@ The visualizer is a simple pygame-based 5-lane simulation of the focus car (draw
 # Invocation
 The visualizer is a python program, invocation is as follows:
 ```
-  python visulaizer2.py -t <tracefile> -f <framerate>
+  python visualizer.py -t <tracefile> -d <frame_delay>
 ```
 
-The tracefile is the input to the visualizer, and there is a default value if a tracefile is not specified ("v2_trace.txt").
-The framwrate is a "delay" value between frames (in milliseconds), with a defaul of 500 (i.e. 2 frames per second).
+The tracefile is the input to the visualizer, and there is _NO_ default value so a tracefile _MUST_ be specified.
+The frame delay is a delay value between frames (in milliseconds), with a defaul of 500 (i.e. 2 frames per second).
 
 # Input Trace Format
 The input trace format is very similar to the mini-era format, but also incudes the current lane position of the focus car:

@@ -58,6 +58,8 @@ In this implementation, the objects include:
   N - nothing
 ```
 
+Note: Currently the visualizer does not support Pedestrians, and so the pedestrians are represented there as Bikes.
+
 In concert, the distances currently implemented are values between 0 and 550, corresponding to 50-meter increments from 0 to 500 (with the final value, 550, being "Infinity"). The following image illustrates how a specific scenario at a given point in time is encoded in a trace entry:
 
 ```
@@ -180,14 +182,21 @@ To install the Mini-ERA workload, clone the git repository:
 
 ```
   git clone https://github.com/IBM/mini-era
+  cd mini-era/cv/CNN_MIO_KERAS
+  export PYTHONPATH=`pwd`  (path_to_mini_era/cv/CNN_MIO_KERAS)
+  python3 mio_dataset.py
 ```
 
-To build Mini-ERA:
+To build Mini-ERA::
 
 ```
   cd mini-era
   make all
 ```
+This will build all the necessary programs; the mini-era main program(s), the
+utilities programs, etc. Some of these can be built independently, e.g. the
+trace generator includes compile-time parameters (at present) and thus might
+need to be recompiled to change the output trace.
 
 To build the trace-generation program:
 
@@ -201,7 +210,9 @@ To generate an input trace:
   ./tracegen > <target_trace_file>
 ```
 
-Note that this should reproduce the `test_trace1.new` file.
+Note that some example traces have been provided, in the traces directory.
+The '''test_trace1.new''' is a relatively short trace, and the
+'''tt00.new''' and '''tt01.new''' files are other (longer) example traces.
 
 ## Invocation and Usage
 
@@ -213,9 +224,9 @@ The invocation also requires an input trace file to be specifed:
 
 The visualizer can also be used to visualize the operation of the simulation.  The visualizer sits in the visualizer subdirectory, and currently requires its own version of the trace to operate. Please see the visualizer README.md file in the visualizer subdirectory.
 
-To drive th evisualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself driven by a Mini-ERA input trace) is to run the verbose version of Mini-ERA and pull out the Visualizer trace data from that output stream.  This is easily done as follows:
+To drive the visualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself driven by a Mini-ERA input trace) is to run the verbose version of Mini-ERA and pull out the Visualizer trace data from that output stream.  This is easily done as follows:
 ```
-  ./vmain.exe traces/test_trace1.new | grep VizTrace | awk '{print $2;}' > visualizer/traces/viz_tet_trace1.new
+  ./vmain.exe traces/test_trace1.new | grep VizTrace | sed 's/VizTrace: //' > visualizer/traces/viz_tet_trace1.new
 ```
 
 ## Contacts and Current Maintainers
