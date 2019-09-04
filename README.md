@@ -47,6 +47,8 @@ X:y,X:y,X:y
 where `X` is a character which identifies a type of obstacle object, and `y` is an unsigned integer representing a distance measure for that object. The "world" is viewed as a 2-dimensional space where the lanes are arranged left-to-right and the distances are from position zero (which is effectively the back of the car) to some maximum value N which represents the farthest out objects can occur/be tracked.
 
 <img src="/utils/mini_era.png" width="400">
+OR
+<img src="/utils/mini_era_viz.png" width="400">
 
 In this implementation, the objects include:
 
@@ -61,7 +63,7 @@ In this implementation, the objects include:
 In concert, the distances currently implemented are values between 0 and 550, corresponding to 50-meter increments from 0 to 500 (with the final value, 550, being "Infinity"). The following image illustrates how a specific scenario at a given point in time is encoded in a trace entry:
 
 ```
-  Distance | Left | Cntr | Right|
+  Distance| Left | Cntr | Right|
   -------------------------------
   |  500  |      |      |      |
   |  450  |      |      |      |

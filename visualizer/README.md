@@ -31,7 +31,7 @@ Each lane X:y is sepatated from the next by a comma character, so the first X:y 
 ```
 This specifies a time step where the focus car is in lane 2 (Center lane) and there is a car in the left lane at distance 350, and a truck in the right lane at distance 150 (and nothing in the center lane).
 
-The visualizer also supports multipel obstacle objects per lane, which are then separated by space characters.  An example:
+The visualizer also supports multiple obstacle objects per lane, which are then separated by space characters.  An example:
 ```
   2,C:350 B:450,N:550,T:150 C:300 B:450
 ```
