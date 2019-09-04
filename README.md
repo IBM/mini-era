@@ -47,8 +47,6 @@ X:y,X:y,X:y
 where `X` is a character which identifies a type of obstacle object, and `y` is an unsigned integer representing a distance measure for that object. The "world" is viewed as a 2-dimensional space where the lanes are arranged left-to-right and the distances are from position zero (which is effectively the back of the car) to some maximum value N which represents the farthest out objects can occur/be tracked.
 
 <img src="/utils/mini_era.png" width="400">
-OR
-<img src="/utils/mini_era_viz.png" width="400">
 
 In this implementation, the objects include:
 
