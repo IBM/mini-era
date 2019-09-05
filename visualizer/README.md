@@ -11,7 +11,7 @@ The visualizer is a python program, invocation is as follows:
   python visualizer.py -t <tracefile> -d <frame_delay>
 ```
 
-The tracefile is the input to the visualizer, and there is _NO_ default value so a tracefile _MUST_ be specified.
+The tracefile is the input to the visualizer, and there is **NO** default value so a tracefile **MUST** be specified.
 The frame delay is a delay value between frames (in milliseconds), with a default of 500 (i.e. 2 frames per second).
 
 There are some example trace files proveded, which correspond to the example trace files of the main Mini-ERA program,
