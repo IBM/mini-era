@@ -55,9 +55,10 @@ typedef struct {
   unsigned image_data[IMAGE_SIZE];
 } cv_dict_entry_t;
 
+/** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
 unsigned int     num_cv_dictionary_items = 0;
 cv_dict_entry_t* the_cv_object_dict;
-
+**/
 unsigned label_match[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0};  // Times CNN matched dictionary
 unsigned label_lookup[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0}; // Times we used CNN for object classification
   
@@ -239,6 +240,7 @@ status_t init_vit_kernel(char* dict_fn)
 status_t init_cv_kernel(char* py_file, char* dict_fn)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
+  /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
   // Read in the object images dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
@@ -270,7 +272,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     }
   }
   fclose(dictF);
-
+  **/
   // Initialization to run Keras CNN code 
 #ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
