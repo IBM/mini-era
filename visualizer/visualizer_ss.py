@@ -182,10 +182,8 @@ def blit_obj(screen, obj, x, y):
 
 def usage_and_exit(exit_code):
     print("usage: %s OPTIONS" % (sys.argv[0]));
-    print("          -s or --singlestep  : specifies user must manually advance each time step");
     print(" OPTIONS: -h or --help  : print this usage info");
     print("          -t <TF> or --trace=<TF> : specifies the input trace file <TF>");
-    print("          -d <N>  or --delay=<N>  : specifies the delay (in ms) between frames");
     sys.exit(exit_code)
 
     
@@ -216,9 +214,6 @@ def main(argv):
         elif ((argv[ii] == "-t") | (argv[ii] == "--trace")) :
             tracefile = argv[ii+1];
             print("%s tracefile = %s\n" % (argv[0], tracefile));
-        elif ((argv[ii] == "-d") | (argv[ii] == "--delay")) :
-            MOVE_DOWN = int(argv[ii+1])
-            print("%s per frame delay is %u ms\n" % (argv[0], MOVE_DOWN));
 
     if (tracefile == '') :
         print("You must specify a trace file (using -t or --tracefile=)");

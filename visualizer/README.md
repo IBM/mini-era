@@ -19,6 +19,13 @@ i.e. the visualizer trace ```tt00.viz``` corresponds to the Mini-ERA input trace
 ```tt01.*``` and ```tt02.*``` traces (and also the ```test_trace1.new``` and ```test_trace1.viz``` files).
 
 
+Note: there is a second version of the visualizer program for single-step operation, called ```visualizer_ss.py``` which waits on each trace step for the user to hit the enter key before advancing the visualizer state.  This has limited value in general, but can be useful to study the details of a particular sequence or portion of a trace visualization, and is quite helpful when trying to take interesting visualizer screen captures.
+The single-step version is invoked in much the same way, but does not support a frame delay parameter.
+The visualizer is a python program, invocation is as follows:
+```
+  python visualizer_ss.py -t <tracefile>
+```
+
 # Input Trace Format
 The input trace format is very similar to the mini-era format, but also incudes the current lane position of the focus car:
 ```
