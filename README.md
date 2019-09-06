@@ -7,8 +7,9 @@ This is a top-level driver for the Mini-ERA workload.
 Mini-ERA has been successfully built and executed using the following set-up:
  - Ubuntu 18.04
  - Python 3.0
+ - Python 2.7
  
-Ubuntu 16.04 platforms with older Python versions (e.g. 2.7) may also work but have not been tested.
+Ubuntu 16.04 platforms with older Python versions may also work but have not been tested.
 
 
 ## Installation and Execution
@@ -17,10 +18,10 @@ Ubuntu 16.04 platforms with older Python versions (e.g. 2.7) may also work but h
 git clone https://github.com/IBM/mini-era.git
 cd mini-era
 cd cv/CNN_MIO_KERAS
-python3 mio_dataset.py
+python mio_dataset.py
 ```
 
-This last step (`python3 mio_dataset.py`) has to be run **only once** to create test images as `.npy` files. Then:
+This last step (`python mio_dataset.py`) has to be run **only once** to create test images as `.npy` files. Then:
 
 ```
 make allclean
@@ -38,9 +39,7 @@ There is an example trace (`test_trace.new`) to illustrate the funciton of the M
 
 ## Trace Format
 
-The trace is a simple ASCII file. The general format of the trace file is a "complex" 3-tuple per time step, where each element of tuple corresponds to a set of information per lane (Left, Center, Right).  The trace only contains occupancy content for those lanes that can contain obstacle vehicles (currently the Left, Center and Right lanes, but not the Left or Right Hazard lanes).  The entry in the trace for each lane represents information about the contents of that lane for that time-step.
-
-The simplest format of a trace entry is:
+The trace is a simple ASCII file. The general format of the trace file is a 3-tuple with one set of information per lane (left, center, right) representing information about the contents of that lane for that time-step. The general format of a trace entry is:
 
 ```
 X:y,X:y,X:y
@@ -79,33 +78,6 @@ In concert, the distances currently implemented are values between 0 and 550, co
 
 Corresponding trace entry:  C:300,T:400,P:100 
 ```
-
-Note that multiple obstacle vehicles can occupy a lane, and in such a case, the set of occupying vehicles in a given lane is listed in that lane's tuple position, in order from farthest to nearest, separated by spaces.  Thus, the more general format for a trace entry could be:
-
-```
-X:y X:y,X:y,X:y X:y X:y
-```
-For example:
-```
-C:400 T:250,N:550,B:450 C:300 P:150
-```
-defines a time step where there is a car in the left lane at distance 400, a truck in the left lane at distance 250, nothing in the center lane (out to distance 500 at least) and the right lane has a bike at distance 450, a car at distance 300, and a person at distance 150, i.e.:
-```
-  Distance| Left | Cntr | Right|
-  -------------------------------
-  |  500  |      |      |      |
-  |  450  |      |      |  B   |
-  |  400  |  C   |      |      |
-  |  350  |      |      |      |
-  |  300  |      |      |  C   |
-  |  250  |  T   |      |      |
-  |  200  |      |      |      |
-  |  150  |      |      |  P   |
-  |  100  |      |      |      |
-  |   50  |      |      |      |
-  |    0  |      |      |      |
-```
-
 
 ## Dictionary Files
 
@@ -211,7 +183,7 @@ To install the Mini-ERA workload, clone the git repository:
   git clone https://github.com/IBM/mini-era
   cd mini-era/cv/CNN_MIO_KERAS
   export PYTHONPATH=`pwd`  (path_to_mini_era/cv/CNN_MIO_KERAS)
-  python3 mio_dataset.py
+  python mio_dataset.py
 ```
 
 To build Mini-ERA::

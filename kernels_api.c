@@ -290,7 +290,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
   // Initialization to run Keras CNN code 
 #ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
-  pName = PyUnicode_DecodeFSDefault(python_module);
+  pName = PyString_FromString(python_module);
   pModule = PyImport_Import(pName);
   Py_DECREF(pName);
 
@@ -879,9 +879,7 @@ void closeout_cv_kernel()
   
 #ifndef BYPASS_KERAS_CV_CODE
     Py_DECREF(pModule);
-    if (Py_FinalizeEx() < 0) {
-           return;
-    }
+    Py_Finalize();
 #endif   
 }
 

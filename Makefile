@@ -9,12 +9,12 @@ CFLAGS = -pedantic -Wall -g $(CFOPTF0)
 CFLAGS +=  -Xlinker -export-dynamic
 
 INCLUDES =  
-PYTHONINCLUDES = -I/usr/include/python3.6m
+PYTHONINCLUDES = $(shell /usr/bin/python-config --cflags)
 LFLAGS = -Lviterbi -Lradar 
 #LFLAGS += 
 #LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
 LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
-PYTHONLIBS = -lpython3.6m
+PYTHONLIBS = $(shell /usr/bin/python-config --ldflags)
 
 OBJDIR = obj
 C_OBJDIR = obj_c
