@@ -28,6 +28,28 @@ char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only"
 #endif
 char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
 
+/* These are globals for the trace read parsing routines */
+#define MAX_TR_LINE_SZ   256
+
+char in_line_buf[MAX_TR_LINE_SZ];
+int last_i = 0;
+int in_tok = 0;
+int in_lane = 0;
+
+#define MAX_OBJ_IN_LANE  16
+
+unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
+unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
+unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
+char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
+
+char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
+unsigned nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+
+unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
+
+
+
 
 /* These are types, functions, etc. required for VITERBI */
 #include "viterbi/utils.h"
@@ -97,6 +119,7 @@ unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
 unsigned vit_msgs_behavior = 0; // 0 = default
+unsigned total_msgs = 0; // Total messages decoded during the full run
   
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
@@ -246,6 +269,10 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("\n"));
   }
   fclose(dictF);
+
+  for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
+    hist_total_objs[i] = 0;
+  }
 
   DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
   return success;
@@ -406,24 +433,6 @@ label_t run_object_classification(unsigned tr_val)
   return object;  
 }
 
-
-/* These are globals for the trace read parsing routines */
-#define MAX_TR_LINE_SZ   256
-
-char in_line_buf[MAX_TR_LINE_SZ];
-int last_i = 0;
-int in_tok = 0;
-int in_lane = 0;
-
-#define MAX_OBJ_IN_LANE  16
-
-unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
-unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
-unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
-char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
-
-char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-unsigned nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
 
 void
 get_object_token(char c)
@@ -654,7 +663,8 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
  */
 message_t iterate_vit_kernel(vehicle_state_t vs)
 {
-
+  hist_total_objs[total_obj]++;
+  
   /* unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L */
   /* if ((nearest_obj[2] != 'N') && (nearest_dist[2] < VIT_CLEAR_THRESHOLD)) {  */
   /*   // Some object is in the Center lane at distance 0 or 1 */
@@ -757,7 +767,7 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   for (int mi = 0; mi < num_msgs; mi++) {
     DEBUG(printf("  Calling the viterbi decode routine for %s message %u\n", (msg_offset == 0) ? "short" : "long", mi));
     result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
-  
+    total_msgs++;
     // descramble the output - put it in result
     int psdusize = trace_msg->frame_p.psdu_size;
     DEBUG(printf("  Calling the viterbi descrambler routine\n"));
@@ -897,4 +907,17 @@ void closeout_rad_kernel()
 void closeout_vit_kernel()
 {
   // Nothing to do?
+
+  printf("\nHistogram of Total Objects:\n");
+  unsigned sum = 0;
+  for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
+    if (hist_total_objs[i] != 0) {
+      printf("%3u | %9u \n", i, hist_total_objs[i]);
+      sum += i*hist_total_objs[i];
+    }
+  }
+  double avg_objs = (1.0 * sum)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
+  printf("There were %.3lf obstacles per time step (average)\n", avg_objs);
+  double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
+  printf("There were %.3lf messages per time step (average)\n", avg_msgs);
 }
