@@ -36,8 +36,8 @@ unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
 unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
 unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
 
-void reset();
-void viterbi_chunks_init_generic();
+void reset(void);
+void viterbi_chunks_init_generic(void);
 
 #ifdef USE_ESP_INTERFACE
 void viterbi_butterfly2_generic(unsigned char *inMemory);

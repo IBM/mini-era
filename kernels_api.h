@@ -86,9 +86,9 @@ extern unsigned vit_msgs_behavior;
 
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);
-bool_t eof_trace_reader();
+bool_t eof_trace_reader(void);
 bool_t read_next_trace_record(vehicle_state_t vs);
-void closeout_trace_reader();
+void closeout_trace_reader(void);
 
 /* Kernels initialization */
 status_t init_cv_kernel(char* py_file, char* dict_fn);
@@ -104,8 +104,8 @@ message_t iterate_vit_kernel(vehicle_state_t vs);
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
 // These routines are used for any finalk, end-of-run operations/output
-void closeout_cv_kernel();
-void closeout_rad_kernel();
-void closeout_vit_kernel();
+void closeout_cv_kernel(void);
+void closeout_rad_kernel(void);
+void closeout_vit_kernel(void);
 
 #endif

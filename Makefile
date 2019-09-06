@@ -4,7 +4,7 @@ COPTF0 = -O0
 COPTF2 = -O2
 COPTF3 = -O3
 
-CFLAGS = -pedantic -Wall -g $(CFOPTF0)
+CFLAGS = -pedantic -Wall -g $(COPTF2)
 #CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
 CFLAGS +=  -Xlinker -export-dynamic
 

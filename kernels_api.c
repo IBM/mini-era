@@ -131,7 +131,7 @@ status_t init_rad_kernel(char* dict_fn)
     return error;
   }
   // Read the number of definitions
-  fscanf(dictF, "%u\n", &num_radar_dictionary_items);
+  if (fscanf(dictF, "%u\n", &num_radar_dictionary_items)) ;
   DEBUG(printf("  There are %u dictionary entries\n", num_radar_dictionary_items));
   the_radar_return_dict = (radar_dict_entry_t*)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
   if (the_radar_return_dict == NULL) 
@@ -145,13 +145,13 @@ status_t init_rad_kernel(char* dict_fn)
     unsigned entry_id;
     float entry_dist;
     unsigned entry_dict_values = 0;
-    fscanf(dictF, "%u %f", &entry_id, &entry_dist);
+    if (fscanf(dictF, "%u %f", &entry_id, &entry_dist)) ;
     DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
     the_radar_return_dict[di].return_id = entry_id;
     the_radar_return_dict[di].distance =  entry_dist;
     for (int i = 0; i < 2*RADAR_N; i++) {
       float fin;
-      fscanf(dictF, "%f", &fin);
+      if (fscanf(dictF, "%f", &fin)) ;
       the_radar_return_dict[di].return_data[i] = fin;
       tot_dict_values++;
       entry_dict_values++;
@@ -193,7 +193,7 @@ status_t init_vit_kernel(char* dict_fn)
 
   // Read in the trace message dictionary from the trace file
   // Read the number of messages
-  fscanf(dictF, "%u\n", &num_viterbi_dictionary_items);
+  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items)) ;
   DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
   the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
@@ -208,7 +208,7 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
 
     int mnum, mid;
-    fscanf(dictF, "%d %d\n", &mnum, &mid);
+    if (fscanf(dictF, "%d %d\n", &mnum, &mid)) ;
     DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
     if (mnum != i) {
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
@@ -218,7 +218,7 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate)) ;
     DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
@@ -227,7 +227,7 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits);
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits)) ;
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
     the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
     the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
@@ -239,7 +239,7 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
-      fscanf(dictF, "%u ", &c); 
+      if (fscanf(dictF, "%u ", &c)) ;
       DEBUG(printf("%u ", c));
       the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
     }
@@ -359,10 +359,8 @@ label_t run_object_classification_syscall(unsigned tr_val)
 label_t run_object_classification(unsigned tr_val) 
 {
   DEBUG(printf("Entered run_object_classification...\n"));
-  label_t object;	
-#ifdef BYPASS_KERAS_CV_CODE
-  object = (label_t)tr_val;
-#else
+  label_t object = (label_t)tr_val;
+#ifndef BYPASS_KERAS_CV_CODE
   if (pModule != NULL) {
           pFunc = PyObject_GetAttrString(pModule, python_func);
   
@@ -675,7 +673,7 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   /* DEBUG(printf("  Tr_Msgs: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2])); */
   /* unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane */
 
-  unsigned tr_val;
+  unsigned tr_val = 0; // set a default to avoid compiler messages
   switch (vs.lane) {
   case lhazard:
     if ((nearest_obj[1] != 'N') && (nearest_dist[1] < VIT_CLEAR_THRESHOLD)) {  
