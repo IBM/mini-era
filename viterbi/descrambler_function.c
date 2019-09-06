@@ -26,8 +26,8 @@ typedef unsigned char   uint8_t;
 
 char* descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg) //definition
 {
-	uint8_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
-	uint8_t msg_length = (psdusize)-28;
+	uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
+	uint32_t msg_length = (psdusize)-28;
 	uint8_t out[output_length];
 	int state = 0; //start
 	int verbose = ((ref != NULL) && (msg != NULL));
