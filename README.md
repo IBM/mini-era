@@ -26,10 +26,22 @@ This last step (`python mio_dataset.py`) has to be run **only once** to create t
 ```
 make allclean
 make
-./main.exe <trace_name>     (e.g. traces/test_trace1.new)
+./main.exe -t <trace_name>     (e.g. traces/test_trace1.new)
 ```
 
- 
+The mini-era requires the specification of the input trace (using -t <trace_file>) and also supports the specification of a message modeling behavior for the Viterbi kernel, using -v <N> (where N is an integer).  The corresponding behaviors are:
+```
+ <N> : Behavior
+ --- | ------------------------------------------------
+  0  = Viterbi decodes one short, global message per time step
+  1  = Viterbi decodes one long, global message per time step
+  2  = Viterbi decodes one short message per obstacle vehicle per time step
+  3  = Viterbi decodes one long message per obstacle vehicle per time step
+  4  = Viterbi decodes one short global message plus one more per obstacle vehicle per time step
+  5  = Viterbi decodes one long global message plus one more per obstacle vehicle per time step
+```
+By using the -v <N> behavior controls, one can simulate the Viterbi messaging work that could load the system when either operating with a single global (environmental) messsage model, with a pure swarm collaboration model (where each other nearby vehicle sends a message) and in a hybrid that includes both kinds of messaging.  The message length also allows one to consider the effect of larger and small message payload decoding on the overall Viterbi run-time impact.
+
 ## Status
 
 This version currently uses an input trace to drive the Mini-ERA behaviors, and the computer-vision, Viterbi and radar ranging functionality in the underlying kernels.
@@ -218,14 +230,14 @@ The '''test_trace1.new''' is a short trace, and the
 The main mini-era program is invoked using the program main.exe, but there is also a debugging (verbose) version named vmain.exe.
 The invocation also requires an input trace file to be specifed:
 ```
-  main.exe traces/test_trace1.new
+  main.exe -t traces/test_trace1.new
 ```
 
 The visualizer can also be used to visualize the operation of the simulation.  The visualizer sits in the visualizer subdirectory, and currently requires its own version of the trace to operate. Please see the visualizer README.md file in the visualizer subdirectory.
 
 To drive the visualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself driven by a Mini-ERA input trace) is to run the verbose version of Mini-ERA and pull out the Visualizer trace data from that output stream.  This is easily done as follows:
 ```
-  ./vmain.exe traces/test_trace1.new | grep VizTrace | sed 's/VizTrace: //' > visualizer/traces/viz_tet_trace1.new
+  ./vmain.exe -t traces/test_trace1.new | grep VizTrace | sed 's/VizTrace: //' > visualizer/traces/viz_tet_trace1.new
 ```
 
 ## Contacts and Current Maintainers
