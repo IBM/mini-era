@@ -80,6 +80,9 @@ extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
 
+extern unsigned vit_msgs_behavior;
+  
+
 
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);

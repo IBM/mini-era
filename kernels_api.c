@@ -83,6 +83,7 @@ char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 /* These are some top-level defines needed for VITERBI */
 typedef struct {
+  unsigned int msg_num;
   unsigned int msg_id;
   ofdm_param   ofdm_p;
   frame_param  frame_p;
@@ -94,6 +95,9 @@ uint8_t actual_msg[1600];
 
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
+
+unsigned vit_msgs_behavior = 0; // 0 = default
+  
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
@@ -142,7 +146,7 @@ status_t init_rad_kernel(char* dict_fn)
     float entry_dist;
     unsigned entry_dict_values = 0;
     fscanf(dictF, "%u %f", &entry_id, &entry_dist);
-    DEBUG(printf("  Reading dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
+    DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
     the_radar_return_dict[di].return_id = entry_id;
     the_radar_return_dict[di].distance =  entry_dist;
     for (int i = 0; i < 2*RADAR_N; i++) {
@@ -201,8 +205,17 @@ status_t init_vit_kernel(char* dict_fn)
   // Read in each dictionary item
   for (int i = 0; i < num_viterbi_dictionary_items; i++) 
   {
-    the_viterbi_trace_dict[i].msg_id = i;
-    DEBUG(printf("  Reading dictionary entry %u\n", the_viterbi_trace_dict[i].msg_id));
+    DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
+
+    int mnum, mid;
+    fscanf(dictF, "%d %d\n", &mnum, &mid);
+    DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
+    if (mnum != i) {
+      printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
+      exit(-5);
+    }
+    the_viterbi_trace_dict[i].msg_id = mnum;
+    the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
     fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate);
@@ -223,6 +236,7 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].frame_p.n_data_bits    = in_data_bits;
 
     int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
+    DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
       fscanf(dictF, "%u ", &c); 
@@ -262,7 +276,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     unsigned entry_id;
     unsigned object_id;
     fscanf(dictF, "%u %u", &entry_id, &object_id);
-    DEBUG(printf("  Reading dictionary entry %u : %u %u\n", di, entry_id, object_id));
+    DEBUG(printf("  Reading cv dictionary entry %u : %u %u\n", di, entry_id, object_id));
     the_cv_object_dict[di].image_id = entry_id;
     the_cv_object_dict[di].object   = object_id;
     for (int i = 0; i < IMAGE_SIZE; i++) {
@@ -405,9 +419,10 @@ int in_lane = 0;
 
 #define MAX_OBJ_IN_LANE  16
 
-unsigned obj_in_lane[NUM_LANES];
-unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE];
-char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE];
+unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
+unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
+unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
+char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
 
 char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
 unsigned nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
@@ -422,6 +437,9 @@ get_object_token(char c)
     lane_obj[in_lane][obj_in_lane[in_lane]] = objc;
     //if (obj_in_lane[in_lane] == 0) { // LAST is nearest -- but should be safer than that!
     nearest_obj[in_lane] = objc;
+    if (objc != 'N') {
+      total_obj++;
+    }
   } else { // a distance
     printf("ERROR : trace syntax is weird!\n");
     printf(" LINE : %s\n", in_line_buf);
@@ -442,7 +460,6 @@ get_distance_token(char c)
     //if (obj_in_lane[in_lane] == 0) {
     nearest_dist[in_lane] = distv;
     obj_in_lane[in_lane]++;
-
   } else { // a distance
     printf("ERROR : trace syntax is weird!\n");
     printf(" LINE : %s\n", in_line_buf);
@@ -460,6 +477,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
     exit(-1);
   }
 
+  total_obj = 0;
   for (int i = 0; i < NUM_LANES; i++) {
     obj_in_lane[i] = 0;
     nearest_obj[i]  = 'N';
@@ -694,45 +712,63 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
     }
     break;
   }
-  DEBUG(printf("Viterbi message for lane %u %s = %u\n", vs.lane, lane_names[vs.lane], tr_val));	
+
+  DEBUG(printf("Viterbi final message for lane %u %s = %u\n", vs.lane, lane_names[vs.lane], tr_val));	
   char the_msg[1600]; // Return from decode; large enough for any of our messages
   message_t msg;      // The output from this routine
 
   vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
-  
+
+    // Here we will simulate multiple cases, based on global vit_msgs_behavior
+  int num_msgs = 1;   // the number of messages to send this time step (1 is default)
+  int msg_offset = 0; // 0 = short messages, 4 = long messages
+  switch(vit_msgs_behavior) {
+  case 0: break;
+  case 1: msg_offset = 4; break;
+  case 2: num_msgs = total_obj; break;
+  case 3: num_msgs = total_obj; msg_offset = 4; break;
+  case 4: num_msgs = total_obj + 1; break;
+  case 5: num_msgs = total_obj + 1; msg_offset = 4; break;
+  }
+
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
-    trace_msg = &(the_viterbi_trace_dict[0]);
+    trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);
     msg = safe_to_move_right_or_left;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u : %s = safe_to_move_right_or_left\n", msg, message_names[msg]));
     break;
   case 1: // safe_to_move_right
-    trace_msg = &(the_viterbi_trace_dict[1]);
+    trace_msg = &(the_viterbi_trace_dict[1 + msg_offset]);
     msg = safe_to_move_right_only;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u : %s = safe_to_move_right_only\n", msg, message_names[msg]));
     break;
   case 2: // safe_to_move_left
-    trace_msg = &(the_viterbi_trace_dict[2]);
+    trace_msg = &(the_viterbi_trace_dict[2 + msg_offset]);
     msg = safe_to_move_left_only;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u : %s = safe_to_move_left_only\n", msg, message_names[msg]));
     break;
   case 3: // unsafe_to_move_left_or_right
-    trace_msg = &(the_viterbi_trace_dict[3]);
+    trace_msg = &(the_viterbi_trace_dict[3 + msg_offset]);
     msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
     DEBUG(printf("  Using msg %u : %s = unsafe_to_move_right_or_left\n", msg, message_names[msg]));
     break;
   }
 
-  // Send through the viterbi decoder
+  // Send each message (here they are all the same) through the viterbi decoder
   uint8_t *result;
-  DEBUG(printf("  Calling the viterbi decode routine\n"));
-  result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
+  for (int mi = 0; mi < num_msgs; mi++) {
+    DEBUG(printf("  Calling the viterbi decode routine for %s message %u\n", (msg_offset == 0) ? "short" : "long", mi));
+    result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
+  
+    // descramble the output - put it in result
+    int psdusize = trace_msg->frame_p.psdu_size;
+    DEBUG(printf("  Calling the viterbi descrambler routine\n"));
+    descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
 
-  // descramble the output - put it in result
-  int psdusize = trace_msg->frame_p.psdu_size;
-	DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-  descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
-
+    // Here we could llllook at the message string and do something,
+    //  but we already know the right answeer...
+  }
+  
   // Can check contents of "the_msg" to determine which message;
   //   here we "cheat" and return the message indicated by the trace.
   DEBUG(printf("The iterate_vit_kernel is returning msg %u\n", msg));

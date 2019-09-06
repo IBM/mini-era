@@ -17,13 +17,33 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "kernels_api.h"
 #include <stdlib.h>
 #include <sys/time.h>
+#include <unistd.h>
+
+#include "kernels_api.h"
+
+
 #define TIME
 char * cv_dict  = "traces/objects_dictionary.dfn";
 char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
+
+
+
+void print_usage(char * pname) {
+  printf("Usage: %s <OPTIONS>\n", pname);
+  printf(" OPTIONS:\n");
+  printf("    -t <trace> : defines the input trace file to use\n");
+  printf("    -v <N>     : defines Viterbi messaging behavior:\n");
+  printf("               :      0 = One short message per time step\n");
+  printf("               :      1 = One long  message per time step\n");
+  printf("               :      2 = One short message per obstacle per time step\n");
+  printf("               :      3 = One long  message per obstacle per time step\n");
+  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
+  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -32,31 +52,66 @@ int main(int argc, char *argv[])
   distance_t distance;
   message_t message;
 
+  char* trace_file; 
+  int opt; 
+      
+  // put ':' in the starting of the 
+  // string so that program can  
+  // distinguish between '?' and ':'
+  while((opt = getopt(argc, argv, ":ht:v:")) != -1) {  
+    switch(opt) {  
+    case 'h':
+      print_usage(argv[0]);
+      exit(0);
+    case 't':
+      trace_file = optarg;
+      printf("Using trace file: %s\n", trace_file);
+      break;
+    case 'v':
+      vit_msgs_behavior = atoi(optarg);
+      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      break;
+    case ':':
+      printf("option needs a value\n");
+      break;  
+    case '?':
+      printf("unknown option: %c\n", optopt); 
+    break;
+    }  
+  }  
+      
+  // optind is for the extra arguments 
+  // which are not parsed 
+  for(; optind < argc; optind++){      
+    printf("extra arguments: %s\n", argv[optind]);  
+  } 
+  
+  
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
    * are required to have the same base name, using the file extension to indicate
    * which kernel the trace corresponds to (cv, rad, vit).
    */
-  if (argc != 2)
-  {
-    printf("Usage: %s <trace_basename>\n\n", argv[0]);
-    printf("Where <trace_basename> is the basename of the trace files to load:\n");
-    printf("  <trace_basename>.cv  : trace to feed the computer vision kernel\n");
-    printf("  <trace_basename>.rad : trace to feed the radar (FFT-1D) kernel\n");
-    printf("  <trace_basename>.vit : trace to feed the Viterbi decoding kernel\n");
+  /* if (argc != 2) */
+  /* { */
+  /*   printf("Usage: %s <trace_basename>\n\n", argv[0]); */
+  /*   printf("Where <trace_basename> is the basename of the trace files to load:\n"); */
+  /*   printf("  <trace_basename>.cv  : trace to feed the computer vision kernel\n"); */
+  /*   printf("  <trace_basename>.rad : trace to feed the radar (FFT-1D) kernel\n"); */
+  /*   printf("  <trace_basename>.vit : trace to feed the Viterbi decoding kernel\n"); */
 
-    return 1;
-  }
+  /*   return 1; */
+  /* } */
 
 
   /* Trace filename construction */
-  char * in_trace = argv[1];
-  printf("Input trace file: %s\n", in_trace);
+  /* char * trace_file = argv[1]; */
+  printf("Input trace file: %s\n", trace_file);
 
   char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
   /* Trace Reader initialization */
-  if (!init_trace_reader(in_trace))
+  if (!init_trace_reader(trace_file))
   {
     printf("Error: the trace reader couldn't be initialized properly.\n");
     return 1;
