@@ -157,20 +157,8 @@ The trace dictionary is defined as follows:
 
 ### The CV Dictionary Format
 
-This file describes the CV dictionary format, as defined in `cv_dictionary.dfn`.
+This version of the Mini-ERA odes not use or require a CV CNN Dictionary file.
 
-The trace dictionary is defined as follows:
-
-```
-<n>         - Number of Dictionary Entries
-<id> <obj>  - the ID of this entry (sequential number?) and label_t it represents
-<u>         - These are the input image data values (unsigned format)
-<u>         - There are ?N? of them (currently just 32 as a placeholder) per dictionary entry
-...         - These are probably image pixel values; may need to be RGB values?
-<u>
-<id> <dist> - the ID of the next entry, and Distance it represents
-...
-```
 
 ## Requirements
 
