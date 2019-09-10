@@ -317,7 +317,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
   // Initialization to run Keras CNN code 
 #ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
-  pName = PyString_FromString(python_module);
+  pName = PyUnicode_DecodeFSDefault(python_module);
   pModule = PyImport_Import(pName);
   Py_DECREF(pName);
 
