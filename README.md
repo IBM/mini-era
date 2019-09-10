@@ -231,5 +231,4 @@ To drive the visualizer, one needs to produce a Visualizer trace.  The mini-era 
 ## Contacts and Current Maintainers
 
  - J-D Wellman (wellman@us.ibm.com)
- - Nandhini Chandramoorthy (Nandhini.Chandramoorthy@ibm.com)
  - Augusto Veja (ajvega@us.ibm.com)
