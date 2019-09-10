@@ -143,14 +143,15 @@ int main(int argc, char *argv[])
   DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   #ifdef TIME
-  	  int loop=0;
-	  struct timeval stop, start;
+         int loop=0;
+         struct timeval stop, start;
   #endif
+
+  /* The input trace contains the per-epoch (time-step) input data */
+  read_next_trace_record(vehicle_state);
   while (!eof_trace_reader())
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
-    /* The input trace contains the per-epoch (time-step) input data */
-    read_next_trace_record(vehicle_state);
 
     /* The computer vision kernel performs object recognition on the
      * next image, and returns the corresponding label. 
@@ -188,6 +189,7 @@ int main(int argc, char *argv[])
   	  gettimeofday(&start, NULL);
 	  }
     #endif	  
+    read_next_trace_record(vehicle_state);
   }
 
   #ifdef TIME
