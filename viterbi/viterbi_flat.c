@@ -558,7 +558,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
 #ifdef USE_ESP_INTERFACE
   {
     // Copy inputs into the inMemory for esp-interface version
-    uint8_t inMemory[43447]; // This is "minimally sized for max entries"
+    uint8_t inMemory[43449]; // This is "minimally sized for max entries"
     int*    inWords = (int*)inMemory; // This is an "integer" view of inMemory
 
     inWords[  0] = ofdm->n_cbps;
