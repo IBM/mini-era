@@ -1,17 +1,9 @@
 /* -*-Mode: C;-*- */
 
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "fft-1d.h"
-
-#include "calc_fmcw_dist.h"
-
-/** #include fft-1d/fft.c **/
 /**BeginCopyright************************************************************
  *
- * $HeadURL: https://pastec.gtri.gatech.edu/svn/svn-dpc/INNC/projects/PERFECT-TAV-ES/suite/required/fft-1d/src/fft.c $
- * $Id: fft.c 8546 2014-04-02 21:36:22Z tallent $
+ * $HeadURL: https://pastec.gtri.gatech.edu/svn/svn-dpc/INNC/projects/PERFECT-TAV-ES/suite/required/fft-1d/inc/fft-1d.h $
+ * $Id: fft-1d.h 8546 2014-04-02 21:36:22Z tallent $
  *
  *---------------------------------------------------------------------------
  * Part of PERFECT Benchmark Suite (hpc.pnnl.gov/projects/PERFECT/)
@@ -74,144 +66,15 @@
  *
  **EndCopyright*************************************************************/
 
-static unsigned int
-_rev (unsigned int v)
-{
-  unsigned int r = v; 
-  int s = sizeof(v) * CHAR_BIT - 1; 
+#ifndef _TAV_1D_FFT_
+#define _TAV_1D_FFT_
 
-  for (v >>= 1; v; v >>= 1)
-  {   
-    r <<= 1;
-    r |= v & 1;
-    s--;
-  }
-  r <<= s; 
+#define _XOPEN_SOURCE 500
+#include <stdint.h>
+#include <math.h>
+#include <limits.h>
 
-  return r;
-}
+int write_array_to_octave (float * data, unsigned int len, char * filename, char * name);
+int fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign);
 
-
-static float *
-bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
-{
-  unsigned int i, s, shift;
-  s = sizeof(i) * CHAR_BIT - 1;
-  shift = s - bits + 1;
-
-  for (i = 0; i < N; i++) {
-    unsigned int r;
-    float t_real, t_imag;
-    r = _rev (i);
-    r >>= shift;
-
-    if (i < r) {
-      t_real = w[2 * i];
-      t_imag = w[2 * i + 1];
-      w[2 * i] = w[2 * r];
-      w[2 * i + 1] = w[2 * r + 1];
-      w[2 * r] = t_real;
-      w[2 * r + 1] = t_imag;
-    }
-  }
-
-  return w;
-}
-
-
-int
-fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign)
-{
-  unsigned int transform_length;
-  unsigned int a, b, i, j, bit;
-  float theta, t_real, t_imag, w_real, w_imag, s, t, s2, z_real, z_imag;
-
-  transform_length = 1;
-
-  /* bit reversal */
-  bit_reverse (data, data_size_bytes, N, logn);
-
-  /* calculation */
-  for (bit = 0; bit < logn; bit++) {
-    w_real = 1.0;
-    w_imag = 0.0;
-
-    theta = 1.0 * sign * M_PI / (float) transform_length;
-
-    s = sin (theta);
-    t = sin (0.5 * theta);
-    s2 = 2.0 * t * t;
-
-    for (a = 0; a < transform_length; a++) {
-      for (b = 0; b < N; b += 2 * transform_length) {
-	i = b + a;
-	j = b + a + transform_length;
-
-	z_real = data[2*j  ];
-	z_imag = data[2*j+1];
-
-	t_real = w_real * z_real - w_imag * z_imag;
-	t_imag = w_real * z_imag + w_imag * z_real;
-
-	/* write the result */
-	data[2*j  ]  = data[2*i  ] - t_real;
-	data[2*j+1]  = data[2*i+1] - t_imag;
-	data[2*i  ] += t_real;
-	data[2*i+1] += t_imag;
-      }
-
-      /* adjust w */
-      t_real = w_real - (s * w_imag + s2 * w_real);
-      t_imag = w_imag + (s * w_real - s2 * w_imag);
-      w_real = t_real;
-      w_imag = t_imag;
-
-    }
-
-    transform_length *= 2;
-  }
-
-  return 0;
-}
-
-
-typedef struct {
-  float max_psd;
-  unsigned int max_index;
-} avg_max_t;
-
-avg_max_t
-calc_avg_max(float* data, size_t data_size_bytes)
-{
-  avg_max_t ret_val;
-  ret_val.max_psd   = 0;
-  ret_val.max_index = data_size_bytes; /* A too large value */
-  
-  unsigned int i;
-  float temp;
-  for (i=0; i < RADAR_N; i++) {
-    temp = (pow(data[2*i],2) + pow(data[2*i+1],2))/100.0;
-    if (temp > ret_val.max_psd) {
-      ret_val.max_psd = temp;
-      ret_val.max_index = i;
-    }
-  }
-  return ret_val;
-}
-
-
-float calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes)
-{
-  fft (data, data_size_bytes, RADAR_N, RADAR_LOGN, -1);
-
-  avg_max_t avg_max = calc_avg_max(data, data_size_bytes);
-
-  if (avg_max.max_psd > 1e-10*pow(8192,2)) {
-    float distance = ((float)(avg_max.max_index*((float)RADAR_fs)/((float)(RADAR_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
-    //DEBUG(printf("Max distance is %.3f\nMax PSD is %4E\nMax index is %d\n", distance, max_psd, max_index));
-    return distance;
-  } else {
-    return INFINITY;
-  }
-}
-
+#endif /* _TAV_1D_FFT_ */

@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
-    distance_t radar_dist  = execute_rad_kernel(radar_input);
+    distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N);
     message_t vit_message  = execute_vit_kernel(&(vdentry_p->ofdm_p), &(vdentry_p->frame_p), vdentry_p->in_bits);
     
     // POST-EXECUTE each kernels to gather stats, etc.
