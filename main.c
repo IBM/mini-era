@@ -48,9 +48,9 @@ void print_usage(char * pname) {
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
-  label_t label;
-  distance_t distance;
-  message_t message;
+  /* label_t label; */
+  /* distance_t distance; */
+  /* message_t message; */
 
   char* trace_file; 
   int opt; 
@@ -153,18 +153,24 @@ int main(int argc, char *argv[])
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
+    // Iterate the various kernels (PREP their states for execution, get inputs, etc.)
     /* The computer vision kernel performs object recognition on the
      * next image, and returns the corresponding label. 
      * This process takes place locally (i.e. within this car).
      */
-    label = iterate_cv_kernel(vehicle_state);
+    label_t cv_tr_label = iterate_cv_kernel(vehicle_state);
 
 
     /* The radar kernel performs distance estimation on the next radar
      * data, and returns the estimated distance to the object.
      */
-    distance = iterate_rad_kernel(vehicle_state);
-
+    radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
+    distance_t rd_dist = rdentry_p->distance;
+    float radar_input[2*RADAR_N];
+    float * ref_in = rdentry_p->return_data;
+    for (int ii = 0; ii < 2*RADAR_N; ii++) {
+      radar_input[ii] = ref_in[ii];
+    }
 
     /* The Viterbi decoding kernel performs Viterbi decoding on the next
      * OFDM symbol (message), and returns the extracted message.
@@ -173,14 +179,35 @@ int main(int argc, char *argv[])
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
-    message = iterate_vit_kernel(vehicle_state);
+    vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
 
+    // Here we will simulate multiple cases, based on global vit_msgs_behavior
+    int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
+    switch(vit_msgs_behavior) {
+    case 2: num_vit_msgs = total_obj; break;
+    case 3: num_vit_msgs = total_obj; break;
+    case 4: num_vit_msgs = total_obj + 1; break;
+    case 5: num_vit_msgs = total_obj + 1; break;
+    }
+
+    // EXECUTE the kernels using the now known inputs 
+    label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
+    distance_t radar_dist  = execute_rad_kernel(radar_input);
+    message_t vit_message  = execute_vit_kernel(&(vdentry_p->ofdm_p), &(vdentry_p->frame_p), vdentry_p->in_bits);
+    
+    // POST-EXECUTE each kernels to gather stats, etc.
+    post_execute_cv_kernel(cv_tr_label, cv_infer_label);
+    post_execute_rad_kernel(rd_dist, radar_dist);
+    for (int mi = 0; mi < num_vit_msgs; mi++) {
+      post_execute_vit_kernel(vdentry_p->msg_id, vit_message);
+    }
+    
 
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    vehicle_state = plan_and_control(label, distance, message, vehicle_state);
+    vehicle_state = plan_and_control(cv_infer_label, radar_dist, vit_message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
     
     #ifdef TIME  

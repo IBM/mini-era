@@ -73,8 +73,27 @@ typedef enum {
   safe_to_move_right_or_left   = 0,
   safe_to_move_right_only      = 1,
   safe_to_move_left_only       = 2,
-  unsafe_to_move_left_or_right = 3 
+  unsafe_to_move_left_or_right = 3,
+  num_messages
 } message_t;
+
+#include "radar/calc_fmcw_dist.h"
+
+typedef struct {
+  unsigned int return_id;
+  float distance;
+  float return_data[2 * RADAR_N];
+} radar_dict_entry_t;
+
+#include "viterbi/utils.h"
+
+typedef struct {
+  unsigned int msg_num;
+  unsigned int msg_id;
+  ofdm_param   ofdm_p;
+  frame_param  frame_p;
+  uint8_t      in_bits[MAX_ENCODED_BITS];
+} vit_dict_entry_t;
 
 extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
@@ -82,7 +101,7 @@ extern char* object_names[NUM_OBJECTS];
 
 extern unsigned vit_msgs_behavior;
   
-
+extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);
@@ -97,13 +116,22 @@ status_t init_vit_kernel(char* dict_fn);
 
 
 label_t run_object_classification(unsigned tr_val);
+
 label_t iterate_cv_kernel(vehicle_state_t vs);
-distance_t iterate_rad_kernel(vehicle_state_t vs);
-message_t iterate_vit_kernel(vehicle_state_t vs);
+label_t execute_cv_kernel(label_t tr_val);
+void post_execute_cv_kernel(label_t tr_val, label_t cnn_val);
+
+radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
+distance_t execute_rad_kernel(float* inputs);
+void post_execute_rad_kernel(distance_t tr_val, distance_t rad_val);
+
+vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
+message_t execute_vit_kernel( ofdm_param* ofdm_ptr, frame_param* frame_ptr, uint8_t* input_bits);
+void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
-// These routines are used for any finalk, end-of-run operations/output
+// These routines are used for any final, end-of-run operations/output
 void closeout_cv_kernel(void);
 void closeout_rad_kernel(void);
 void closeout_vit_kernel(void);

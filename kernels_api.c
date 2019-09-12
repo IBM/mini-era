@@ -22,8 +22,8 @@
 
 #include "kernels_api.h"
 
-#ifdef VERBOSE
 char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
+#ifdef VERBOSE
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
 #endif
 char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
@@ -52,9 +52,7 @@ unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 
 /* These are types, functions, etc. required for VITERBI */
-#include "viterbi/utils.h"
 #include "viterbi/viterbi_decoder_generic.h"
-#include "radar/calc_fmcw_dist.h"
 
 
 PyObject *pName, *pModule, *pFunc, *pFunc_load;
@@ -70,12 +68,12 @@ FILE *input_trace = NULL;
 
 
 /* These are some top-level defines needed for CV kernel */
-#define IMAGE_SIZE  32  // What size are these?
-typedef struct {
-  unsigned int image_id;
-  label_t  object;
-  unsigned image_data[IMAGE_SIZE];
-} cv_dict_entry_t;
+//#define IMAGE_SIZE  32  // What size are these?
+/* typedef struct { */
+/*   unsigned int image_id; */
+/*   label_t  object; */
+/*   unsigned image_data[IMAGE_SIZE]; */
+/* } cv_dict_entry_t; */
 
 /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
 unsigned int     num_cv_dictionary_items = 0;
@@ -86,12 +84,6 @@ unsigned label_lookup[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0}; // Times we used CNN 
   
 
 /* These are some top-level defines needed for RADAR */
-typedef struct {
-  unsigned int return_id;
-  float distance;
-  float return_data[2 * RADAR_N];
-} radar_dict_entry_t;
-
 unsigned int        num_radar_dictionary_items = 0;
 radar_dict_entry_t* the_radar_return_dict;
 
@@ -104,13 +96,6 @@ unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 /* These are some top-level defines needed for VITERBI */
-typedef struct {
-  unsigned int msg_num;
-  unsigned int msg_id;
-  ofdm_param   ofdm_p;
-  frame_param  frame_p;
-  uint8_t      in_bits[MAX_ENCODED_BITS];
-} vit_dict_entry_t;
 
 uint8_t descramble[1600]; // I think this covers our max use cases
 uint8_t actual_msg[1600];
@@ -120,6 +105,7 @@ vit_dict_entry_t* the_viterbi_trace_dict;
 
 unsigned vit_msgs_behavior = 0; // 0 = default
 unsigned total_msgs = 0; // Total messages decoded during the full run
+unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
   
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
@@ -558,6 +544,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   return true;
 }
 
+// This prepares the input for the execute_cv_kernel call
 label_t iterate_cv_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_cv_kernel\n"));
@@ -572,15 +559,20 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
     default: printf("ERROR : Unknown object type in cv trace: '%c'\n", nearest_obj[vs.lane]); exit(-2);
   }
   label_t d_object = (label_t)tr_val;
+  return d_object;
+}
 
+label_t execute_cv_kernel(label_t tr_val)
+{
   /* 2) Conduct object detection on the image frame */
   // Call Keras Code  
   label_t object = run_object_classification(tr_val); 
   //label_t object = the_cv_object_dict[tr_val].object;
+  return object;
+}
 
-  //unsigned * inputs = the_cv_object_dict[tr_val].image_data;
-  //DEBUG(printf("  Using obj %u : object %u\n", tr_val, the_cv_object_dict[tr_val].object));
-  
+void post_execute_cv_kernel(label_t d_object, label_t object)
+{
   /* 3) Return the label corresponding to the recognized object */
   DEBUG(printf("  Returning d_object %u %s : object %u %s\n", d_object, object_names[d_object], object, object_names[object]));
   if (d_object == object) {
@@ -589,31 +581,38 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   }
   label_lookup[NUM_OBJECTS]++;
   label_lookup[d_object]++;
-  return d_object;
 }
 
-distance_t iterate_rad_kernel(vehicle_state_t vs)
+
+
+radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_rad_kernel\n"));
 
   unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
   
-  distance_t ddist = the_radar_return_dict[tr_val].distance;
-  distance_t dist;      // The output from this routine
+  //distance_t ddist = 1.0 * the_radar_return_dict[tr_val].distance;
 
-  // We have to make a working copy of the inputs -- I think the calculate_peak_dist_from_fmcw alters the input data space
-  float inputs[2*RADAR_N];
-  float * ref_in = the_radar_return_dict[tr_val].return_data;
-  for (int ii = 0; ii < 2*RADAR_N; ii++) {
-    inputs[ii] = ref_in[ii];
-  }
-  
-  DEBUG(printf("  Using dist tr_val %u : in meters %f\n", tr_val, the_radar_return_dict[tr_val].distance));
-  
+  /* // We have to make a working copy of the inputs -- I think the calculate_peak_dist_from_fmcw alters the input data space */
+  /* float * ref_in = the_radar_return_dict[tr_val].return_data; */
+  /* for (int ii = 0; ii < 2*RADAR_N; ii++) { */
+  /*   inputs[ii] = ref_in[ii]; */
+  /* } */
+
+  /* DEBUG(printf("  Using dist tr_val %u : in meters %f\n", tr_val, ddist)); */
+  return &(the_radar_return_dict[tr_val]);
+}
+
+distance_t execute_rad_kernel(float * inputs)
+{
   /* 2) Conduct distance estimation on the waveform */
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-  dist = calculate_peak_dist_from_fmcw(inputs);
+  distance_t dist = calculate_peak_dist_from_fmcw(inputs);
+  return dist;
+}
 
+void post_execute_rad_kernel(distance_t ddist, distance_t dist)
+{
   // Get an error estimate (Root-Squared?)
   radar_total_calc++;
   if (dist == INFINITY) {
@@ -647,12 +646,6 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
       hist_pct_errs[4]++;
     }
   }
-  /* 3) Return the estimated distance */
-  float tdist = 1.0*nearest_dist[vs.lane];
-  DEBUG(printf("  Returning distance %f (vs %f and %f)\n", tdist, dist, ddist));
-
-  //return dist;
-  return tdist; // ddist;
 }
 
 
@@ -661,28 +654,9 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
  * (i.e. which message if the autonomous car is in the 
  *  left, middle or right lane).
  */
-message_t iterate_vit_kernel(vehicle_state_t vs)
+vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
 {
   hist_total_objs[total_obj]++;
-  
-  /* unsigned tr_msg_vals[NUM_LANES] = { 1, 1, 0, 2, 2}; // Defaults for all lanes clear : LH = only R; LL,CL,RL = L or R; RH = only L */
-  /* if ((nearest_obj[2] != 'N') && (nearest_dist[2] < VIT_CLEAR_THRESHOLD)) {  */
-  /*   // Some object is in the Center lane at distance 0 or 1 */
-  /*   tr_msg_vals[1] = 3; // Unsafe to move from left  lane to right or left. */
-  /*   tr_msg_vals[3] = 3; // Unsafe to move from right lane to right or left. */
-  /* } */
-  /* if ((nearest_obj[1] != 'N') && (nearest_dist[1] < VIT_CLEAR_THRESHOLD)) {  */
-  /*   // Some object is in the Left lane at distance 0 or 1 */
-  /*   tr_msg_vals[2] += 1; // Unsafe to move from center lane to the left. */
-  /* } */
-  /* if ((nearest_obj[3] != 'N') && (nearest_dist[3] < VIT_CLEAR_THRESHOLD)) {  */
-  /*   // Some object is in the Right lane at distance 0 or 1 */
-  /*   tr_msg_vals[2] += 2; // Unsafe to move from center lane to the right. */
-  /* } */
-  
-  /* DEBUG(printf("  Tr_Msgs: %u %u %u\n", tr_msg_vals[0], tr_msg_vals[1], tr_msg_vals[2])); */
-  /* unsigned tr_val = tr_msg_vals[vs.lane];  // The proper message for this time step and car-lane */
-
   unsigned tr_val = 0; // set a default to avoid compiler messages
   switch (vs.lane) {
   case lhazard:
@@ -722,66 +696,69 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   }
 
   DEBUG(printf("Viterbi final message for lane %u %s = %u\n", vs.lane, lane_names[vs.lane], tr_val));	
-  char the_msg[1600]; // Return from decode; large enough for any of our messages
-  message_t msg;      // The output from this routine
 
   vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
 
-    // Here we will simulate multiple cases, based on global vit_msgs_behavior
-  int num_msgs = 1;   // the number of messages to send this time step (1 is default)
+  // Here we determine short or long messages, based on global vit_msgs_behavior
   int msg_offset = 0; // 0 = short messages, 4 = long messages
   switch(vit_msgs_behavior) {
   case 0: break;
   case 1: msg_offset = 4; break;
-  case 2: num_msgs = total_obj; break;
-  case 3: num_msgs = total_obj; msg_offset = 4; break;
-  case 4: num_msgs = total_obj + 1; break;
-  case 5: num_msgs = total_obj + 1; msg_offset = 4; break;
+  case 2: break;
+  case 3: msg_offset = 4; break;
+  case 4: break;
+  case 5: msg_offset = 4; break;
   }
 
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
     trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);
-    msg = safe_to_move_right_or_left;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u : %s = safe_to_move_right_or_left\n", msg, message_names[msg]));
     break;
   case 1: // safe_to_move_right
     trace_msg = &(the_viterbi_trace_dict[1 + msg_offset]);
-    msg = safe_to_move_right_only;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u : %s = safe_to_move_right_only\n", msg, message_names[msg]));
     break;
   case 2: // safe_to_move_left
     trace_msg = &(the_viterbi_trace_dict[2 + msg_offset]);
-    msg = safe_to_move_left_only;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u : %s = safe_to_move_left_only\n", msg, message_names[msg]));
     break;
   case 3: // unsafe_to_move_left_or_right
     trace_msg = &(the_viterbi_trace_dict[3 + msg_offset]);
-    msg = unsafe_to_move_left_or_right;  // Cheating - already know output result.
-    DEBUG(printf("  Using msg %u : %s = unsafe_to_move_right_or_left\n", msg, message_names[msg]));
     break;
   }
+  //DEBUG(printf("  Using msg %u : %s = safe_to_move_right_or_left\n", msg, message_names[msg]));
+  return trace_msg;
+}
 
-  // Send each message (here they are all the same) through the viterbi decoder
+message_t execute_vit_kernel(ofdm_param* ofdm_ptr, frame_param* frame_ptr, uint8_t* input_bits)
+{
+  // Send the input_bits message through the viterbi decoder
   uint8_t *result;
-  for (int mi = 0; mi < num_msgs; mi++) {
-    DEBUG(printf("  Calling the viterbi decode routine for %s message %u\n", (msg_offset == 0) ? "short" : "long", mi));
-    result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
-    total_msgs++;
-    // descramble the output - put it in result
-    int psdusize = trace_msg->frame_p.psdu_size;
-    DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-    descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
+  char the_msg[1600];
+  DEBUG(printf("  Calling the viterbi decode routine...\n"));
+  result = decode(ofdm_ptr, frame_ptr, input_bits);
+  // descramble the output - put it in result
+  int psdusize = frame_ptr->psdu_size;
+  DEBUG(printf("  Calling the viterbi descrambler routine\n"));
+  descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
 
-    // Here we could llllook at the message string and do something,
-    //  but we already know the right answeer...
+  // Check contents of "the_msg" to determine which message_t;
+  message_t dec_msg = safe_to_move_right_or_left;
+  switch(the_msg[3]) {
+  case '0' : dec_msg = safe_to_move_right_or_left; break;
+  case '1' : dec_msg = safe_to_move_right_only; break;
+  case '2' : dec_msg = safe_to_move_left_only; break;
+  case '3' : dec_msg = unsafe_to_move_left_or_right; break;
+  default  : dec_msg = num_messages; break;
   }
-  
-  // Can check contents of "the_msg" to determine which message;
-  //   here we "cheat" and return the message indicated by the trace.
-  DEBUG(printf("The iterate_vit_kernel is returning msg %u\n", msg));
-  
-  return msg;
+  return dec_msg;
+}
+
+
+void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
+{
+  total_msgs++;
+  if (dec_msg != tr_msg) {
+    bad_decode_msgs++;
+  }
 }
 
 
@@ -816,6 +793,9 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 	DEBUG(printf("   In %s with No_Safe_Move : STOPPING\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.speed = 0;
 	break; /* Stop!!! */
+    default:
+      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state.lane], message);
+      exit(-6);
     }
   } else {
     // No obstacle-inspired lane change, so try now to occupy the center lane
