@@ -83,6 +83,7 @@ cv_dict_entry_t* the_cv_object_dict;
 **/
 unsigned label_match[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0};  // Times CNN matched dictionary
 unsigned label_lookup[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0}; // Times we used CNN for object classification
+unsigned label_mismatch[NUM_OBJECTS][NUM_OBJECTS] = {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}};
   
 
 /* These are some top-level defines needed for RADAR */
@@ -586,6 +587,8 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   if (d_object == object) {
     label_match[d_object]++;
     label_match[NUM_OBJECTS]++;
+  } else {
+    label_mismatch[object][d_object]++;
   }
   label_lookup[NUM_OBJECTS]++;
   label_lookup[d_object]++;
@@ -884,7 +887,19 @@ void closeout_cv_kernel()
     label_correct_pctg = (100.0*label_match[i])/(1.0*label_lookup[i]);
     printf("  CV CNN Accuracy for %10s : %u correct of %u classifications = %.2f%%\n", object_names[i], label_match[i], label_lookup[i], label_correct_pctg);
   }
-  
+
+  unsigned errs = label_lookup[NUM_OBJECTS] - label_match[NUM_OBJECTS];
+  if (errs > 0) {
+    printf("\nAnalysis of the %u mis-identifications:\n", errs);
+    for (int i = 0; i < NUM_OBJECTS; i++) {
+      for (int j = 0; j < NUM_OBJECTS; j++) {
+	if (label_mismatch[i][j] != 0) {
+	  printf("  Mislabeled %10s as %10s on %u occasions\n", object_names[i], object_names[j], label_mismatch[i][j]);
+	}
+      }
+    }
+  }
+
 #ifndef BYPASS_KERAS_CV_CODE
     Py_DECREF(pModule);
     Py_Finalize();
