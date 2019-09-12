@@ -588,7 +588,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
     label_match[d_object]++;
     label_match[NUM_OBJECTS]++;
   } else {
-    label_mismatch[object][d_object]++;
+    label_mismatch[d_object][object]++;
   }
   label_lookup[NUM_OBJECTS]++;
   label_lookup[d_object]++;
