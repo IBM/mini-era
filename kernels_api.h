@@ -123,7 +123,7 @@ label_t execute_cv_kernel(label_t tr_val);
 void post_execute_cv_kernel(label_t tr_val, label_t cnn_val);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
-distance_t execute_rad_kernel(float* inputs, size_t input_size_bytes);
+distance_t execute_rad_kernel(float* inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size);
 void post_execute_rad_kernel(distance_t tr_val, distance_t rad_val);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
