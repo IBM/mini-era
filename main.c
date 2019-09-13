@@ -1354,7 +1354,7 @@ int main(int argc, char *argv[])
   
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
-  while (!eof_trace_reader())
+  //while (!eof_trace_reader())
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
