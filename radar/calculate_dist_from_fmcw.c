@@ -200,18 +200,25 @@ calc_avg_max(float* data, size_t data_size_bytes)
 }
 
 
-float calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes)
+void
+calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes, float * distance, size_t dist_size)
 {
+  //__visc__hint(CPU_TARGET);
+  //__visc__attributes(2, data, rval, 1, rval);
+
   fft (data, data_size_bytes, RADAR_N, RADAR_LOGN, -1);
 
   avg_max_t avg_max = calc_avg_max(data, data_size_bytes);
 
+  float dist = INFINITY;
   if (avg_max.max_psd > 1e-10*pow(8192,2)) {
-    float distance = ((float)(avg_max.max_index*((float)RADAR_fs)/((float)(RADAR_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
+    dist = ((float)(avg_max.max_index*((float)RADAR_fs)/((float)(RADAR_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
     //DEBUG(printf("Max distance is %.3f\nMax PSD is %4E\nMax index is %d\n", distance, max_psd, max_index));
-    return distance;
-  } else {
-    return INFINITY;
+    /* *distance = distance; */
+    /* } else { */
+    /*   *distance = INFINITY; */
   }
+  *distance = dist;
+  //__visc__return(1, distance);  
 }
 

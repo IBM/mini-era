@@ -11,6 +11,6 @@
 #define RADAR_threshold -100
 
 /* Some function declarations */
-extern float calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes);
+extern void calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes, float* distance, size_t res_bytes);
 
 #endif

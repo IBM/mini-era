@@ -610,7 +610,8 @@ distance_t execute_rad_kernel(float * inputs, size_t input_size_bytes)
 {
   /* 2) Conduct distance estimation on the waveform */
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-  distance_t dist = calculate_peak_dist_from_fmcw(inputs, input_size_bytes);
+  distance_t dist;
+  calculate_peak_dist_from_fmcw(inputs, input_size_bytes, &dist, sizeof(float));
   return dist;
 }
 

@@ -6,8 +6,6 @@
 
 #include "calc_fmcw_dist.h"
 
-extern float calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes);
-
 int read_input_file(float* data, unsigned int num, char* filename)
 {
   FILE *fp = fopen(filename, "r");
@@ -34,7 +32,8 @@ int main (int argc, char * argv[])
   size_t data_size = 2 * RADAR_N * sizeof(float);
   a = malloc (data_size);
   read_input_file (a, RADAR_N, argv[1]);
-  float dist = calculate_peak_dist_from_fmcw(a, data_size);
+  float dist;
+  calculate_peak_dist_from_fmcw(a, data_size, &dist, sizeof(float));
   printf("Distance of object from FMCW data = %.2f m\n", dist);
   free (a);
   return 0;
