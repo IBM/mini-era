@@ -1359,9 +1359,19 @@ int main(int argc, char *argv[])
   // Allocate struct to pass DFG inputs
   RootIn* rootArgs = (RootIn*) malloc(sizeof(RootIn));
 
+  /* Initialize the HPVM environment, etc. (Only done once) */
+  __visc__init();
+
   /* Declare memories used in the while loop but tracked by HPVM */
+  // Memory tracking is required for pointer arguments.
+  // Nodes can be scheduled on different targets, and 
+  // dataflow edge implementation needs to request data.
+  // The pair (pointer, size) is inserted in memory tracker using this call
   float radar_input[2*RADAR_N];
   distance_t radar_distance;
+  llvm_visc_track_mem(radar_input, 8*RADAR_N);
+  llvm_visc_track_mem(&radar_distance, sizeof(float));
+
 
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
@@ -1405,7 +1415,7 @@ int main(int argc, char *argv[])
     case 5: num_vit_msgs = total_obj + 1; break;
     }
 
-    __visc__init();
+
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
     // Set up HPVM DFG inputs in the rootArgs struct.
@@ -1419,13 +1429,6 @@ int main(int argc, char *argv[])
     rootArgs->distance   = &radar_distance;
     rootArgs->bytes_distance = sizeof(float);
     
-    // Memory tracking is required for pointer arguments.
-    // Nodes can be scheduled on different targets, and 
-    // dataflow edge implementation needs to request data.
-    // The pair (pointer, size) is inserted in memory tracker using this call
-    llvm_visc_track_mem(radar_input, 8*RADAR_N);
-    llvm_visc_track_mem(&radar_distance, sizeof(float));
-
     // Launch the DFG to do the radar computation
     //distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N, RADAR_N, RADAR_LOGN, -1, distance, sizeof(float));
     void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
