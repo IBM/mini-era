@@ -787,7 +787,10 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
   DEBUG(printf("  Calling the viterbi decode routine...\n"));
   // descramble the output - put it in l_decoded
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
-  viterbi_decode(ofdm_ptr, frame_ptr, input_bits, l_decoded);
+  viterbi_decode(ofdm_ptr,   sizeof(ofdm_param),
+		 frame_ptr,  sizeof(frame_param),
+		 input_bits, MAX_ENCODED_BITS,
+		 l_decoded,  MAX_ENCODED_BITS * 3 / 4);
   int psdusize = frame_ptr->psdu_size;
   DEBUG(printf("  Calling the viterbi descrambler routine\n"));
   descrambler(l_decoded, psdusize, out_msg_txt, NULL /*descram_ref*/, NULL /*msg*/);

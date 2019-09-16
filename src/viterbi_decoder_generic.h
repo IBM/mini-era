@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-//#include "base.h"
+#include "base.h"
 
 
 /* This Viterbi decoder was taken from the gr-dvbt module of
@@ -25,7 +25,10 @@
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-void viterbi_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, uint8_t* l_decoded);
+void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
+		    frame_param *frame, size_t frame_size,
+		    uint8_t *in,        size_t in_size,
+		    uint8_t* l_decoded, size_t decd_size);
 
 typedef union branchtab27 {
   unsigned char c[32];
@@ -38,8 +41,12 @@ void viterbi_butterfly2_generic(unsigned char *symbols,
 				unsigned char m0[], unsigned char m1[],
 				unsigned char p0[], unsigned char p1[]);
 
-unsigned char viterbi_get_output_generic(unsigned char *mm0,
-		unsigned char *pp0, int ntraceback, unsigned char *outbuf);
+unsigned char viterbi_get_output_generic(unsigned char *mm0,                                    size_t mm0_size,
+					 unsigned char *pp0,                                    size_t pp0_size,
+					 int ntraceback,
+					 unsigned char*  mmresult __attribute__((aligned(16))), size_t mmres_size,
+					 unsigned char ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))), size_t ppres_size,
+					 unsigned char *outbuf,                                 size_t outbuf_size);
 
 
 #endif
