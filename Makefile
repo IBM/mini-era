@@ -1,148 +1,222 @@
-CC = gcc
+# This Makefile compiles the HPVM-CAVA pilot project. 
+# It builds HPVM-related dependencies, then the native camera pipeline ISP code.
+#
+# Paths to some dependencies (e.g., HPVM, LLVM) must exist in Makefile.config,
+# which can be copied from Makefile.config.example for a start.
 
-COPTF0 = -O0
-COPTF2 = -O2
-COPTF3 = -O3
+CONFIG_FILE := Makefile.config
 
-CFLAGS = -pedantic -Wall -g $(COPTF2)
-#CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
-CFLAGS +=  -Xlinker -export-dynamic
+ifeq ($(wildcard $(CONFIG_FILE)),)
+    $(error $(CONFIG_FILE) not found. See $(CONFIG_FILE).example)
+endif
+include $(CONFIG_FILE)
 
-INCLUDES =  
-#PYTHONINCLUDES = $(shell /usr/bin/python-config --cflags)
-PYTHONINCLUDES = -I/usr/include/python3.6m
-LFLAGS = -Lviterbi -Lradar 
-#LFLAGS += 
-#LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
-LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
-#PYTHONLIBS = $(shell /usr/bin/python-config --ldflags)
-PYTHONLIBS = -lpython3.6m
+# Compiler Flags
 
-OBJDIR = obj
-C_OBJDIR = obj_c
-OBJ_V_DIR = obj_v
-C_OBJ_V_DIR = obj_cv
+DLEVEL ?= 0
+LFLAGS += -lm -lrt
 
+# Build dirs
+ifeq ($(VERSION),)
+    VERSION = Default
+endif
+SRC_DIR = src/
+CAM_PIPE_SRC_DIR = $(SRC_DIR)
+BUILD_DIR = build/$(TARGET)_$(VERSION)
+CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-# The full mini-era target, etc.
-TARGET = main
-SRC = kernels_api.c main.c
-OBJ = $(SRC:%.c=$(OBJDIR)/%.o)
-OBJ_V = $(SRC:%.c=$(OBJ_V_DIR)/%.o)
+INCLUDES +=  -I$(SRC_DIR) 
 
-# The C-code only target (it bypasses KERAS Python code)
-C_TARGET = cmain
-C_OBJ = $(SRC:%.c=$(C_OBJDIR)/%.o)
-C_OBJ_V = $(SRC:%.c=$(C_OBJ_V_DIR)/%.o)
+ifneq ($(CONFUSE_ROOT),)
+INCLUDES += -I$(CONFUSE_ROOT)/include
+LFLAGS += -L$(CONFUSE_ROOT)/lib
+endif
 
-T_SRC 	= sim_environs.c
-T_OBJ	= $(T_SRC:%.c=obj/%.o)
-T_OBJ_V = $(T_SRC:%.c=obj_v/%.o)
+EXE = miniera-visc-$(VERSION)-$(TARGET)
 
-G_SRC 	= utils/gen_trace.c
-G_OBJ	= $(G_SRC:%.c=obj/%.o)
+CAM_CFLAGS += -mf16c -flax-vector-conversions
+LFLAGS += -pthread
 
-$(TARGET): $(OBJDIR)  $(OBJ) libviterbi libfmcwdist
-	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+#$(DEBUG): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
+#	@echo Building benchmark for native machine with debug support.
+#	#@mkdir -p $(BUILD_DIR)
+#	@$(CC) $(CAM_CFLAGS) -ggdb3 $(INCLUDES) -DGEM5 -DDMA_MODE -DDMA_INTERFACE_V3 -o $(DEBUG) $^ $(LFLAGS)
+#
+#clean-native:
+#	rm -f $(NATIVE) $(DEBUG)
 
-$(C_TARGET): $(C_OBJDIR) $(C_OBJ) libviterbi libfmcwdist
-	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+## BEGIN HPVM MAKEFILE
+LANGUAGE=visc
+SRCDIR_OBJS=viterbi_decoder_generic.ll descrambler_function.ll
+OBJS_SRC=$(wildcard $(SRC_DIR)/*.c)
+VISC_OBJS=main.visc.ll
+APP = $(EXE)
+APP_CUDALDFLAGS=-lm -lstdc++
+APP_CFLAGS= $(INCLUDES) -DDMA_MODE -DDMA_INTERFACE_V3
+APP_CXXFLAGS=-ffast-math -O0 -I/opt/opencv/include
+APP_LDFLAGS=$(LFLAGS)
+OPT_FLAGS = -tti -targetlibinfo -tbaa -scoped-noalias -assumption-cache-tracker -profile-summary-info -forceattrs -inferattrs -ipsccp -globalopt -domtree -mem2reg -deadargelim -domtree -basicaa -aa -simplifycfg -pgo-icall-prom -basiccg -globals-aa -prune-eh -always-inline -functionattrs -domtree -sroa -early-cse -lazy-value-info -jump-threading -correlated-propagation -simplifycfg -domtree -basicaa -aa -libcalls-shrinkwrap -tailcallelim -simplifycfg -reassociate -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -licm -loop-unswitch -simplifycfg -domtree -basicaa -aa -loops -loop-simplify -lcssa-verification -lcssa -scalar-evolution -indvars -loop-idiom -loop-deletion -memdep -memcpyopt -sccp -domtree -demanded-bits -bdce -basicaa -aa -lazy-value-info -jump-threading -correlated-propagation -domtree -basicaa -aa -memdep -dse -loops -loop-simplify -lcssa-verification -lcssa -aa -scalar-evolution -licm -postdomtree -adce -simplifycfg -domtree -basicaa -aa -barrier -basiccg -rpo-functionattrs -globals-aa -float2int -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -loop-accesses -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-distribute -loop-simplify -lcssa-verification -lcssa -branch-prob -block-freq -scalar-evolution -basicaa -aa -loop-accesses -demanded-bits -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-vectorize -loop-simplify -scalar-evolution -aa -loop-accesses -loop-load-elim -basicaa -aa -simplifycfg -domtree -basicaa -aa -loops -scalar-evolution -alignment-from-assumptions -strip-dead-prototypes -domtree -loops -branch-prob -block-freq -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -branch-prob -block-freq -loop-sink -instsimplify 
 
-v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) libviterbi libfmcwdist
-	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+CFLAGS = -O1 $(APP_CFLAGS) $(PLATFORM_CFLAGS)
+OBJS_CFLAGS = -O1 $(APP_CFLAGS) $(PLATFORM_CFLAGS)
+CXXFLAGS = $(APP_CXXFLAGS) $(PLATFORM_CXXFLAGS)
+LDFLAGS= $(APP_LDFLAGS) $(PLATFORM_LDFLAGS)
 
-v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) libviterbi libfmcwdist
-	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+LIBCLC_LIB_PATH = $(LLVM_SRC_ROOT)/../libclc/built_libs
+VISC_RT_PATH = $(LLVM_SRC_ROOT)/projects/visc-rt
 
+VISC_RT_LIB = $(VISC_RT_PATH)/visc-rt.ll
+#LIBCLC_NVPTX_LIB = $(LIBCLC_LIB_PATH)/nvptx--nvidiacl.bc
+LIBCLC_NVPTX_LIB = $(LIBCLC_LIB_PATH)/nvptx64--nvidiacl.bc
+#LIBCLC_NVPTX_LIB = nvptx64--nvidiacl.bc
 
-all: $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) util_prog
+LLVM_34_AS = $(LLVM_34_ROOT)/build/bin/llvm-as
 
+TESTGEN_OPTFLAGS = -load LLVMGenVISC.so -genvisc -globaldce
+KERNEL_GEN_FLAGS = -O3 -target nvptx64-nvidia-nvcl
 
-util_prog:
-	cd utils; make all
+ifeq ($(TARGET),x86)
+  DEVICE = SPIR_TARGET
+  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_SPIR.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-spir -dfg2llvm-x86 -clearDFG
+  CFLAGS += -DOPENCL_CPU
+  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
+else ifeq ($(TARGET),seq)
+  DEVICE = CPU_TARGET
+  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -dfg2llvm-x86 -clearDFG
+  VISC_OPTFLAGS += -visc-timers-x86
+else ifeq ($(TARGET),fpga)
+  DEVICE = FPGA_TARGET
+  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_FPGA.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-fpga -dfg2llvm-x86 -clearDFG
+  CFLAGS += -DOPENCL_CPU
+  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-fpga
+else
+  DEVICE = GPU_TARGET
+  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_NVPTX.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-nvptx -dfg2llvm-x86 -clearDFG
+  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
+endif
+  TESTGEN_OPTFLAGS += -visc-timers-gen
 
-test: 
-	cd utils; make test
+CFLAGS += -DDEVICE=$(DEVICE)
+CXXFLAGS += -DDEVICE=$(DEVICE)
 
-vtest: 
-	cd utils; make vtest
+#ifeq ($(TIMER),x86)
+#  VISC_OPTFLAGS += -visc-timers-x86
+#else ifeq ($(TIMER),ptx)
+#  VISC_OPTFLAGS += -visc-timers-ptx
+#else ifeq ($(TIMER),gen)
+#  TESTGEN_OPTFLAGS += -visc-timers-gen
+#else ifeq ($(TIMER),spir)
+#  TESTGEN_OPTFLAGS += -visc-timers-spir
+#else ifeq ($(TIMER),fpga)
+#  TESTGEN_OPTFLAGS += -visc-timers-fpga
+#else ifeq ($(TIMER),no)
+#else
+#  ifeq ($(TARGET),x86)
+#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
+#  else ifeq ($(TARGET),seq)
+#    VISC_OPTFLAGS += -visc-timers-x86
+#  else ifeq ($(TARGET),fpga)
+#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-fpga
+#  else ifeq ($(TARGET),seqx86)
+#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
+#  else ifeq ($(TARGET),seqgpu)
+#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
+#  else
+#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
+#  endif
+#  TESTGEN_OPTFLAGS += -visc-timers-gen
+#endif
 
-tracegen: 
-	cd utils; make tracegen
+# Add BUILDDIR as a prefix to each element of $1
+INBUILDDIR=$(addprefix $(BUILD_DIR)/,$(1))
 
-libviterbi:
-	cd viterbi; make
+# Add SRCDIR as a prefix to each element of $1
+#INSRCDIR=$(addprefix $(SRCDIR)/,$(1))
 
-libfmcwdist:
-	cd radar; make
+PYTHON_LLVM_40_34 = ../llvm-40-34.py
 
-obj:
-	mkdir obj
+.PRECIOUS: $(BUILD_DIR)/%.ll
 
-obj_c:
-	mkdir obj_c
+OBJS = $(call INBUILDDIR,$(SRCDIR_OBJS))
+TEST_OBJS = $(call INBUILDDIR,$(VISC_OBJS))
+KERNEL = $(TEST_OBJS).kernels.ll
 
-obj_v:
-	mkdir obj_v
+ifeq ($(TARGET),x86)
+  SPIR_ASSEMBLY = $(TEST_OBJS).kernels.bc
+else ifeq ($(TARGET),seq)
+else ifeq ($(TARGET),fpga)
+  AOC_CL = $(TEST_OBJS).kernels.cl
+  AOCL_ASSEMBLY = $(TEST_OBJS).kernels.aocx
+  BOARD = a10gx
+  ifeq ($(EMULATION),1)
+    EXE = cava-visc-emu
+    AOC_EMU = -march=emulator
+    BUILD_DIR = build/$(TARGET)-emu
+  endif
+else
+  KERNEL_LINKED = $(BUILD_DIR)/$(APP).kernels.linked.ll
+  #KERNEL = $(TEST_OBJS).kernels.ll
+  PTX_ASSEMBLY = $(TEST_OBJS).nvptx.s
+endif
 
-obj_cv:
-	mkdir obj_cv
+HOST_LINKED = $(BUILD_DIR)/$(APP).linked.ll
+HOST = $(BUILD_DIR)/$(APP).host.ll
 
-obj/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
+ifeq ($(OPENCL_PATH),)
+FAILSAFE=no_opencl
+else 
+FAILSAFE=
+endif
 
-obj_v/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
+# Targets
+default: $(FAILSAFE) $(BUILD_DIR) $(EXE)
+#default: $(FAILSAFE) $(BUILD_DIR) $(PTX_ASSEMBLY) $(SPIR_ASSEMBLY) $(AOC_CL) $(AOCL_ASSEMBLY) $(EXE)
 
-obj_c/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+$(PTX_ASSEMBLY) : $(KERNEL_LINKED)
+	$(CC) $(KERNEL_GEN_FLAGS) -S $< -o $@
 
-obj_cv/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+$(KERNEL_LINKED) : $(KERNEL)
+	$(LLVM_LINK) $(LIBCLC_NVPTX_LIB) -S $< -o $@
 
-clean:
-	$(RM) $(TARGET).exe $(OBJ)
-	$(RM) $(C_TARGET).exe $(C_OBJ)
-	$(RM) v$(TARGET).exe $(OBJ_V)
-	$(RM) v$(C_TARGET).exe $(C_OBJ_V)
-	$(RM) test  $(T_OBJ)
-	$(RM) tracegen  $(G_OBJ)
+$(SPIR_ASSEMBLY) : $(KERNEL)
+	python $(PYTHON_LLVM_40_34) $< $(BUILD_DIR)/kernel_34.ll
+	$(LLVM_34_AS) $(BUILD_DIR)/kernel_34.ll -o $@
 
-allclean: clean
-	$(RM) -rf $(OBJDIR)
-	$(RM) -rf $(OBJ_V_DIR)
-	$(RM) -rf $(C_OBJDIR)
-	$(RM) -rf $(C_OBJ_V_DIR)
-	cd utils; make allclean
-	cd radar; make clean
-	cd viterbi; make clean
+$(AOCL_ASSEMBLY) : $(AOC_CL)
+	aoc --report $(AOC_EMU) $(AOC_CL) -o $(AOCL_ASSEMBLY) -board=$(BOARD)
 
+$(AOC_CL) : $(KERNEL)
+	llvm-cbe --debug $(KERNEL)
 
-obj/kernels_api.o: kernels_api.h 
-obj/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
-obj/kernels_api.o: radar/calc_fmcw_dist.h
+$(EXE) : $(HOST_LINKED)
+	$(CXX) -O3 $(LDFLAGS) $< -o $@
 
-obj_c/kernels_api.o: kernels_api.h 
-obj_c/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
-obj_c/kernels_api.o: radar/calc_fmcw_dist.h
+$(HOST_LINKED) : $(HOST) $(OBJS) $(VISC_RT_LIB)
+	$(LLVM_LINK) $^ -S -o $@
 
-objv/kernels_api.o: kernels_api.h 
-objv/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
-objv/kernels_api.o: radar/calc_fmcw_dist.h
+$(VISC_RT_LIB) : $(VISC_RT_PATH)/visc-rt.cpp
+	make -C $(LLVM_LIB_PATH)
 
-obj_cv/kernels_api.o: kernels_api.h 
-obj_cv/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
-obj_cv/kernels_api.o: radar/calc_fmcw_dist.h
+$(HOST) $(KERNEL): $(BUILD_DIR)/$(VISC_OBJS)
+	$(OPT) -debug $(VISC_OPTFLAGS) -S $< -o $(HOST)
+#	mv *.ll $(BUILD_DIR) 
+#	$(OPT) -debug-only=DFG2LLVM_SPIR,DFG2LLVM_X86,DFG2LLVM_FPGA,GENVISC $(VISC_OPTFLAGS) -S $< -o $(HOST)
+#$(OBJS): $(OBJS_SRC)
+#	$(CC) $(OBJS_CFLAGS) -emit-llvm -S -o $@ $<
 
-obj/sim_environs.o: utils/sim_environs.h
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-obj_v/sim_environs.o: utils/sim_environs.h
+$(BUILD_DIR)/%.ll : $(SRC_DIR)/%.c
+	$(CC) $(OBJS_CFLAGS) -emit-llvm -S -o $@ $<
 
-#obj/sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
+$(BUILD_DIR)/main.ll : $(SRC_DIR)/main.c
+	$(CC) $(CFLAGS) -emit-llvm -S -o $@ $<
 
-obj/gen_trace.o: gen_trace.h
+#$(BUILD_DIR)/main.opt.ll : $(BUILD_DIR)/main.ll
+#	$(OPT) $(OPT_FLAGS) $< -S -o $@
 
+$(BUILD_DIR)/main.visc.ll : $(BUILD_DIR)/main.ll
+	$(OPT) -debug-only=genvisc $(TESTGEN_OPTFLAGS) $< -S -o $@
 
-depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(SRC) $(T_SRC) $(G_SRC)
-# DO NOT DELETE THIS LINE -- make depend depends on it.
-
+## END HPVM MAKEFILE

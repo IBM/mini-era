@@ -21,7 +21,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include <Python.h>
+//#include <Python.h>
 #include <math.h>
 
 #include "kernels_api.h"
@@ -29,7 +29,7 @@
 #include "fft-1d.h"
 
 #include "calc_fmcw_dist.h"
-
+#include "visc.h"
 #define BYPASS_KERAS_CV_CODE  // INITIAL  BRING-UP
 
 #define TIME
@@ -85,9 +85,9 @@ unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 
 /* These are types, functions, etc. required for VITERBI */
-#include "viterbi/viterbi_decoder_generic.h"
+#include "viterbi_decoder_generic.h"
 
-
+#ifndef BYPASS_KERAS_CV_CODE
 PyObject *pName, *pModule, *pFunc, *pFunc_load;
 PyObject *pArgs, *pValue, *pretValue;
 #define PY_SSIZE_T_CLEAN
@@ -95,7 +95,7 @@ PyObject *pArgs, *pValue, *pretValue;
 char *python_module = "mio";
 char *python_func = "predict";	  
 char *python_func_load = "loadmodel";	  
-
+#endif
 /* File pointer to the input trace */
 FILE *input_trace = NULL;
 
@@ -298,7 +298,7 @@ status_t init_vit_kernel(char* dict_fn)
   return success;
 }
 
-status_t init_cv_kernel(char* py_file, char* dict_fn)
+status_t init_cv_kernel(char* dict_fn)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
   /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
@@ -642,7 +642,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 void execute_rad_kernel(float * inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size)
 {
   __visc__hint(CPU_TARGET);
-  __visc__attributes(2, data, distance, 1, distance);
+  __visc__attributes(2, inputs, distance, 1, distance);
 
   /* 2) Conduct distance estimation on the waveform */
   //DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
@@ -1152,14 +1152,14 @@ calc_avg_max(float* data, size_t data_size_bytes)
 
 
 void
-calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size)
+calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size)
 {
   /* __visc__hint(CPU_TARGET); */
   /* __visc__attributes(2, data, distance, 1, distance); */
 
-  fft (data, data_size_bytes, N, logn, sign);
+  fft (inputs, data_size_bytes, N, logn, sign);
 
-  avg_max_t avg_max = calc_avg_max(data, data_size_bytes);
+  avg_max_t avg_max = calc_avg_max(inputs, data_size_bytes);
 
   float dist = INFINITY;
   if (avg_max.max_psd > 1e-10*pow(8192,2)) {
@@ -1189,11 +1189,11 @@ void miniERARoot(/* 0 */ float * data, size_t bytes_data, /* 1 */
 		 /* 2 */ unsigned int N,
 		 /* 3 */ unsigned int logn,
 		 /* 4 */ int sign,
-		 /* 5 */ float * distance, size_t bytes_distance, /* 6 */) {
+		 /* 5 */ float * distance, size_t bytes_distance /* 6 */) {
 
   
   //Specifies compilation target for current node
-  __visc__hint(visc::CPU_TARGET);
+  __visc__hint(CPU_TARGET);
 
   // Specifies pointer arguments that will be used as "in" and "out" arguments
   // - count of "in" arguments
@@ -1309,7 +1309,6 @@ int main(int argc, char *argv[])
   /* char * trace_file = argv[1]; */
   printf("Input trace file: %s\n", trace_file);
 
-  char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
   /* Trace Reader initialization */
   if (!init_trace_reader(trace_file))
@@ -1319,7 +1318,7 @@ int main(int argc, char *argv[])
   }
 
   /* Kernels initialization */
-  if (!init_cv_kernel(cv_py_file, cv_dict))
+  if (!init_cv_kernel(cv_dict))
   {
     printf("Error: the computer vision kernel couldn't be initialized properly.\n");
     return 1;
@@ -1356,7 +1355,7 @@ int main(int argc, char *argv[])
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
   //while (!eof_trace_reader())
-  {
+  //{
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
     // Iterate the various kernels (PREP their states for execution, get inputs, etc.)
@@ -1396,9 +1395,10 @@ int main(int argc, char *argv[])
     case 5: num_vit_msgs = total_obj + 1; break;
     }
 
+    __visc__init();
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
-
+    distance_t radar_distance;
     // Set up HPVM DFG inputs in the rootArgs struct.
     rootArgs->data = radar_input;
     rootArgs->bytes_data = 8*RADAR_N;
@@ -1407,15 +1407,15 @@ int main(int argc, char *argv[])
     rootArgs->logn = RADAR_LOGN;
     rootArgs->sign = -1;
 
-    rootArgs->distance   = distance;
-    rootArgs->bytes_dist = sizeof(float);
+    rootArgs->distance   = &radar_distance;
+    rootArgs->bytes_distance = sizeof(float);
     
     // Memory tracking is required for pointer arguments.
     // Nodes can be scheduled on different targets, and 
     // dataflow edge implementation needs to request data.
     // The pair (pointer, size) is inserted in memory tracker using this call
-    llvm_visc_track_mem(data, 8*RADAR_N);
-    llvm_visc_track_mem(distance, sizeof(float));
+    llvm_visc_track_mem(radar_input, 8*RADAR_N);
+    llvm_visc_track_mem(&radar_distance, sizeof(float));
 
     // Launch the DFG to do the radar computation
     //distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N, RADAR_N, RADAR_LOGN, -1, distance, sizeof(float));
@@ -1423,14 +1423,14 @@ int main(int argc, char *argv[])
     __visc__wait(radarExecDFG);
 
     // Request data from graph.    
-    llvm_visc_request_mem(distance, sizeof(float));
+    llvm_visc_request_mem(&radar_distance, sizeof(float));
 
     
     message_t vit_message  = execute_vit_kernel(&(vdentry_p->ofdm_p), &(vdentry_p->frame_p), vdentry_p->in_bits);
     
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, cv_infer_label);
-    post_execute_rad_kernel(rd_dist, radar_dist);
+    post_execute_rad_kernel(rd_dist, radar_distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, vit_message);
     }
@@ -1440,7 +1440,7 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    vehicle_state = plan_and_control(cv_infer_label, radar_dist, vit_message, vehicle_state);
+    vehicle_state = plan_and_control(cv_infer_label, radar_distance, vit_message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
     
     #ifdef TIME  
@@ -1450,7 +1450,7 @@ int main(int argc, char *argv[])
 	  }
     #endif	  
     read_next_trace_record(vehicle_state);
-  }
+ // }
 
   #ifdef TIME
   	gettimeofday(&stop, NULL);
@@ -1466,8 +1466,8 @@ int main(int argc, char *argv[])
   #endif
 
   // Remove tracked pointers.
-  llvm_visc_untrack_mem(data);
-  llvm_visc_untrack_mem(distance);
+  llvm_visc_untrack_mem(radar_input);
+  llvm_visc_untrack_mem(&radar_distance);
 
   __visc__cleanup();
 

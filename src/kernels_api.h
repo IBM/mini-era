@@ -77,7 +77,7 @@ typedef enum {
   num_messages
 } message_t;
 
-#include "radar/calc_fmcw_dist.h"
+#include "calc_fmcw_dist.h"
 
 typedef struct {
   unsigned int return_id;
@@ -85,7 +85,7 @@ typedef struct {
   float return_data[2 * RADAR_N];
 } radar_dict_entry_t;
 
-#include "viterbi/utils.h"
+#include "utils.h"
 
 typedef struct {
   unsigned int msg_num;
@@ -111,7 +111,7 @@ bool_t read_next_trace_record(vehicle_state_t vs);
 void closeout_trace_reader(void);
 
 /* Kernels initialization */
-status_t init_cv_kernel(char* py_file, char* dict_fn);
+status_t init_cv_kernel(char* dict_fn);
 status_t init_rad_kernel(char* dict_fn);
 status_t init_vit_kernel(char* dict_fn);
 
@@ -123,7 +123,7 @@ label_t execute_cv_kernel(label_t tr_val);
 void post_execute_cv_kernel(label_t tr_val, label_t cnn_val);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
-distance_t execute_rad_kernel(float* inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size);
+void execute_rad_kernel(float* inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size);
 void post_execute_rad_kernel(distance_t tr_val, distance_t rad_val);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
