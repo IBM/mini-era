@@ -34,7 +34,7 @@ static frame_param *d_frame;
 static const unsigned char *d_depuncture_pattern;
 
 static uint8_t d_depunctured[MAX_ENCODED_BITS];
-static uint8_t d_decoded[MAX_ENCODED_BITS * 3 / 4];
+//static uint8_t d_decoded[MAX_ENCODED_BITS * 3 / 4];
 
 static const unsigned char PARTAB[256] = {
          0, 1, 1, 0, 1, 0, 0, 1,

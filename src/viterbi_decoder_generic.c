@@ -32,14 +32,6 @@
 #include "viterbi_decoder_generic.h"
 #include "viterbi_standalone.h"
 
-#undef  GENERATE_CHECK_VALUES
-//#define  DO_RUN_TIME_CHECKING  // Now set in the Make process.
-#undef  GENERATE_OUTPUT_VALUE
-#define DO_OUTPUT_VALUE_CHECKING
-
-#undef GENERATE_TEST_DATA
-
-
 // GLOBAL VARIABLES
 
 // Position in circular buffer where the current decoded byte is stored
@@ -118,24 +110,13 @@ uint8_t* depuncture(uint8_t *in) {
 // d_branchtab27_generic[1].c[] : INPUT : Array [2].c[32] {GLOBAL}
 //
 
-#ifdef USE_ESP_INTERFACE
-void viterbi_butterfly2_generic(unsigned char *inMemory)
-#else
 void viterbi_butterfly2_generic(unsigned char *symbols,
+				unsigned char *d_brtab27[2],
 				unsigned char *mm0, unsigned char *mm1, unsigned char *pp0,
 				unsigned char *pp1)
-#endif
 {
-#ifdef USE_ESP_INTERFACE
-  unsigned char *mm0       = &(inMemory[  0]);
-  unsigned char *mm1       = &(inMemory[ 64]);
-  unsigned char *pp0       = &(inMemory[128]);
-  unsigned char *pp1       = &(inMemory[192]);
-  unsigned char *d_brtab27[2] = {&(inMemory[256]), &(inMemory[288])};
-  unsigned char *symbols   = &(inMemory[320]);
-#else
-  unsigned char *d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
-#endif
+  //unsigned char *d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
+
   // These are used to "virtually" rename the uses below (for symmetry; reduces code size)
   //  Really these are functionally "offset pointers" into the above arrays....
   unsigned char *metric0, *metric1;
@@ -328,266 +309,31 @@ unsigned char viterbi_get_output_generic(unsigned char *mm0,
 }
 
 
-/* This is the main "decode" function; it prepares data and repeatedly
- * calls the viterbi butterfly2 routine to do steps of decoding.
- */
-// INPUTS/OUTPUTS:  
-//    ofdm   : INPUT        : Struct (see utils.h) [enum, char, int, int, int]
-//    frame  : INPUT/OUTPUT : Struct (see utils.h) [int, int, int, int]
-//    in     : INPUT/OUTPUT : Array [ MAX_ENCODED_BITS == 24780 ]
+void viterbi_reset(  unsigned char* d_metric0_generic,// __attribute__ ((aligned(16))),
+		     unsigned char* d_metric1_generic,// __attribute__ ((aligned(16))),
+		     unsigned char* d_path0_generic,// __attribute__ ((aligned(16))),
+		     unsigned char* d_path1_generic,// __attribute__ ((aligned(16))),
+		     d_branchtab27_t* d_branchtab27_generic) {
 
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
+  int i, j;
 
-  d_ofdm = ofdm;
-  d_frame = frame;
-
-  reset();
-
-  uint8_t *depunctured = depuncture(in);
-	
-  int in_count = 0;
-  int out_count = 0;
-  int n_decoded = 0;
-
-  //printf("uint8_t DECODER_VERIF_DATA[7000][4][64] = {\n");
-  //printf("void set_viterbi_decode_verif_data() {\n");
-
-  int viterbi_butterfly_calls = 0;
-  while(n_decoded < d_frame->n_data_bits) {
-    //printf("n_decoded = %d vs %d = d_frame->n_data_bits\n", n_decoded, d_frame->n_data_bits);
-    if ((in_count % 4) == 0) { //0 or 3
-      //printf(" Viterbi_Butterfly Call,%d,n_decoded,%d,n_data_bits,%d,in_count,%d,%d\n", viterbi_butterfly_calls, n_decoded, d_frame->n_data_bits, in_count, (in_count & 0xfffffffc));
-#ifdef GENERATE_TEST_DATA
-      {
-        uint8_t* t_symbols = &depunctured[in_count & 0xfffffffc];
-        uint8_t* t_mm0 = d_metric0_generic;
-        uint8_t* t_mm1 = d_metric1_generic;
-        uint8_t* t_pp0 = d_path0_generic;
-        uint8_t* t_pp1 = d_path1_generic;
-        printf("\nINPUTS: mm0[64] : m1[64] : pp0[64] : pp1[64] : d_brtab [2][32] : symbols[4]\n");        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_mm0[ti]);
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_mm1[ti]);
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_pp0[ti]);
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_pp1[ti]);
-        }
-        for (int ti = 0; ti < 2; ti ++) {
-          for (int tj = 0; tj < 32; tj++) {
-            printf("%u,", d_branchtab27_generic[ti].c[tj]);
-          }
-        }
-        for (int ti = 0; ti < 4; ti ++) {
-          printf("%u,", t_symbols[ti]);
-        }
-	printf("\n");
-      }
-#endif
-#ifdef USE_ESP_INTERFACE
-      {
-        // Copy inputs into the inMemory for esp-interface version
-        uint8_t inMemory[6*64];
-        int imi = 0;
-        uint8_t* t_symbols = &depunctured[in_count & 0xfffffffc];
-        uint8_t* t_mm0 = d_metric0_generic;
-        uint8_t* t_mm1 = d_metric1_generic;
-        uint8_t* t_pp0 = d_path0_generic;
-        uint8_t* t_pp1 = d_path1_generic;
-	// Set up the inMemory from the componenets
-        for (int ti = 0; ti < 64; ti ++) {
-          inMemory[imi++] = t_mm0[ti];
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          inMemory[imi++] = t_mm1[ti];
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          inMemory[imi++] = t_pp0[ti];
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          inMemory[imi++] = t_pp1[ti];
-        }
-        for (int ti = 0; ti < 2; ti ++) {
-          for (int tj = 0; tj < 32; tj++) {
-	    inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
-          }
-        }
-        for (int ti = 0; ti < 4; ti ++) {
-          inMemory[imi++] = t_symbols[ti];
-        }
-
-	// Call the viterbi_butterfly2_generic function using ESP interface
-	viterbi_butterfly2_generic(inMemory);
-
-	// Copy the outputs back into the composite locations
-	imi = 0;
-        for (int ti = 0; ti < 64; ti ++) {
-          t_mm0[ti] = inMemory[imi++];
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          t_mm1[ti] = inMemory[imi++];
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          t_pp0[ti] = inMemory[imi++];
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          t_pp1[ti] = inMemory[imi++];
-        }
-	/** These are inputs only:
-	    for (int ti = 0; ti < 2; ti ++) {
-	    for (int tj = 0; tj < 32; tj++) {
-            d_branchtab27_generic[ti].c[tj] = inMemory[imi++];
-	    }
-	    }
-	    for (int ti = 0; ti < 4; ti ++) {
-	    t_symbols[ti] = inMemory[imi++];
-	    }
-	**/
-      }
-#else
-      viterbi_butterfly2_generic(&depunctured[in_count & 0xfffffffc], d_metric0_generic, d_metric1_generic,d_path0_generic, d_path1_generic);
-#endif
-#ifdef GENERATE_TEST_DATA
-      {
-        uint8_t* t_symbols = &depunctured[in_count & 0xfffffffc];
-        uint8_t* t_mm0 = d_metric0_generic;
-        uint8_t* t_mm1 = d_metric1_generic;
-        uint8_t* t_pp0 = d_path0_generic;
-        uint8_t* t_pp1 = d_path1_generic;
-        printf("OUTPUTS: mm0[64] : m1[64] : pp0[64] : pp1[64] // : d_brtab [2][32] : symbols[4]\n");
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_mm0[ti]);
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_mm1[ti]);
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_pp0[ti]);
-        }
-        for (int ti = 0; ti < 64; ti ++) {
-          printf("%u,", t_pp1[ti]);
-        }
-	/** INVARIANT -- DO NOT CHANGE
-	    for (int ti = 0; ti < 2; ti ++) {
-	    for (int tj = 0; tj < 32; tj++) {
-            printf("%u,", d_branchtab27_generic[ti].c[tj]);
-	    }
-	    }
-	    for (int ti = 0; ti < 4; ti ++) {
-	    printf("%u,", t_symbols[ti]);
-	    }
-	**/
-	printf("\n\n");
-      }
-#endif
-#ifdef GENERATE_CHECK_VALUES
-      /** Create the comparison data (per-iteration) **/
-      printf("  /*[%4d][0]*/ { {", viterbi_butterfly_calls); // Metric0,");
-      for(int i=0; i<64;++i){
-	if (i > 0) { printf(","); }
-	printf("%u", (unsigned int)d_metric0_generic[i]);
-      }
-      printf("}, // Metric0\n");
-      //printf("Metric1,");
-      printf("  /*[%4d][1]*/   { ", viterbi_butterfly_calls); // Metric0,");
-      for(int i=0; i<64;++i){
-	if (i > 0) { printf(","); }
-	printf("%u", (unsigned int)d_metric1_generic[i]);
-      }
-      printf("}, // Metric1\n");
-      //printf("Path0,");
-      printf("  /*[%4d][2]*/   { ", viterbi_butterfly_calls); // Metric0,");
-      for(int i=0; i<64;++i){
-	if (i > 0) { printf(","); }
-	printf("%u", (unsigned int)d_path0_generic[i]);
-      }
-      printf("}, // Path0\n");
-      //printf("Path1,");
-      printf("  /*[%4d][3]*/   { ", viterbi_butterfly_calls); // Metric0,");
-      for(int i=0; i<64;++i){
-	if (i > 0) { printf(","); }
-	printf("%u", (unsigned int)d_path1_generic[i]);
-      }
-      printf("} },  // Path1\n");
-      /** **/
-#endif
-
-#ifdef DO_RUN_TIME_CHECKING
-      // Check that the outputs match the expectation
-      int miscompare = false;
-      // Metric0;
-      for(int i=0; i<64 && !miscompare ;++i){
-	miscompare = DECODER_VERIF_DATA[viterbi_butterfly_calls][0][i] != d_metric0_generic[i];
-	if (miscompare) {
-	  printf("Miscompare: DECODER_VERIF_DATA[%u][%u][%u] = %u vs %u = d_metric0_generic[%u]\n", viterbi_butterfly_calls, 0, i, DECODER_VERIF_DATA[viterbi_butterfly_calls][0][i], d_metric0_generic[i], i);
-	}
-      }
-      //Metric1
-      for(int i=0; i<64 && !miscompare ;++i){
-	miscompare = DECODER_VERIF_DATA[viterbi_butterfly_calls][1][i] != d_metric1_generic[i];
-	if (miscompare) {
-	  printf("Miscompare: DECODER_VERIF_DATA[%u][%u][%u] = %u vs %u = d_metric1_generic[%u]\n", viterbi_butterfly_calls, 1, i, DECODER_VERIF_DATA[viterbi_butterfly_calls][1][i], d_metric1_generic[i], i);
-	}
-      }
-      //Path0
-      for(int i=0; i<64 && !miscompare ;++i){
-	miscompare = DECODER_VERIF_DATA[viterbi_butterfly_calls][2][i] != d_path0_generic[i];
-	if (miscompare) {
-	  printf("Miscompare: DECODER_VERIF_DATA[%u][%u][%u] = %u vs %u = d_path0_generic[%u]\n", viterbi_butterfly_calls, 2, i, DECODER_VERIF_DATA[viterbi_butterfly_calls][2][i], d_path0_generic[i], i);
-	}
-      }
-      //Path1
-      for(int i=0; i<64 && !miscompare ;++i){
-	miscompare = DECODER_VERIF_DATA[viterbi_butterfly_calls][3][i] != d_path1_generic[i];
-	if (miscompare) {
-	  printf("Miscompare: DECODER_VERIF_DATA[%u][%u][%u] = %u vs %u = d_path1_generic[%u]\n", viterbi_butterfly_calls, 3, i, DECODER_VERIF_DATA[viterbi_butterfly_calls][3][i], d_path1_generic[i], i);
-	}
-      }
-
-      if (miscompare) {
-	printf("ERROR: Mismatch versus verification data found!\n");
-	exit(-1);
-      }
-#endif
-
-      viterbi_butterfly_calls++; // Do not increment until after the comparison code.
-
-      if ((in_count > 0) && (in_count % 16) == 8) { // 8 or 11
-	unsigned char c;
-	viterbi_get_output_generic(d_metric0_generic, d_path0_generic, d_ntraceback, &c);
-	//std::cout << "OUTPUT: " << (unsigned int)c << std::endl; 
-	if (out_count >= d_ntraceback) {
-	  for (int i= 0; i < 8; i++) {
-	    d_decoded[(out_count - d_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
-	    //printf("d_decoded[ %u ] written\n", (out_count - d_ntraceback) * 8 + i);
-	    n_decoded++;
-	  }
-	}
-	out_count++;
-      }
-    }
-    in_count++;
+  for (i = 0; i < 4; i++) {
+    d_metric0_generic[i] = 0;
+    d_path0_generic[i] = 0;
   }
-  //printf("};\n");
-#ifdef GENERATE_OUTPUT_VALUE
-  printf("EXPECTED_OUTPUT[%d] = {\n  ", n_decoded);
-  for (int di = 0; di < n_decoded; di++) {
-    if (di > 0) { printf(",");
-      printf("%u", d_decoded[di]);
-      if ((di % 80) == 79) { printf("\n  "); }
+
+  int polys[2] = { 0x6d, 0x4f };
+  for(i=0; i < 32; i++) {
+    d_branchtab27_generic[0].c[i] = (polys[0] < 0) ^ PARTAB[(2*i) & abs(polys[0])] ? 1 : 0;
+    d_branchtab27_generic[1].c[i] = (polys[1] < 0) ^ PARTAB[(2*i) & abs(polys[1])] ? 1 : 0;
+  }
+
+  for (i = 0; i < 64; i++) {
+    d_mmresult[i] = 0;
+    for (j = 0; j < TRACEBACK_MAX; j++) {
+      d_ppresult[j][i] = 0;
     }
   }
-  printf("\n};\n");
-#endif
-  return d_decoded;
-}
-
-void reset() {
-
-  viterbi_chunks_init_generic();
 
   switch(d_ofdm->encoding) {
   case BPSK_1_2:
@@ -613,25 +359,72 @@ void reset() {
   }
 }
 
-// Initialize starting metrics to prefer 0 state
-void viterbi_chunks_init_generic() {
-  int i, j;
 
-  for (i = 0; i < 4; i++) {
-    d_metric0_generic[i] = 0;
-    d_path0_generic[i] = 0;
-  }
+/* This is the main "decode" function; it prepares data and repeatedly
+ * calls the viterbi butterfly2 routine to do steps of decoding.
+ */
+// INPUTS/OUTPUTS:  
+//    ofdm   : INPUT        : Struct (see utils.h) [enum, char, int, int, int]
+//    frame  : INPUT/OUTPUT : Struct (see utils.h) [int, int, int, int]
+//    in     : INPUT/OUTPUT : Array [ MAX_ENCODED_BITS == 24780 ]
 
-  int polys[2] = { 0x6d, 0x4f };
-  for(i=0; i < 32; i++) {
-    d_branchtab27_generic[0].c[i] = (polys[0] < 0) ^ PARTAB[(2*i) & abs(polys[0])] ? 1 : 0;
-    d_branchtab27_generic[1].c[i] = (polys[1] < 0) ^ PARTAB[(2*i) & abs(polys[1])] ? 1 : 0;
-  }
+void viterbi_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, uint8_t* l_decoded) {
 
-  for (i = 0; i < 64; i++) {
-    d_mmresult[i] = 0;
-    for (j = 0; j < TRACEBACK_MAX; j++) {
-      d_ppresult[j][i] = 0;
+  d_ofdm = ofdm;
+  d_frame = frame;
+
+  // Local memories
+  unsigned char d_metric0_generic[64] __attribute__ ((aligned(16)));
+  unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
+  unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
+  unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
+  
+  d_branchtab27_t d_branchtab27_generic[2];
+
+  viterbi_reset( d_metric0_generic,
+		 d_metric1_generic,
+		 d_path0_generic,
+		 d_path1_generic,
+		 d_branchtab27_generic );
+
+  uint8_t *depunctured = depuncture(in);
+	
+  int in_count = 0;
+  int out_count = 0;
+  int n_decoded = 0;
+
+  //printf("uint8_t DECODER_VERIF_DATA[7000][4][64] = {\n");
+  //printf("void set_viterbi_decode_verif_data() {\n");
+
+  int viterbi_butterfly_calls = 0;
+  while(n_decoded < d_frame->n_data_bits) {
+    //printf("n_decoded = %d vs %d = d_frame->n_data_bits\n", n_decoded, d_frame->n_data_bits);
+    if ((in_count % 4) == 0) { //0 or 3
+      //printf(" Viterbi_Butterfly Call,%d,n_decoded,%d,n_data_bits,%d,in_count,%d,%d\n", viterbi_butterfly_calls, n_decoded, d_frame->n_data_bits, in_count, (in_count & 0xfffffffc));
+      unsigned char *d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
+      viterbi_butterfly2_generic(&depunctured[in_count & 0xfffffffc],
+				 d_brtab27,
+				 d_metric0_generic, d_metric1_generic,
+				 d_path0_generic,   d_path1_generic);
+      viterbi_butterfly_calls++; // Do not increment until after the comparison code.
+
+      if ((in_count > 0) && (in_count % 16) == 8) { // 8 or 11
+	unsigned char c;
+	viterbi_get_output_generic(d_metric0_generic, d_path0_generic, d_ntraceback, &c);
+	//std::cout << "OUTPUT: " << (unsigned int)c << std::endl; 
+	if (out_count >= d_ntraceback) {
+	  for (int i= 0; i < 8; i++) {
+	    l_decoded[(out_count - d_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
+	    //printf("l_decoded[ %u ] written\n", (out_count - d_ntraceback) * 8 + i);
+	    n_decoded++;
+	  }
+	}
+	out_count++;
+      }
     }
+    in_count++;
   }
+  //printf("};\n");
+  //return l_decoded;
 }
+

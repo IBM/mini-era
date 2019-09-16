@@ -785,11 +785,12 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
   // Send the input_bits message through the viterbi decoder
   uint8_t *result;
   DEBUG(printf("  Calling the viterbi decode routine...\n"));
-  result = decode(ofdm_ptr, frame_ptr, input_bits);
-  // descramble the output - put it in result
+  // descramble the output - put it in l_decoded
+  uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
+  viterbi_decode(ofdm_ptr, frame_ptr, input_bits, l_decoded);
   int psdusize = frame_ptr->psdu_size;
   DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-  descrambler(result, psdusize, out_msg_txt, NULL /*descram_ref*/, NULL /*msg*/);
+  descrambler(l_decoded, psdusize, out_msg_txt, NULL /*descram_ref*/, NULL /*msg*/);
 
   // Check contents of "out_msg_txt" to determine which message_t;
   switch(out_msg_txt[3]) {

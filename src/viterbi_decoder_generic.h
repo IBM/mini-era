@@ -25,27 +25,18 @@
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
+void viterbi_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, uint8_t* l_decoded);
 
-union branchtab27 {
-	unsigned char c[32];
-} d_branchtab27_generic[2];
+typedef union branchtab27 {
+  unsigned char c[32];
+} d_branchtab27_t;
 
-unsigned char d_metric0_generic[64] __attribute__ ((aligned(16)));
-unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
-unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
-unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
-
-void reset(void);
 void viterbi_chunks_init_generic(void);
 
-#ifdef USE_ESP_INTERFACE
-void viterbi_butterfly2_generic(unsigned char *inMemory);
-#else
 void viterbi_butterfly2_generic(unsigned char *symbols,
-		unsigned char m0[], unsigned char m1[], unsigned char p0[],
-		unsigned char p1[]);
-#endif
+				unsigned char *d_brtab27[2],
+				unsigned char m0[], unsigned char m1[],
+				unsigned char p0[], unsigned char p1[]);
 
 unsigned char viterbi_get_output_generic(unsigned char *mm0,
 		unsigned char *pp0, int ntraceback, unsigned char *outbuf);
