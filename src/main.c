@@ -788,7 +788,7 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
 				 char* out_msg_txt,       size_t out_msg_txt_size,
 				 message_t* out_message,  size_t out_message_size)
 {
-  /* First we do the base viuterbi decode ; resulting decoded bits are put into l_decoded */
+  /* First we do the base viterbi decode ; resulting decoded bits are put into l_decoded */
   viterbi_decode(ofdm_ptr,   sizeof(ofdm_param),
 		 frame_ptr,  sizeof(frame_param),
 		 input_bits, MAX_ENCODED_BITS,
@@ -811,15 +811,17 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
   }
 }
 
-void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
+
+void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 			frame_param* frame_ptr,  size_t frame_parm_size,
 			uint8_t* input_bits,     size_t input_bits_size,
 			char* out_msg_txt,       size_t out_msg_txt_size,
 			message_t* out_message,  size_t out_message_size)
 {
-  // Send the input_bits message through the viterbi decoder
-  DEBUG(printf("  Calling the viterbi decode routine...\n"));
-  // descode the input bits - put result into l_decoded
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
+		     1, out_message);
+
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
   viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
 			      frame_ptr,   sizeof(frame_param),
@@ -827,6 +829,7 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
 			      l_decoded,   MAX_ENCODED_BITS * 3 / 4,
 			      out_msg_txt, 1600,
 			      out_message, sizeof(message_t));
+  __visc__return(1, out_message_size);
 }
 
 
@@ -1214,35 +1217,48 @@ calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned in
 
 
 typedef struct __attribute__((__packed__)) {
-  float * data;       size_t bytes_data;
-  unsigned int N;
-  unsigned int logn;
-  int sign;
-  float * distance;   size_t bytes_distance;
+  float * radar_data;       size_t bytes_radar_data;
+  unsigned int radar_N;
+  unsigned int radar_logn;
+  int radar_sign;
+  float * radar_distance;   size_t bytes_radar_distance;
+  
+  ofdm_param* ofdm_ptr;     size_t bytes_ofdm_parm;
+  frame_param* frame_ptr;   size_t bytes_frame_parm;
+  uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;
+  char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;
+  message_t* vit_out_msg;   size_t bytes_vit_out_msg;
 } RootIn;
 
 
-void miniERARoot(/* 0 */ float * data, size_t bytes_data, /* 1 */
-		 /* 2 */ unsigned int N,
-		 /* 3 */ unsigned int logn,
-		 /* 4 */ int sign,
-		 /* 5 */ float * distance, size_t bytes_distance /* 6 */) {
-
-  
+void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
+		 /*  2 */ unsigned int radar_N,
+		 /*  3 */ unsigned int radar_logn,
+		 /*  4 */ int radar_sign,
+		 /*  5 */ float * radar_distance,  size_t bytes_radar_distance   /*  6 */,
+		 /*  7 */ ofdm_param* ofdm_ptr,    size_t bytes_ofdm_parm,       /*  8 */
+		 /*  9 */ frame_param* frame_ptr,  size_t bytes_frame_parm,      /* 10 */
+		 /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,     /* 12 */
+		 /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt, /* 14 */
+		 /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg      /* 16 */
+		 )
+{
   //Specifies compilation target for current node
   __visc__hint(CPU_TARGET);
 
   // Specifies pointer arguments that will be used as "in" and "out" arguments
   // - count of "in" arguments
   // - list of "in" argument , and similar for "out"
-  __visc__attributes(5, data, N, logn, sign, distance, // - count of "in" arguments, list of "in" arguments
-		     1, distance);		       // - count of "out" arguments, list of "out" arguments
+  __visc__attributes(10, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
+		         ofdm_ptr, frame_ptr, vit_in_bits, vit_out_msg_txt, vit_out_msg,
+		     1, radar_distance);          // - count of "out" arguments, list of "out" arguments
+  //                 3, radar_distance, vit_out_msg_txt, vit_out_msg);          // - count of "out" arguments, list of "out" arguments
 
   // FFT Node
   void* EXEC_RAD_node = __visc__createNodeND(0, execute_rad_kernel);
 
   // Viterbi Node
-  //void* EXEC_VIT_node = __visc__createNodeND(0, viterbi_node_function);
+  void* EXEC_VIT_node = __visc__createNodeND(0, execute_vit_kernel);
 
   // CV Nodes
   // nodes generated from DNN compiled from Keras here
@@ -1257,13 +1273,24 @@ void miniERARoot(/* 0 */ float * data, size_t bytes_data, /* 1 */
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
-  __visc__bindIn(EXEC_RAD_node, 0, 0, 0); // data -> EXEC_RAD_node:data
-  __visc__bindIn(EXEC_RAD_node, 1, 1, 0); // bytes_data -> EXEC_RAD_node:bytes_data
-  __visc__bindIn(EXEC_RAD_node, 2, 2, 0); // N -> EXEC_RAD_node:N
-  __visc__bindIn(EXEC_RAD_node, 3, 3, 0); // logn -> EXEC_RAD_node:logn
-  __visc__bindIn(EXEC_RAD_node, 4, 4, 0); // sign -> EXEC_RAD_node:sign
-  __visc__bindIn(EXEC_RAD_node, 5, 5, 0); // distance -> EXEC_RAD_node:distance
-  __visc__bindIn(EXEC_RAD_node, 6, 6, 0); // bytes_dist -> EXEC_RAD_node:bytes_dist
+  __visc__bindIn(EXEC_RAD_node,  0,  0, 0); // radar_data -> EXEC_RAD_node:radar_data
+  __visc__bindIn(EXEC_RAD_node,  1,  1, 0); // bytes_radar_data -> EXEC_RAD_node:bytes_radar_data
+  __visc__bindIn(EXEC_RAD_node,  2,  2, 0); // radar_N -> EXEC_RAD_node:radar_N
+  __visc__bindIn(EXEC_RAD_node,  3,  3, 0); // radar_logn -> EXEC_RAD_node:radar_logn
+  __visc__bindIn(EXEC_RAD_node,  4,  4, 0); // radar_sign -> EXEC_RAD_node:radar_sign
+  __visc__bindIn(EXEC_RAD_node,  5,  5, 0); // radar_distance -> EXEC_RAD_node:radar_distance
+  __visc__bindIn(EXEC_RAD_node,  6,  6, 0); // bytes_radar_dist -> EXEC_RAD_node:bytes_radar_dist
+
+  __visc__bindIn(EXEC_VIT_node,  7,  0, 0); // ofdm_ptr -> EXEC_VIT_node:ofdm_ptr
+  __visc__bindIn(EXEC_VIT_node,  8,  1, 0); // bytes_ofdm_parm -> EXEC_VIT_node:bytes_ofdm_parm
+  __visc__bindIn(EXEC_VIT_node,  9,  2, 0); // frame_ptr -> EXEC_VIT_node:frame_ptr
+  __visc__bindIn(EXEC_VIT_node, 10,  3, 0); // bytes_frame_parm -> EXEC_VIT_node:bytes_frame_parm
+  __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:vit_in_bits
+  __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:bytes_vit_in_bits
+  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:vit_out_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:bytes_vit_out_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
+  __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
 
   // Edge transfers data between nodes within the same level of hierarchy.
   // - source and destination dataflow nodes
@@ -1280,6 +1307,8 @@ void miniERARoot(/* 0 */ float * data, size_t bytes_data, /* 1 */
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
   __visc__bindOut(EXEC_RAD_node, 0, 0, 0);
+  //__visc__bindOut(EXEC_VIT_node, 0, 0, 0);
+  //__visc__bindOut(EXEC_VIT_node, 1, 1, 0);
 }
 
 
@@ -1400,7 +1429,19 @@ int main(int argc, char *argv[])
   distance_t radar_distance;
   llvm_visc_track_mem(radar_input, 8*RADAR_N);
   llvm_visc_track_mem(&radar_distance, sizeof(float));
+  
+  ofdm_param  xfer_ofdm;
+  frame_param xfer_frame;
+  uint8_t     xfer_vit_inputs[MAX_ENCODED_BITS];
+  char        vit_out_msg_txt[1600];
+  message_t   vit_message;
 
+  llvm_visc_track_mem(&xfer_ofdm, sizeof(ofdm_param));
+  llvm_visc_track_mem(&xfer_frame, sizeof(frame_param));
+  llvm_visc_track_mem(xfer_vit_inputs, MAX_ENCODED_BITS);
+
+  llvm_visc_track_mem(vit_out_msg_txt, 1600);
+  llvm_visc_track_mem(&vit_message, sizeof(message_t));
 
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
@@ -1448,32 +1489,65 @@ int main(int argc, char *argv[])
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
     // Set up HPVM DFG inputs in the rootArgs struct.
-    rootArgs->data = radar_input;
-    rootArgs->bytes_data = 8*RADAR_N;
+    rootArgs->radar_data       = radar_input;
+    rootArgs->bytes_radar_data = 8*RADAR_N;
   
-    rootArgs->N = RADAR_N;
-    rootArgs->logn = RADAR_LOGN;
-    rootArgs->sign = -1;
+    rootArgs->radar_N = RADAR_N;
+    rootArgs->radar_logn = RADAR_LOGN;
+    rootArgs->radar_sign = -1;
 
-    rootArgs->distance   = &radar_distance;
-    rootArgs->bytes_distance = sizeof(float);
+    rootArgs->radar_distance       = &radar_distance;
+    rootArgs->bytes_radar_distance = sizeof(float);
+
+    /* Viterbi part -0 copy over required inputs */
+    xfer_ofdm.encoding   = vdentry_p->ofdm_p.encoding;
+    xfer_ofdm.rate_field = vdentry_p->ofdm_p.rate_field;
+    xfer_ofdm.n_bpsc     = vdentry_p->ofdm_p.n_bpsc;
+    xfer_ofdm.n_cbps     = vdentry_p->ofdm_p.n_cbps;
+    xfer_ofdm.n_dbps     = vdentry_p->ofdm_p.n_dbps;
+
+    xfer_frame.psdu_size      = vdentry_p->frame_p.psdu_size;
+    xfer_frame.n_sym          = vdentry_p->frame_p.n_sym;
+    xfer_frame.n_encoded_bits = vdentry_p->frame_p.n_encoded_bits;
+    xfer_frame.n_data_bits    = vdentry_p->frame_p.n_data_bits;
+
+    for (int bi = 0; bi <  MAX_ENCODED_BITS; bi++) {
+      xfer_vit_inputs[bi] = vdentry_p->in_bits[bi];
+    }
+
+    rootArgs->ofdm_ptr          = &xfer_ofdm;
+    //rootArgs->ofdm_ptr          = &(vdentry_p->ofdm_p);
+    rootArgs->bytes_ofdm_parm   = sizeof(ofdm_param);
+    rootArgs->frame_ptr         = &xfer_frame;
+    //rootArgs->frame_ptr         = &(vdentry_p->frame_p);
+    rootArgs->bytes_frame_parm  = sizeof(frame_param);
+    rootArgs->vit_in_bits       = xfer_vit_inputs;
+    //rootArgs->vit_in_bits       = &(vdentry_p->in_bits);
+    rootArgs->bytes_vit_in_bits = MAX_ENCODED_BITS;
+    rootArgs->vit_out_msg_txt       = vit_out_msg_txt;
+    rootArgs->bytes_vit_out_msg_txt = 1600;
+    rootArgs->vit_out_msg       = &vit_message;
+    rootArgs->bytes_vit_out_msg = sizeof(message_t);
+
     
     // Launch the DFG to do the radar computation
+    //        AND the Viterbi computation...
     //distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N, RADAR_N, RADAR_LOGN, -1, distance, sizeof(float));
     void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     __visc__wait(radarExecDFG);
 
     // Request data from graph.    
     llvm_visc_request_mem(&radar_distance, sizeof(float));
+    llvm_visc_request_mem(&vit_message, sizeof(message_t));
 
     
-    message_t vit_message;
-    char out_msg_text[1600];
-    execute_vit_kernel(&(vdentry_p->ofdm_p),  sizeof(ofdm_param),
-		       &(vdentry_p->frame_p), sizeof(frame_param),
-		       vdentry_p->in_bits,    MAX_ENCODED_BITS,
-		       out_msg_text,          1600,
-		       &vit_message,          sizeof(message_t));
+    /* message_t vit_message; */
+    /* char out_msg_text[1600]; */
+    /* execute_vit_kernel(&(vdentry_p->ofdm_p),  sizeof(ofdm_param), */
+    /* 		       &(vdentry_p->frame_p), sizeof(frame_param), */
+    /* 		       vdentry_p->in_bits,    MAX_ENCODED_BITS, */
+    /* 		       out_msg_text,          1600, */
+    /* 		       &vit_message,          sizeof(message_t)); */
     
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, cv_infer_label);
@@ -1515,6 +1589,13 @@ int main(int argc, char *argv[])
   // Remove tracked pointers.
   llvm_visc_untrack_mem(radar_input);
   llvm_visc_untrack_mem(&radar_distance);
+
+  llvm_visc_untrack_mem(&xfer_ofdm);
+  llvm_visc_untrack_mem(&xfer_frame);
+  llvm_visc_untrack_mem(xfer_vit_inputs);
+
+  llvm_visc_untrack_mem(vit_out_msg_txt);
+  llvm_visc_untrack_mem(&vit_message);
 
   __visc__cleanup();
 
