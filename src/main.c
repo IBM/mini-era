@@ -174,7 +174,8 @@ status_t init_rad_kernel(char* dict_fn)
     return error;
   }
   // Read the number of definitions
-  if (fscanf(dictF, "%u\n", &num_radar_dictionary_items)) ;
+  if (fscanf(dictF, "%u\n", &num_radar_dictionary_items)) 
+	  ;
   DEBUG(printf("  There are %u dictionary entries\n", num_radar_dictionary_items));
   the_radar_return_dict = (radar_dict_entry_t*)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
   if (the_radar_return_dict == NULL) 
@@ -188,13 +189,15 @@ status_t init_rad_kernel(char* dict_fn)
     unsigned entry_id;
     float entry_dist;
     unsigned entry_dict_values = 0;
-    if (fscanf(dictF, "%u %f", &entry_id, &entry_dist)) ;
+    if (fscanf(dictF, "%u %f", &entry_id, &entry_dist)) 
+	    ;
     DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
     the_radar_return_dict[di].return_id = entry_id;
     the_radar_return_dict[di].distance =  entry_dist;
     for (int i = 0; i < 2*RADAR_N; i++) {
       float fin;
-      if (fscanf(dictF, "%f", &fin)) ;
+      if (fscanf(dictF, "%f", &fin)) 
+	      ;
       the_radar_return_dict[di].return_data[i] = fin;
       tot_dict_values++;
       entry_dict_values++;
@@ -236,7 +239,8 @@ status_t init_vit_kernel(char* dict_fn)
 
   // Read in the trace message dictionary from the trace file
   // Read the number of messages
-  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items)) ;
+  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items)) 
+	  ;
   DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
   the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
@@ -251,7 +255,8 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
 
     int mnum, mid;
-    if (fscanf(dictF, "%d %d\n", &mnum, &mid)) ;
+    if (fscanf(dictF, "%d %d\n", &mnum, &mid)) 
+	    ;
     DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
     if (mnum != i) {
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
@@ -261,7 +266,8 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate)) ;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate)) 
+	    ;
     DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
@@ -270,7 +276,8 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits)) ;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits)) 
+	    ;
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
     the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
     the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
@@ -282,7 +289,8 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
-      if (fscanf(dictF, "%u ", &c)) ;
+      if (fscanf(dictF, "%u ", &c)) 
+	      ;
       DEBUG(printf("%u ", c));
       the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
     }
@@ -1351,11 +1359,14 @@ int main(int argc, char *argv[])
   // Allocate struct to pass DFG inputs
   RootIn* rootArgs = (RootIn*) malloc(sizeof(RootIn));
 
-  
+  /* Declare memories used in the while loop but tracked by HPVM */
+  float radar_input[2*RADAR_N];
+  distance_t radar_distance;
+
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
-  //while (!eof_trace_reader())
-  //{
+  while (!eof_trace_reader())
+  {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
     // Iterate the various kernels (PREP their states for execution, get inputs, etc.)
@@ -1371,7 +1382,6 @@ int main(int argc, char *argv[])
      */
     radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
     distance_t rd_dist = rdentry_p->distance;
-    float radar_input[2*RADAR_N];
     float * ref_in = rdentry_p->return_data;
     for (int ii = 0; ii < 2*RADAR_N; ii++) {
       radar_input[ii] = ref_in[ii];
@@ -1398,7 +1408,6 @@ int main(int argc, char *argv[])
     __visc__init();
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
-    distance_t radar_distance;
     // Set up HPVM DFG inputs in the rootArgs struct.
     rootArgs->data = radar_input;
     rootArgs->bytes_data = 8*RADAR_N;
@@ -1450,7 +1459,7 @@ int main(int argc, char *argv[])
 	  }
     #endif	  
     read_next_trace_record(vehicle_state);
- // }
+  }
 
   #ifdef TIME
   	gettimeofday(&stop, NULL);
