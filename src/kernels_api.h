@@ -123,11 +123,17 @@ label_t execute_cv_kernel(label_t tr_val);
 void post_execute_cv_kernel(label_t tr_val, label_t cnn_val);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
-void execute_rad_kernel(float* inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size);
+void execute_rad_kernel(float* inputs, size_t input_size_bytes,
+			unsigned int N, unsigned int logn, int sign,
+			float * distance, size_t dist_size);
 void post_execute_rad_kernel(distance_t tr_val, distance_t rad_val);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
-message_t execute_vit_kernel( ofdm_param* ofdm_ptr, frame_param* frame_ptr, uint8_t* input_bits);
+void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
+			frame_param* frame_ptr,  size_t frame_parm_size,
+			uint8_t* input_bits,     size_t input_bits_size,
+			char* out_msg_txt,       size_t out_msg_txt_size,
+			message_t* out_message,  size_t out_message_size);
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);

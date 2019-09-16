@@ -776,28 +776,29 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   return trace_msg;
 }
 
-message_t execute_vit_kernel(ofdm_param* ofdm_ptr, frame_param* frame_ptr, uint8_t* input_bits)
+void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
+			frame_param* frame_ptr,  size_t frame_parm_size,
+			uint8_t* input_bits,     size_t input_bits_size,
+			char* out_msg_txt,       size_t out_msg_txt_size,
+			message_t* out_message,  size_t out_message_size)
 {
   // Send the input_bits message through the viterbi decoder
   uint8_t *result;
-  char the_msg[1600];
   DEBUG(printf("  Calling the viterbi decode routine...\n"));
   result = decode(ofdm_ptr, frame_ptr, input_bits);
   // descramble the output - put it in result
   int psdusize = frame_ptr->psdu_size;
   DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-  descrambler(result, psdusize, the_msg, NULL /*descram_ref*/, NULL /*msg*/);
+  descrambler(result, psdusize, out_msg_txt, NULL /*descram_ref*/, NULL /*msg*/);
 
-  // Check contents of "the_msg" to determine which message_t;
-  message_t dec_msg = safe_to_move_right_or_left;
-  switch(the_msg[3]) {
-  case '0' : dec_msg = safe_to_move_right_or_left; break;
-  case '1' : dec_msg = safe_to_move_right_only; break;
-  case '2' : dec_msg = safe_to_move_left_only; break;
-  case '3' : dec_msg = unsafe_to_move_left_or_right; break;
-  default  : dec_msg = num_messages; break;
+  // Check contents of "out_msg_txt" to determine which message_t;
+  switch(out_msg_txt[3]) {
+  case '0' : *out_message = safe_to_move_right_or_left; break;
+  case '1' : *out_message = safe_to_move_right_only; break;
+  case '2' : *out_message = safe_to_move_left_only; break;
+  case '3' : *out_message = unsafe_to_move_left_or_right; break;
+  default  : *out_message = num_messages; break;
   }
-  return dec_msg;
 }
 
 
@@ -1438,7 +1439,13 @@ int main(int argc, char *argv[])
     llvm_visc_request_mem(&radar_distance, sizeof(float));
 
     
-    message_t vit_message  = execute_vit_kernel(&(vdentry_p->ofdm_p), &(vdentry_p->frame_p), vdentry_p->in_bits);
+    message_t vit_message;
+    char out_msg_text[1600];
+    execute_vit_kernel(&(vdentry_p->ofdm_p),  sizeof(ofdm_param),
+		       &(vdentry_p->frame_p), sizeof(frame_param),
+		       vdentry_p->in_bits,    MAX_ENCODED_BITS,
+		       out_msg_text,          1600,
+		       &vit_message,          sizeof(message_t));
     
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, cv_infer_label);
