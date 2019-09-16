@@ -142,7 +142,9 @@ unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
   
 
-extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
+void descrambler(uint8_t* in,   size_t in_size,
+		 int psdusize,
+		 char* out_msg, size_t out_msg_size);
 
 
 
@@ -776,25 +778,29 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   return trace_msg;
 }
 
-void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
-			frame_param* frame_ptr,  size_t frame_parm_size,
-			uint8_t* input_bits,     size_t input_bits_size,
-			char* out_msg_txt,       size_t out_msg_txt_size,
-			message_t* out_message,  size_t out_message_size)
+
+
+
+void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
+				 frame_param *frame_ptr,  size_t frame_size,
+				 uint8_t *input_bits,     size_t in_bits_size,
+				 uint8_t* l_decoded,      size_t decd_size,
+				 char* out_msg_txt,       size_t out_msg_txt_size,
+				 message_t* out_message,  size_t out_message_size)
 {
-  // Send the input_bits message through the viterbi decoder
-  uint8_t *result;
-  DEBUG(printf("  Calling the viterbi decode routine...\n"));
-  // descramble the output - put it in l_decoded
-  uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
+  /* First we do the base viuterbi decode ; resulting decoded bits are put into l_decoded */
   viterbi_decode(ofdm_ptr,   sizeof(ofdm_param),
 		 frame_ptr,  sizeof(frame_param),
 		 input_bits, MAX_ENCODED_BITS,
 		 l_decoded,  MAX_ENCODED_BITS * 3 / 4);
+  
+  /* Now descramble the output from the decoder to get to plain-text message */
   int psdusize = frame_ptr->psdu_size;
   DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-  descrambler(l_decoded, psdusize, out_msg_txt, NULL /*descram_ref*/, NULL /*msg*/);
-
+  descrambler(l_decoded,   MAX_ENCODED_BITS * 3 / 4, 
+	      psdusize,    
+	      out_msg_txt, 1600);
+  
   // Check contents of "out_msg_txt" to determine which message_t;
   switch(out_msg_txt[3]) {
   case '0' : *out_message = safe_to_move_right_or_left; break;
@@ -803,6 +809,24 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
   case '3' : *out_message = unsafe_to_move_left_or_right; break;
   default  : *out_message = num_messages; break;
   }
+}
+
+void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
+			frame_param* frame_ptr,  size_t frame_parm_size,
+			uint8_t* input_bits,     size_t input_bits_size,
+			char* out_msg_txt,       size_t out_msg_txt_size,
+			message_t* out_message,  size_t out_message_size)
+{
+  // Send the input_bits message through the viterbi decoder
+  DEBUG(printf("  Calling the viterbi decode routine...\n"));
+  // descode the input bits - put result into l_decoded
+  uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
+  viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
+			      frame_ptr,   sizeof(frame_param),
+			      input_bits,  MAX_ENCODED_BITS,
+			      l_decoded,   MAX_ENCODED_BITS * 3 / 4,
+			      out_msg_txt, 1600,
+			      out_message, sizeof(message_t));
 }
 
 

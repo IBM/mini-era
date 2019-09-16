@@ -469,3 +469,51 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   //return l_decoded;
 }
 
+
+
+
+void descrambler(uint8_t* in,   size_t in_size,
+		 int psdusize,
+		 char* out_msg, size_t out_msg_size)
+{
+  uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
+  uint32_t msg_length = (psdusize)-28;
+  uint8_t out[output_length];
+  int state = 0; //start
+  // find the initial state of LFSR (linear feedback shift register: 7 bits) from first 7 input bits
+  for(int i = 0; i < 7; i++) {
+    if(*(in+i)) {
+      state |= 1 << (6 - i);
+    }
+  }
+  //init o/p array to zeros
+  for (int i=0; i<output_length; i++ ) {
+    out[i] = 0;
+  }
+
+  out[0] = state; //initial value
+  int feedback;
+  int bit;
+  int index = 0;
+  int mod = 0;
+  for(int i = 7; i < (psdusize*8)+16; i++) { // 2 bytes more than psdu_size -> convert to bits
+    feedback = ((!!(state & 64))) ^ (!!(state & 8));
+    bit = feedback ^ (*(in+i) & 0x1);
+    index = i/8;
+    mod =  i%8;
+    int comp1, comp2, val, comp3;
+    comp1 = (bit << mod);
+    val = out[index];
+    comp2 = val | comp1;
+    out[index] =  comp2;
+    comp3 = out[index];
+    state = ((state << 1) & 0x7e) | feedback;
+  }
+  
+  for (int i = 0; i< msg_length; i++) {
+    out_msg[i] = out[i+26];
+  }
+  out_msg[msg_length] = '\0';
+}
+
+

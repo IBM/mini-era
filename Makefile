@@ -47,7 +47,7 @@ LFLAGS += -pthread
 
 ## BEGIN HPVM MAKEFILE
 LANGUAGE=visc
-SRCDIR_OBJS=viterbi_decoder_generic.ll descrambler_function.ll
+SRCDIR_OBJS=viterbi_decoder_generic.ll
 OBJS_SRC=$(wildcard $(SRC_DIR)/*.c)
 VISC_OBJS=main.visc.ll
 APP = $(EXE)
