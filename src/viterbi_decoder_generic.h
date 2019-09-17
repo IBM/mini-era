@@ -36,17 +36,20 @@ typedef union branchtab27 {
 
 void viterbi_chunks_init_generic(void);
 
-void viterbi_butterfly2_generic(unsigned char *symbols,
-				unsigned char *d_brtab27[2],
-				unsigned char m0[], unsigned char m1[],
-				unsigned char p0[], unsigned char p1[]);
+void viterbi_butterfly2_generic(unsigned char *symbols,        size_t size_symbols,
+				unsigned char *d_brtab27[2],   size_t size_brtab27,
+				unsigned char *mm0,            size_t size_mm0,
+				unsigned char *mm1,            size_t size_mm1,
+				unsigned char *pp0,            size_t size_pp0,
+				unsigned char *pp1,            size_t size_pp1 );
 
-unsigned char viterbi_get_output_generic(unsigned char *mm0,                                    size_t mm0_size,
-					 unsigned char *pp0,                                    size_t pp0_size,
-					 int ntraceback,
-					 unsigned char*  mmresult __attribute__((aligned(16))), size_t mmres_size,
-					 unsigned char ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))), size_t ppres_size,
-					 unsigned char *outbuf,                                 size_t outbuf_size);
+void viterbi_get_output_generic(unsigned char *mm0,                                    size_t mm0_size,
+				unsigned char *pp0,                                    size_t pp0_size,
+				int ntraceback,
+				int* store_pos,                                        size_t size_store_pos,
+				unsigned char*  mmresult __attribute__((aligned(16))), size_t mmres_size,
+				unsigned char ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))), size_t ppres_size,
+				unsigned char *outbuf,                                 size_t outbuf_size);
 
 
 #endif
