@@ -136,7 +136,10 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
 			message_t* out_message,  size_t out_message_size);
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
-vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
+void plan_and_control(label_t label,
+		      distance_t distance,
+		      message_t message,
+		      vehicle_state_t* vehicle_state, size_t size_vehicle_state);
 
 // These routines are used for any final, end-of-run operations/output
 void closeout_cv_kernel(void);

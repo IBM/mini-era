@@ -1367,49 +1367,51 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 }
 
 
-vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t message, vehicle_state_t vehicle_state)
+void plan_and_control(label_t label,
+		      distance_t distance,
+		      message_t message,
+		      vehicle_state_t* vehicle_state, size_t size_vehicle_state)
 {
   DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
 	       label, object_names[label], distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
-  vehicle_state_t new_vehicle_state = vehicle_state;
+  vehicle_state_t new_vehicle_state = *vehicle_state;
   
-  if ((label != no_label) && (distance <= THRESHOLD_1))
-  {
+  if ((label != no_label) && (distance <= THRESHOLD_1)) {
     switch (message) {
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
-	if (vehicle_state.lane < right) { 
-	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state.lane]));
+	if (vehicle_state->lane < right) { 
+	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state->lane]));
 	  new_vehicle_state.lane += 1;
 	} else {
-	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state.lane]));
+	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state->lane]));
 	  new_vehicle_state.lane -= 1;
 	}	  
 	break; // prefer right lane
       case safe_to_move_right_only      :
-	DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state.lane]));
+	DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane += 1;
 	break;
       case safe_to_move_left_only       :
-	DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state.lane]));
+	DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane -= 1;
 	break;
       case unsafe_to_move_left_or_right :
-	DEBUG(printf("   In %s with No_Safe_Move : STOPPING\n", lane_names[vehicle_state.lane]));
+	DEBUG(printf("   In %s with No_Safe_Move : STOPPING\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.speed = 0;
 	break; /* Stop!!! */
     default:
-      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state.lane], message);
+      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state->lane], message);
       exit(-6);
     }
   } else {
     // No obstacle-inspired lane change, so try now to occupy the center lane
-    switch (vehicle_state.lane) {
+    switch (vehicle_state->lane) {
     case lhazard:
     case left:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_right_only)) {
-	DEBUG(printf("  In %s with Can_move_Right: Moving Right\n", lane_names[vehicle_state.lane]));
+	DEBUG(printf("  In %s with Can_move_Right: Moving Right\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane += 1;
       }
       break;
@@ -1420,7 +1422,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
     case rhazard:
       if ((message == safe_to_move_right_or_left) ||
 	  (message == safe_to_move_left_only)) {
-	DEBUG(printf("  In %s with Can_move_Left : Moving Left\n", lane_names[vehicle_state.lane]));
+	DEBUG(printf("  In %s with Can_move_Left : Moving Left\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane -= 1;
       }
       break;
@@ -1428,15 +1430,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   } // else clause
 
 
-  /** For now we'll igfnore other thresholds, etc.
-  else if ((label != no_label) && (distance <= THRESHOLD_2))
-  {
-  switch (message) {
-  case safe_to_move_right_or_left   : new_vehicle_state.lane += 1; break; // prefer right lane
-  case safe_to_move_right_only      : new_vehicle_state.lane += 1; break;
-  case safe_to_move_left_only       : new_vehicle_state.lane -= 1; break;
-  case unsafe_to_move_left_or_right : new_vehicle_state.speed = 0; break; // Stop!!!
-  }
+ /** For now we'll ignore other thresholds, etc.
   // Slow down!
   new_vehicle_state.speed -= 10;
   if (new_vehicle_state.speed < 0)
@@ -1449,9 +1443,10 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   // Maintain speed 
   }
   **/
+  
+  *vehicle_state = new_vehicle_state;
 
-
-  return new_vehicle_state;
+  //return new_vehicle_state;
 }
 
 
@@ -1832,8 +1827,8 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
   __visc__bindOut(EXEC_RAD_node, 0, 0, 0);
-  //__visc__bindOut(EXEC_VIT_node, 0, 0, 0);
-  //__visc__bindOut(EXEC_VIT_node, 1, 1, 0);
+  //__visc__bindOut(EXEC_VIT_node, 1, 0, 0);
+  //__visc__bindOut(EXEC_VIT_node, 2, 1, 1);
 }
 
 
@@ -1934,8 +1929,8 @@ int main(int argc, char *argv[])
   DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   #ifdef TIME
-         int loop=0;
-         struct timeval stop, start;
+  int loop=0;
+  struct timeval stop, start;
   #endif
 
 
@@ -2073,7 +2068,15 @@ int main(int argc, char *argv[])
     /* 		       vdentry_p->in_bits,    MAX_ENCODED_BITS, */
     /* 		       out_msg_text,          1600, */
     /* 		       &vit_message,          sizeof(message_t)); */
-    
+
+    /* The plan_and_control() function makes planning and control decisions
+     * based on the currently perceived information. It returns the new
+     * vehicle state.
+     */
+    plan_and_control(cv_infer_label, radar_distance, vit_message,
+		     &vehicle_state, sizeof(vehicle_state));
+    DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
+
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, cv_infer_label);
     post_execute_rad_kernel(rd_dist, radar_distance);
@@ -2082,24 +2085,17 @@ int main(int argc, char *argv[])
     }
     
 
-    /* The plan_and_control() function makes planning and control decisions
-     * based on the currently perceived information. It returns the new
-     * vehicle state.
-     */
-    vehicle_state = plan_and_control(cv_infer_label, radar_distance, vit_message, vehicle_state);
-    DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
-    
     #ifdef TIME  
-          loop++;
-          if (loop == 1) { 
-  	  gettimeofday(&start, NULL);
-	  }
+    loop++;
+    if (loop == 1) { 
+      gettimeofday(&start, NULL);
+    }
     #endif	  
     read_next_trace_record(vehicle_state);
   }
 
   #ifdef TIME
-  	gettimeofday(&stop, NULL);
+  gettimeofday(&stop, NULL);
   #endif 
 
   /* All the traces have been fully consumed. Quitting... */
@@ -2108,7 +2104,7 @@ int main(int argc, char *argv[])
   closeout_vit_kernel();
 
   #ifdef TIME
-  	printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+  printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
   #endif
 
   // Remove tracked pointers.
