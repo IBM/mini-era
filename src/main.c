@@ -1345,7 +1345,7 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 {
   __visc__hint(CPU_TARGET);
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
-		     1, out_message);
+		     2, out_msg_txt, out_message);
 
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
   viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
@@ -1807,8 +1807,8 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   __visc__bindIn(EXEC_VIT_node, 10,  3, 0); // bytes_frame_parm -> EXEC_VIT_node:bytes_frame_parm
   __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:vit_in_bits
   __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:bytes_vit_in_bits
-  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:vit_out_msg_txt
-  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:bytes_vit_out_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:vit_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:out_msg_txt_size
   __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
   __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
 
@@ -1953,14 +1953,14 @@ int main(int argc, char *argv[])
   ofdm_param  xfer_ofdm;
   frame_param xfer_frame;
   uint8_t     xfer_vit_inputs[MAX_ENCODED_BITS];
-  char        vit_out_msg_txt[1600];
+  char        vit_msg_txt[1600];
   message_t   vit_message;
 
   llvm_visc_track_mem(&xfer_ofdm, sizeof(ofdm_param));
   llvm_visc_track_mem(&xfer_frame, sizeof(frame_param));
   llvm_visc_track_mem(xfer_vit_inputs, MAX_ENCODED_BITS);
 
-  llvm_visc_track_mem(vit_out_msg_txt, 1600);
+  llvm_visc_track_mem(vit_msg_txt, 1600);
   llvm_visc_track_mem(&vit_message, sizeof(message_t));
 
   /* The input trace contains the per-epoch (time-step) input data */
@@ -2008,6 +2008,7 @@ int main(int argc, char *argv[])
 
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
+
     // Set up HPVM DFG inputs in the rootArgs struct.
     rootArgs->radar_data       = radar_input;
     rootArgs->bytes_radar_data = 8*RADAR_N;
@@ -2044,7 +2045,7 @@ int main(int argc, char *argv[])
     rootArgs->vit_in_bits       = xfer_vit_inputs;
     //rootArgs->vit_in_bits       = &(vdentry_p->in_bits);
     rootArgs->bytes_vit_in_bits = MAX_ENCODED_BITS;
-    rootArgs->vit_out_msg_txt       = vit_out_msg_txt;
+    rootArgs->vit_out_msg_txt       = vit_msg_txt;
     rootArgs->bytes_vit_out_msg_txt = 1600;
     rootArgs->vit_out_msg       = &vit_message;
     rootArgs->bytes_vit_out_msg = sizeof(message_t);
@@ -2058,6 +2059,7 @@ int main(int argc, char *argv[])
 
     // Request data from graph.    
     llvm_visc_request_mem(&radar_distance, sizeof(float));
+    llvm_visc_request_mem(vit_msg_txt, 1600);
     llvm_visc_request_mem(&vit_message, sizeof(message_t));
 
     
@@ -2115,7 +2117,7 @@ int main(int argc, char *argv[])
   llvm_visc_untrack_mem(&xfer_frame);
   llvm_visc_untrack_mem(xfer_vit_inputs);
 
-  llvm_visc_untrack_mem(vit_out_msg_txt);
+  llvm_visc_untrack_mem(vit_msg_txt);
   llvm_visc_untrack_mem(&vit_message);
 
   __visc__cleanup();
