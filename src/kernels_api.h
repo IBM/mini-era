@@ -18,6 +18,8 @@
 #ifndef _kernels_api_h
 #define _kernels_api_h
 
+//#define VERBOSE
+
 #ifdef VERBOSE
 #define DEBUG(x) x
 #else
@@ -96,9 +98,9 @@ typedef struct {
 } vit_dict_entry_t;
 
 
-extern char* lane_names[NUM_LANES];
-extern char* message_names[NUM_MESSAGES];
-extern char* object_names[NUM_OBJECTS];
+extern char* lane_names[NUM_LANES+1];
+extern char* message_names[NUM_MESSAGES+1];
+extern char* object_names[NUM_OBJECTS+1];
 
 extern unsigned vit_msgs_behavior;
   

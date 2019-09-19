@@ -55,11 +55,9 @@ void print_usage(char * pname) {
 
 
 
-char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
-#ifdef VERBOSE
-char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
-#endif
-char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
+char* lane_names[NUM_LANES+1] = {"LHazard", "Left", "Center", "Right", "RHazard", "Unknown" };
+char* message_names[NUM_MESSAGES+1] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R", "Unknowwn" };
+char* object_names[NUM_OBJECTS+1] = {"Nothing", "Bike", "Car", "Person", "Truck", "Unknown" };
 
 /* These are globals for the trace read parsing routines */
 #define MAX_TR_LINE_SZ   256
@@ -130,9 +128,6 @@ unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 /* These are some top-level defines needed for VITERBI */
-
-uint8_t descramble[1600]; // I think this covers our max use cases
-uint8_t actual_msg[1600];
 
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
@@ -293,10 +288,10 @@ status_t init_vit_kernel(char* dict_fn)
       unsigned c;
       if (fscanf(dictF, "%u ", &c)) 
 	      ;
-      DEBUG(printf("%u ", c));
+      //DEBUG(printf("%u ", c));
       the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
     }
-    DEBUG(printf("\n"));
+    //DEBUG(printf("\n"));
   }
   fclose(dictF);
 
@@ -775,7 +770,7 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
     trace_msg = &(the_viterbi_trace_dict[3 + msg_offset]);
     break;
   }
-  //DEBUG(printf("  Using msg %u : %s = safe_to_move_right_or_left\n", msg, message_names[msg]));
+  DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
   return trace_msg;
 }
 
@@ -913,15 +908,31 @@ void viterbi_butterfly2_generic(unsigned char *symbols,        size_t size_symbo
 
   // Operate on 4 symbols (2 bits) at a time
 
-  unsigned char m0[16], m1[16], m2[16], m3[16], decision0[16], decision1[16], survivor0[16], survivor1[16];
-  unsigned char metsv[16], metsvm[16];
-  unsigned char shift0[16], shift1[16];
-  unsigned char tmp0[16], tmp1[16];
-  unsigned char sym0v[16], sym1v[16];
+  unsigned char  m0[16], m1[16], m2[16], m3[16], decision0[16], decision1[16], survivor0[16], survivor1[16];
+  unsigned char  metsv[16], metsvm[16];
+  unsigned char  shift0[16], shift1[16];
+  unsigned char  tmp0[16], tmp1[16];
+  unsigned char  sym0v[16], sym1v[16];
   unsigned short simd_epi16;
   unsigned int   first_symbol;
   unsigned int   second_symbol;
 
+  /**
+  printf("CHECK Sym %u%u%u%u", symbols[0], symbols[1], symbols[2], symbols[3]);
+  printf(" BRT0 ");
+  for (int bi = 0; bi < 32; bi++) { printf("%u", d_brtab27[0][bi]); }
+  printf(" BRT1 ");
+  for (int bi = 0; bi < 32; bi++) { printf("%u", d_brtab27[1][bi]); }
+  printf("\n  MM0 ");
+  for (int bi = 0; bi < 64; bi++) { printf("%u", mm0[bi]); }
+  printf("\n  MM1 ");
+  for (int bi = 0; bi < 64; bi++) { printf("%u", mm1[bi]); }
+  printf("\n  PP0 ");
+  for (int bi = 0; bi < 64; bi++) { printf("%u", pp0[bi]); }
+  printf("\n  PP1 ");
+  for (int bi = 0; bi < 64; bi++) { printf("%u", pp1[bi]); }
+  printf("\n");
+  **/
   // Set up for the first two symbols (0 and 1)
   metric0 = mm0;
   path0 = pp0;
@@ -1110,7 +1121,7 @@ void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
 		   unsigned char*  d_path1_generic __attribute__ ((aligned(16))),   size_t d_p1_size,
 		   unsigned char*  d_mmresult __attribute__((aligned(16))),         size_t mmres_size,
 		   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))),         size_t ppres_size,
-		   d_branchtab27_t* d_branchtab27_generic,                          size_t d_brt_size,
+		   d_branchtab27_t d_branchtab27_generic[2],                          size_t d_brt_size,
 		   int* d_ntraceback,                    size_t ntrbk_size,
 		   int* d_k,                             size_t d_k_size,
 		   unsigned char *d_depuncture_pattern,  size_t depunc_ptn_size
@@ -1179,6 +1190,13 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
   unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
   unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
+  // These are initialized to zero once...
+  for (int i = 0; i < 64; i++) {
+    d_metric0_generic[i] = 0;
+    d_metric1_generic[i] = 0;
+    d_path0_generic[i] = 0;
+    d_path1_generic[i] = 0;
+  }
 
   // Metrics for each state
   unsigned char d_mmresult[64] __attribute__((aligned(16)));
@@ -1192,6 +1210,7 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   int d_k;
   unsigned char *d_depuncture_pattern;
 
+  DEBUG(printf("DC_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", in[i]); } printf("\n"););
   viterbi_reset( ofdm,                  ofdm_size,
 		 d_metric0_generic,     64,
 		 d_metric1_generic,     64,
@@ -1204,12 +1223,16 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
 		 &d_k,                  sizeof(int),
 		 d_depuncture_pattern,  6);
 
+  DEBUG(printf("DR_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", in[i]); } printf("\n"););
   uint8_t *depunctured = depuncture(ofdm,      ofdm_size,
 				    frame,     frame_size,
 				    d_ntraceback, d_k,
 				    d_depuncture_pattern,  6,
 				    in,        in_size);
 	
+  DEBUG(printf("DP_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", in[i]); } printf("\n"););
+  DEBUG(printf("DP_DEPUNCT: "); for (int i = 0; i < 140; i++) { printf("%u", depunctured[i]); } printf("\n"););
+  
   int in_count = 0;
   int out_count = 0;
   int n_decoded = 0;
@@ -1302,6 +1325,7 @@ void descrambler(uint8_t* in,   size_t in_size,
     out_msg[i] = out[i+26];
   }
   out_msg[msg_length] = '\0';
+  DEBUG(printf("descrambler: OUT_MSG : %s\n", out_msg));
 }
 
 
@@ -1314,6 +1338,7 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
 				 message_t* out_message,  size_t out_message_size)
 {
   /* First we do the base viterbi decode ; resulting decoded bits are put into l_decoded */
+  DEBUG(printf("DM_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", input_bits[i]); } printf("\n"););
   viterbi_decode(ofdm_ptr,   sizeof(ofdm_param),
 		 frame_ptr,  sizeof(frame_param),
 		 input_bits, MAX_ENCODED_BITS,
@@ -1325,14 +1350,30 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
   descrambler(l_decoded,   MAX_ENCODED_BITS * 3 / 4, 
 	      psdusize,    
 	      out_msg_txt, 1600);
-  
+
+  DEBUG(printf("VIT_OUT_MSG_TXT: %s\n", out_msg_txt));
   // Check contents of "out_msg_txt" to determine which message_t;
   switch(out_msg_txt[3]) {
-  case '0' : *out_message = safe_to_move_right_or_left; break;
-  case '1' : *out_message = safe_to_move_right_only; break;
-  case '2' : *out_message = safe_to_move_left_only; break;
-  case '3' : *out_message = unsafe_to_move_left_or_right; break;
-  default  : *out_message = num_messages; break;
+  case '0' :
+    *out_message = safe_to_move_right_or_left;
+    DEBUG(printf("Using %u : %s\n", 0, message_names[0]));
+    break;
+  case '1' :
+    *out_message = safe_to_move_right_only;
+    DEBUG(printf("Using %u : %s\n", 1, message_names[1]));
+    break;
+  case '2' :
+    *out_message = safe_to_move_left_only;
+    DEBUG(printf("Using %u : %s\n", 2, message_names[2]));
+    break;
+  case '3' :
+    *out_message = unsafe_to_move_left_or_right;
+    DEBUG(printf("Using %u : %s\n", 3, message_names[3]));
+    break;
+  default  :
+    *out_message = num_messages;
+    DEBUG(printf("Using %u : %s\n", 4, message_names[4]));
+    break;
   }
 }
 
@@ -1347,6 +1388,7 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
 		     2, out_msg_txt, out_message);
 
+  DEBUG(printf("EX_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", input_bits[i]); } printf("\n"););
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
   viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
 			      frame_ptr,   sizeof(frame_param),
@@ -1805,12 +1847,12 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   __visc__bindIn(EXEC_VIT_node,  8,  1, 0); // bytes_ofdm_parm -> EXEC_VIT_node:bytes_ofdm_parm
   __visc__bindIn(EXEC_VIT_node,  9,  2, 0); // frame_ptr -> EXEC_VIT_node:frame_ptr
   __visc__bindIn(EXEC_VIT_node, 10,  3, 0); // bytes_frame_parm -> EXEC_VIT_node:bytes_frame_parm
-  __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:vit_in_bits
-  __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:bytes_vit_in_bits
-  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:vit_msg_txt
-  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:out_msg_txt_size
-  __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
-  __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
+  __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:input_bits
+  __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:input_bits_size
+  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:out_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:ut_msg_txt_size
+  __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_message
+  __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:out_message_size
 
   // Edge transfers data between nodes within the same level of hierarchy.
   // - source and destination dataflow nodes
@@ -2036,6 +2078,9 @@ int main(int argc, char *argv[])
       xfer_vit_inputs[bi] = vdentry_p->in_bits[bi];
     }
 
+    DEBUG(printf("VD_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", vdentry_p->in_bits[i]); } printf("\n"););
+    DEBUG(printf("XF_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", xfer_vit_inputs[i]); } printf("\n"););
+    
     rootArgs->ofdm_ptr          = &xfer_ofdm;
     //rootArgs->ofdm_ptr          = &(vdentry_p->ofdm_p);
     rootArgs->bytes_ofdm_parm   = sizeof(ofdm_param);
@@ -2054,14 +2099,15 @@ int main(int argc, char *argv[])
     // Launch the DFG to do the radar computation
     //        AND the Viterbi computation...
     //distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N, RADAR_N, RADAR_LOGN, -1, distance, sizeof(float));
-    void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
-    __visc__wait(radarExecDFG);
+    void* rad_n_vitExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
+    __visc__wait(rad_n_vitExecDFG);
 
     // Request data from graph.    
     llvm_visc_request_mem(&radar_distance, sizeof(float));
     llvm_visc_request_mem(vit_msg_txt, 1600);
     llvm_visc_request_mem(&vit_message, sizeof(message_t));
 
+    DEBUG(printf("HPVM RESULTS: Dist %f : Msg %u : %s\n", radar_distance, vit_message, message_names[vit_message]));
     
     /* message_t vit_message; */
     /* char out_msg_text[1600]; */
