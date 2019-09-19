@@ -18,8 +18,6 @@
 #ifndef _kernels_api_h
 #define _kernels_api_h
 
-//#define VERBOSE
-
 #ifdef VERBOSE
 #define DEBUG(x) x
 #else
@@ -127,7 +125,7 @@ void post_execute_cv_kernel(label_t tr_val, label_t cnn_val);
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
 void execute_rad_kernel(float* inputs, size_t input_size_bytes,
 			unsigned int N, unsigned int logn, int sign,
-			float * distance, size_t dist_size);
+			distance_t * distance, size_t dist_size);
 void post_execute_rad_kernel(distance_t tr_val, distance_t rad_val);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
@@ -138,9 +136,9 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
 			message_t* out_message,  size_t out_message_size);
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
-void plan_and_control(label_t label,
-		      distance_t distance,
-		      message_t message,
+void plan_and_control(label_t* label,                 size_t size_label,
+		      distance_t* distance,           size_t size_distance,
+		      message_t* message,             size_t size_message,
 		      vehicle_state_t* vehicle_state, size_t size_vehicle_state);
 
 // These routines are used for any final, end-of-run operations/output

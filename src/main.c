@@ -46,10 +46,11 @@ void print_usage(char * pname) {
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
-  printf("               :      2 = One short message per obstacle per time step\n");
-  printf("               :      3 = One long  message per obstacle per time step\n");
-  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
-  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  printf("               :  NOTE: Any other value currently ignored\n");
+  /* printf("               :      2 = One short message per obstacle per time step\n"); */
+  /* printf("               :      3 = One long  message per obstacle per time step\n"); */
+  /* printf("               :      4 = One short msg per obstacle + 1 per time step\n"); */
+  /* printf("               :      5 = One long  msg per obstacle + 1 per time step\n"); */
 }
 
 
@@ -645,7 +646,9 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   return &(the_radar_return_dict[tr_val]);
 }
 
-void execute_rad_kernel(float * inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size)
+void execute_rad_kernel(float * inputs, size_t input_size_bytes,
+			unsigned int N, unsigned int logn, int sign,
+			distance_t * distance, size_t dist_size)
 {
   __visc__hint(CPU_TARGET);
   __visc__attributes(2, inputs, distance, 1, distance);
@@ -908,31 +911,15 @@ void viterbi_butterfly2_generic(unsigned char *symbols,        size_t size_symbo
 
   // Operate on 4 symbols (2 bits) at a time
 
-  unsigned char  m0[16], m1[16], m2[16], m3[16], decision0[16], decision1[16], survivor0[16], survivor1[16];
-  unsigned char  metsv[16], metsvm[16];
-  unsigned char  shift0[16], shift1[16];
-  unsigned char  tmp0[16], tmp1[16];
-  unsigned char  sym0v[16], sym1v[16];
+  unsigned char m0[16], m1[16], m2[16], m3[16], decision0[16], decision1[16], survivor0[16], survivor1[16];
+  unsigned char metsv[16], metsvm[16];
+  unsigned char shift0[16], shift1[16];
+  unsigned char tmp0[16], tmp1[16];
+  unsigned char sym0v[16], sym1v[16];
   unsigned short simd_epi16;
   unsigned int   first_symbol;
   unsigned int   second_symbol;
 
-  /**
-  printf("CHECK Sym %u%u%u%u", symbols[0], symbols[1], symbols[2], symbols[3]);
-  printf(" BRT0 ");
-  for (int bi = 0; bi < 32; bi++) { printf("%u", d_brtab27[0][bi]); }
-  printf(" BRT1 ");
-  for (int bi = 0; bi < 32; bi++) { printf("%u", d_brtab27[1][bi]); }
-  printf("\n  MM0 ");
-  for (int bi = 0; bi < 64; bi++) { printf("%u", mm0[bi]); }
-  printf("\n  MM1 ");
-  for (int bi = 0; bi < 64; bi++) { printf("%u", mm1[bi]); }
-  printf("\n  PP0 ");
-  for (int bi = 0; bi < 64; bi++) { printf("%u", pp0[bi]); }
-  printf("\n  PP1 ");
-  for (int bi = 0; bi < 64; bi++) { printf("%u", pp1[bi]); }
-  printf("\n");
-  **/
   // Set up for the first two symbols (0 and 1)
   metric0 = mm0;
   path0 = pp0;
@@ -1121,7 +1108,7 @@ void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
 		   unsigned char*  d_path1_generic __attribute__ ((aligned(16))),   size_t d_p1_size,
 		   unsigned char*  d_mmresult __attribute__((aligned(16))),         size_t mmres_size,
 		   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))),         size_t ppres_size,
-		   d_branchtab27_t d_branchtab27_generic[2],                          size_t d_brt_size,
+		   d_branchtab27_t* d_branchtab27_generic,                          size_t d_brt_size,
 		   int* d_ntraceback,                    size_t ntrbk_size,
 		   int* d_k,                             size_t d_k_size,
 		   unsigned char *d_depuncture_pattern,  size_t depunc_ptn_size
@@ -1210,7 +1197,6 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   int d_k;
   unsigned char *d_depuncture_pattern;
 
-  DEBUG(printf("DC_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", in[i]); } printf("\n"););
   viterbi_reset( ofdm,                  ofdm_size,
 		 d_metric0_generic,     64,
 		 d_metric1_generic,     64,
@@ -1223,16 +1209,12 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
 		 &d_k,                  sizeof(int),
 		 d_depuncture_pattern,  6);
 
-  DEBUG(printf("DR_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", in[i]); } printf("\n"););
   uint8_t *depunctured = depuncture(ofdm,      ofdm_size,
 				    frame,     frame_size,
 				    d_ntraceback, d_k,
 				    d_depuncture_pattern,  6,
 				    in,        in_size);
 	
-  DEBUG(printf("DP_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", in[i]); } printf("\n"););
-  DEBUG(printf("DP_DEPUNCT: "); for (int i = 0; i < 140; i++) { printf("%u", depunctured[i]); } printf("\n"););
-  
   int in_count = 0;
   int out_count = 0;
   int n_decoded = 0;
@@ -1325,7 +1307,20 @@ void descrambler(uint8_t* in,   size_t in_size,
     out_msg[i] = out[i+26];
   }
   out_msg[msg_length] = '\0';
-  DEBUG(printf("descrambler: OUT_MSG : %s\n", out_msg));
+}
+
+
+void viterbi_analyze_msg_text(char* msg_txt,       size_t msg_txt_size,
+			      message_t* out_message,  size_t out_message_size)
+{
+  // Check contents of "msg_txt" to determine which message_t;
+  switch(msg_txt[3]) {
+  case '0' : *out_message = safe_to_move_right_or_left; break;
+  case '1' : *out_message = safe_to_move_right_only; break;
+  case '2' : *out_message = safe_to_move_left_only; break;
+  case '3' : *out_message = unsafe_to_move_left_or_right; break;
+  default  : *out_message = num_messages; break;
+  }
 }
 
 
@@ -1338,7 +1333,6 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
 				 message_t* out_message,  size_t out_message_size)
 {
   /* First we do the base viterbi decode ; resulting decoded bits are put into l_decoded */
-  DEBUG(printf("DM_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", input_bits[i]); } printf("\n"););
   viterbi_decode(ofdm_ptr,   sizeof(ofdm_param),
 		 frame_ptr,  sizeof(frame_param),
 		 input_bits, MAX_ENCODED_BITS,
@@ -1351,30 +1345,10 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
 	      psdusize,    
 	      out_msg_txt, 1600);
 
-  DEBUG(printf("VIT_OUT_MSG_TXT: %s\n", out_msg_txt));
-  // Check contents of "out_msg_txt" to determine which message_t;
-  switch(out_msg_txt[3]) {
-  case '0' :
-    *out_message = safe_to_move_right_or_left;
-    DEBUG(printf("Using %u : %s\n", 0, message_names[0]));
-    break;
-  case '1' :
-    *out_message = safe_to_move_right_only;
-    DEBUG(printf("Using %u : %s\n", 1, message_names[1]));
-    break;
-  case '2' :
-    *out_message = safe_to_move_left_only;
-    DEBUG(printf("Using %u : %s\n", 2, message_names[2]));
-    break;
-  case '3' :
-    *out_message = unsafe_to_move_left_or_right;
-    DEBUG(printf("Using %u : %s\n", 3, message_names[3]));
-    break;
-  default  :
-    *out_message = num_messages;
-    DEBUG(printf("Using %u : %s\n", 4, message_names[4]));
-    break;
-  }
+  /* This analyzes the message text and sets the out_message message_t indicator */
+  viterbi_analyze_msg_text(out_msg_txt, out_msg_txt_size,
+			   out_message,  out_message_size);
+  
 }
 
 
@@ -1388,7 +1362,6 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
 		     2, out_msg_txt, out_message);
 
-  DEBUG(printf("EX_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", input_bits[i]); } printf("\n"););
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
   viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
 			      frame_ptr,   sizeof(frame_param),
@@ -1396,7 +1369,7 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 			      l_decoded,   MAX_ENCODED_BITS * 3 / 4,
 			      out_msg_txt, 1600,
 			      out_message, sizeof(message_t));
-  __visc__return(1, out_message_size);
+  __visc__return(2, out_msg_txt_size, out_message_size);
 }
 
 
@@ -1409,17 +1382,21 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 }
 
 
-void plan_and_control(label_t label,
-		      distance_t distance,
-		      message_t message,
+void plan_and_control(label_t* label,                 size_t size_label,
+		      distance_t* distance,           size_t size_distance,
+		      message_t* message,             size_t size_message,
 		      vehicle_state_t* vehicle_state, size_t size_vehicle_state)
 {
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(4, label, distance, message, vehicle_state,
+		     1, vehicle_state);
+
   DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
-	       label, object_names[label], distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
+	       *label, object_names[*label], *distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, *message));
   vehicle_state_t new_vehicle_state = *vehicle_state;
   
-  if ((label != no_label) && (distance <= THRESHOLD_1)) {
-    switch (message) {
+  if ((*label != no_label) && (*distance <= THRESHOLD_1)) {
+    switch (*message) {
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
 	if (vehicle_state->lane < right) { 
@@ -1443,16 +1420,16 @@ void plan_and_control(label_t label,
 	new_vehicle_state.speed = 0;
 	break; /* Stop!!! */
     default:
-      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state->lane], message);
-      exit(-6);
+      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state->lane], *message);
+      //exit(-6);
     }
   } else {
     // No obstacle-inspired lane change, so try now to occupy the center lane
     switch (vehicle_state->lane) {
     case lhazard:
     case left:
-      if ((message == safe_to_move_right_or_left) ||
-	  (message == safe_to_move_right_only)) {
+      if ((*message == safe_to_move_right_or_left) ||
+	  (*message == safe_to_move_right_only)) {
 	DEBUG(printf("  In %s with Can_move_Right: Moving Right\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane += 1;
       }
@@ -1462,8 +1439,8 @@ void plan_and_control(label_t label,
       break;
     case right:
     case rhazard:
-      if ((message == safe_to_move_right_or_left) ||
-	  (message == safe_to_move_left_only)) {
+      if ((*message == safe_to_move_right_or_left) ||
+	  (*message == safe_to_move_left_only)) {
 	DEBUG(printf("  In %s with Can_move_Left : Moving Left\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane -= 1;
       }
@@ -1480,7 +1457,7 @@ void plan_and_control(label_t label,
   new_vehicle_state.speed = 0;
   }
   }
-  else if ((label == no_label) && (distance > THRESHOLD_3))
+  else if ((*label == no_label) && (*distance > THRESHOLD_3))
   {
   // Maintain speed 
   }
@@ -1488,6 +1465,7 @@ void plan_and_control(label_t label,
   
   *vehicle_state = new_vehicle_state;
 
+  __visc__return(1, size_vehicle_state);
   //return new_vehicle_state;
 }
 
@@ -1779,30 +1757,37 @@ calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned in
 
 
 typedef struct __attribute__((__packed__)) {
-  float * radar_data;       size_t bytes_radar_data;
-  unsigned int radar_N;
-  unsigned int radar_logn;
-  int radar_sign;
-  float * radar_distance;   size_t bytes_radar_distance;
+  float * radar_data;       size_t bytes_radar_data;          /*  0,  1 */
+  unsigned int radar_N;				              /*  2 */
+  unsigned int radar_logn;			              /*  3 */
+  int radar_sign;				              /*  4 */
+  float * radar_distance;   size_t bytes_radar_distance;      /*  5,  6 */
   
-  ofdm_param* ofdm_ptr;     size_t bytes_ofdm_parm;
-  frame_param* frame_ptr;   size_t bytes_frame_parm;
-  uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;
-  char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;
-  message_t* vit_out_msg;   size_t bytes_vit_out_msg;
+  ofdm_param* ofdm_ptr;     size_t bytes_ofdm_parm;           /*  7,  8 */
+  frame_param* frame_ptr;   size_t bytes_frame_parm;          /*  9, 10 */
+  uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;	      /* 11, 12 */
+  char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;     /* 13, 14 */
+  message_t* vit_out_msg;   size_t bytes_vit_out_msg;	      /* 15, 16 */
+
+  label_t* label;                 size_t bytes_label;         /* 17, 18 */
+  vehicle_state_t* vehicle_state; size_t bytes_vehicle_state; /* 19, 20 */
+
 } RootIn;
 
 
-void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
+void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */    // RADAR
 		 /*  2 */ unsigned int radar_N,
 		 /*  3 */ unsigned int radar_logn,
 		 /*  4 */ int radar_sign,
-		 /*  5 */ float * radar_distance,  size_t bytes_radar_distance   /*  6 */,
-		 /*  7 */ ofdm_param* ofdm_ptr,    size_t bytes_ofdm_parm,       /*  8 */
-		 /*  9 */ frame_param* frame_ptr,  size_t bytes_frame_parm,      /* 10 */
-		 /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,     /* 12 */
-		 /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt, /* 14 */
-		 /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg      /* 16 */
+		 /*  5 */ float * radar_distance,  size_t bytes_radar_distance     /*  6 */, // Viterbi
+		 /*  7 */ ofdm_param* ofdm_ptr,    size_t bytes_ofdm_parm,         /*  8 */
+		 /*  9 */ frame_param* frame_ptr,  size_t bytes_frame_parm,        /* 10 */
+		 /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,       /* 12 */
+		 /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt,   /* 14 */
+		 /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg,       /* 16 */
+
+		 /* 17 */ label_t* label,                 size_t bytes_label,        /* 18 */ // Pland-and-Control
+		 /* 19 */ vehicle_state_t* vehicle_state, size_t bytes_vehicle_state /* 20 */
 		 )
 {
   //Specifies compilation target for current node
@@ -1811,9 +1796,10 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   // Specifies pointer arguments that will be used as "in" and "out" arguments
   // - count of "in" arguments
   // - list of "in" argument , and similar for "out"
-  __visc__attributes(10, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
+  __visc__attributes(11, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
 		         ofdm_ptr, frame_ptr, vit_in_bits, vit_out_msg_txt, vit_out_msg,
-		     1, radar_distance);          // - count of "out" arguments, list of "out" arguments
+		         vehicle_state,
+		     1, vehicle_state);          // - count of "out" arguments, list of "out" arguments
   //                 3, radar_distance, vit_out_msg_txt, vit_out_msg);          // - count of "out" arguments, list of "out" arguments
 
   // FFT Node
@@ -1826,12 +1812,19 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   // nodes generated from DNN compiled from Keras here
 
   // Plan and Control Node
-  //void* PC_node = __visc__createNodeND(0, planAndControl_node_function);
+  void* PLAN_CTL_node = __visc__createNodeND(0, plan_and_control);
 
   // BindIn binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
+  // - streaming (1) or non-streaming (0)
+
+  // Edge transfers data between nodes within the same level of hierarchy.
+  // - source and destination dataflow nodes
+  // - edge type, all-all (1) or one-one(0)
+  // - source position (in output struct of source node)
+  // - destination position (in argument list of destination node)
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
@@ -1847,30 +1840,28 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   __visc__bindIn(EXEC_VIT_node,  8,  1, 0); // bytes_ofdm_parm -> EXEC_VIT_node:bytes_ofdm_parm
   __visc__bindIn(EXEC_VIT_node,  9,  2, 0); // frame_ptr -> EXEC_VIT_node:frame_ptr
   __visc__bindIn(EXEC_VIT_node, 10,  3, 0); // bytes_frame_parm -> EXEC_VIT_node:bytes_frame_parm
-  __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:input_bits
-  __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:input_bits_size
-  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:out_msg_txt
-  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:ut_msg_txt_size
-  __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_message
-  __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:out_message_size
+  __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:vit_in_bits
+  __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:bytes_vit_in_bits
+  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:vit_out_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:bytes_vit_out_msg_txt
+  __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
+  __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
 
-  // Edge transfers data between nodes within the same level of hierarchy.
-  // - source and destination dataflow nodes
-  // - edge type, all-all (1) or one-one(0)
-  // - source position (in output struct of source node)
-  // - destination position (in argument list of destination node)
-  // - streaming (1) or non-streaming (0)
-
-  //__visc__edge(EXEC_RAD_node, PC_node, 1, , , 0);
-  //__visc__edge(EXEC_VIT_node, PC_node, 1, , , 0);
+  __visc__bindIn(PLAN_CTL_node, 17,  0, 0); // label -> PLAN_CTL_node::label
+  __visc__edge(EXEC_RAD_node, PLAN_CTL_node, 1, 0, 1, 0); // EXEC_RAD_node::distance ouput -> PLAN_CTL_node::distance input
+  __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 1, 2, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
+  __visc__bindIn(PLAN_CTL_node, 19,  3, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __visc__bindIn(PLAN_CTL_node, 20,  4, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
+  
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // tensor result
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // size of tensor
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(EXEC_RAD_node, 0, 0, 0);
+  //__visc__bindOut(EXEC_RAD_node, 0, 0, 0);
   //__visc__bindOut(EXEC_VIT_node, 1, 0, 0);
   //__visc__bindOut(EXEC_VIT_node, 2, 1, 1);
+  __visc__bindOut(PLAN_CTL_node, 0, 0, 0);  // Output is just the new vehicle_state
 }
 
 
@@ -1897,8 +1888,13 @@ int main(int argc, char *argv[])
       printf("Using trace file: %s\n", trace_file);
       break;
     case 'v':
-      vit_msgs_behavior = atoi(optarg);
-      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      {
+	int inval = atoi(optarg);
+	if ((inval == 0) || (inval == 1)) {
+	  vit_msgs_behavior = inval;
+	}
+	printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      }
       break;
     case ':':
       printf("option needs a value\n");
@@ -2005,6 +2001,9 @@ int main(int argc, char *argv[])
   llvm_visc_track_mem(vit_msg_txt, 1600);
   llvm_visc_track_mem(&vit_message, sizeof(message_t));
 
+  llvm_visc_track_mem(&vehicle_state, sizeof(vehicle_state_t));
+  
+
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
   while (!eof_trace_reader())
@@ -2078,9 +2077,6 @@ int main(int argc, char *argv[])
       xfer_vit_inputs[bi] = vdentry_p->in_bits[bi];
     }
 
-    DEBUG(printf("VD_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", vdentry_p->in_bits[i]); } printf("\n"););
-    DEBUG(printf("XF_IN_BITS: "); for (int i = 0; i < 140; i++) { printf("%u", xfer_vit_inputs[i]); } printf("\n"););
-    
     rootArgs->ofdm_ptr          = &xfer_ofdm;
     //rootArgs->ofdm_ptr          = &(vdentry_p->ofdm_p);
     rootArgs->bytes_ofdm_parm   = sizeof(ofdm_param);
@@ -2095,20 +2091,15 @@ int main(int argc, char *argv[])
     rootArgs->vit_out_msg       = &vit_message;
     rootArgs->bytes_vit_out_msg = sizeof(message_t);
 
-    
-    // Launch the DFG to do the radar computation
-    //        AND the Viterbi computation...
-    //distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N, RADAR_N, RADAR_LOGN, -1, distance, sizeof(float));
-    void* rad_n_vitExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
-    __visc__wait(rad_n_vitExecDFG);
+    rootArgs->label               = &cv_infer_label;
+    rootArgs->bytes_label         = sizeof(label_t);
+    rootArgs->vehicle_state       = &vehicle_state;
+    rootArgs->bytes_vehicle_state = sizeof(vehicle_state_t);
 
-    // Request data from graph.    
-    llvm_visc_request_mem(&radar_distance, sizeof(float));
-    llvm_visc_request_mem(vit_msg_txt, 1600);
-    llvm_visc_request_mem(&vit_message, sizeof(message_t));
+    /* distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N,  */
+    /* 						RADAR_N, RADAR_LOGN, -1, */
+    /* 						distance, sizeof(float));  */
 
-    DEBUG(printf("HPVM RESULTS: Dist %f : Msg %u : %s\n", radar_distance, vit_message, message_names[vit_message]));
-    
     /* message_t vit_message; */
     /* char out_msg_text[1600]; */
     /* execute_vit_kernel(&(vdentry_p->ofdm_p),  sizeof(ofdm_param), */
@@ -2121,8 +2112,23 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    plan_and_control(cv_infer_label, radar_distance, vit_message,
-		     &vehicle_state, sizeof(vehicle_state));
+    /* plan_and_control(cv_infer_label, radar_distance, vit_message, */
+    /* 		     &vehicle_state, sizeof(vehicle_state)); */
+
+    // Launch the DFG to do the radar computation
+    //        AND the Viterbi computation...
+    //        AND the Plan-and-Control function
+    //void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
+    //__visc__wait(radarExecDFG);
+    void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
+    __visc__wait(doExecPlanControlDFG);
+
+    // Request data from graph.    
+    llvm_visc_request_mem(&radar_distance, sizeof(float));
+    llvm_visc_request_mem(&vit_msg_txt, 1600); 
+    llvm_visc_request_mem(&vit_message, sizeof(message_t));
+    llvm_visc_request_mem(&vehicle_state, sizeof(vehicle_state_t));
+    
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
     // POST-EXECUTE each kernels to gather stats, etc.
@@ -2165,6 +2171,8 @@ int main(int argc, char *argv[])
 
   llvm_visc_untrack_mem(vit_msg_txt);
   llvm_visc_untrack_mem(&vit_message);
+
+  llvm_visc_untrack_mem(&vehicle_state);
 
   __visc__cleanup();
 
