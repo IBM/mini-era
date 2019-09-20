@@ -46,20 +46,19 @@ void print_usage(char * pname) {
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
-  printf("               :      2 = One short message per obstacle per time step\n");
-  printf("               :      3 = One long  message per obstacle per time step\n");
-  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
-  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  printf("               :  NOTE: Any other value currently ignored\n");
+  /* printf("               :      2 = One short message per obstacle per time step\n"); */
+  /* printf("               :      3 = One long  message per obstacle per time step\n"); */
+  /* printf("               :      4 = One short msg per obstacle + 1 per time step\n"); */
+  /* printf("               :      5 = One long  msg per obstacle + 1 per time step\n"); */
 }
 
 
 
 
-char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
-#ifdef VERBOSE
-char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
-#endif
-char* object_names[NUM_OBJECTS] = {"Nothing", "Bike", "Car", "Person", "Truck" };
+char* lane_names[NUM_LANES+1] = {"LHazard", "Left", "Center", "Right", "RHazard", "Unknown" };
+char* message_names[NUM_MESSAGES+1] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R", "Unknowwn" };
+char* object_names[NUM_OBJECTS+1] = {"Nothing", "Bike", "Car", "Person", "Truck", "Unknown" };
 
 /* These are globals for the trace read parsing routines */
 #define MAX_TR_LINE_SZ   256
@@ -130,9 +129,6 @@ unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 /* These are some top-level defines needed for VITERBI */
-
-uint8_t descramble[1600]; // I think this covers our max use cases
-uint8_t actual_msg[1600];
 
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
@@ -293,10 +289,10 @@ status_t init_vit_kernel(char* dict_fn)
       unsigned c;
       if (fscanf(dictF, "%u ", &c)) 
 	      ;
-      DEBUG(printf("%u ", c));
+      //DEBUG(printf("%u ", c));
       the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
     }
-    DEBUG(printf("\n"));
+    //DEBUG(printf("\n"));
   }
   fclose(dictF);
 
@@ -650,7 +646,9 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   return &(the_radar_return_dict[tr_val]);
 }
 
-void execute_rad_kernel(float * inputs, size_t input_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size)
+void execute_rad_kernel(float * inputs, size_t input_size_bytes,
+			unsigned int N, unsigned int logn, int sign,
+			distance_t * distance, size_t dist_size)
 {
   __visc__hint(CPU_TARGET);
   __visc__attributes(2, inputs, distance, 1, distance);
@@ -775,7 +773,7 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
     trace_msg = &(the_viterbi_trace_dict[3 + msg_offset]);
     break;
   }
-  //DEBUG(printf("  Using msg %u : %s = safe_to_move_right_or_left\n", msg, message_names[msg]));
+  DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
   return trace_msg;
 }
 
@@ -1179,6 +1177,13 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
   unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
   unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
+  // These are initialized to zero once...
+  for (int i = 0; i < 64; i++) {
+    d_metric0_generic[i] = 0;
+    d_metric1_generic[i] = 0;
+    d_path0_generic[i] = 0;
+    d_path1_generic[i] = 0;
+  }
 
   // Metrics for each state
   unsigned char d_mmresult[64] __attribute__((aligned(16)));
@@ -1305,6 +1310,20 @@ void descrambler(uint8_t* in,   size_t in_size,
 }
 
 
+void viterbi_analyze_msg_text(char* msg_txt,       size_t msg_txt_size,
+			      message_t* out_message,  size_t out_message_size)
+{
+  // Check contents of "msg_txt" to determine which message_t;
+  switch(msg_txt[3]) {
+  case '0' : *out_message = safe_to_move_right_or_left; break;
+  case '1' : *out_message = safe_to_move_right_only; break;
+  case '2' : *out_message = safe_to_move_left_only; break;
+  case '3' : *out_message = unsafe_to_move_left_or_right; break;
+  default  : *out_message = num_messages; break;
+  }
+}
+
+
 
 void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
 				 frame_param *frame_ptr,  size_t frame_size,
@@ -1325,15 +1344,11 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
   descrambler(l_decoded,   MAX_ENCODED_BITS * 3 / 4, 
 	      psdusize,    
 	      out_msg_txt, 1600);
+
+  /* This analyzes the message text and sets the out_message message_t indicator */
+  viterbi_analyze_msg_text(out_msg_txt, out_msg_txt_size,
+			   out_message,  out_message_size);
   
-  // Check contents of "out_msg_txt" to determine which message_t;
-  switch(out_msg_txt[3]) {
-  case '0' : *out_message = safe_to_move_right_or_left; break;
-  case '1' : *out_message = safe_to_move_right_only; break;
-  case '2' : *out_message = safe_to_move_left_only; break;
-  case '3' : *out_message = unsafe_to_move_left_or_right; break;
-  default  : *out_message = num_messages; break;
-  }
 }
 
 
@@ -1345,7 +1360,7 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 {
   __visc__hint(CPU_TARGET);
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
-		     1, out_message);
+		     2, out_msg_txt, out_message);
 
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
   viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
@@ -1354,7 +1369,7 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 			      l_decoded,   MAX_ENCODED_BITS * 3 / 4,
 			      out_msg_txt, 1600,
 			      out_message, sizeof(message_t));
-  __visc__return(1, out_message_size);
+  __visc__return(2, out_msg_txt_size, out_message_size);
 }
 
 
@@ -1367,17 +1382,21 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 }
 
 
-void plan_and_control(label_t label,
-		      distance_t distance,
-		      message_t message,
+void plan_and_control(label_t* label,                 size_t size_label,
+		      distance_t* distance,           size_t size_distance,
+		      message_t* message,             size_t size_message,
 		      vehicle_state_t* vehicle_state, size_t size_vehicle_state)
 {
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(4, label, distance, message, vehicle_state,
+		     1, vehicle_state);
+
   DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
-	       label, object_names[label], distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
+	       *label, object_names[*label], *distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, *message));
   vehicle_state_t new_vehicle_state = *vehicle_state;
   
-  if ((label != no_label) && (distance <= THRESHOLD_1)) {
-    switch (message) {
+  if ((*label != no_label) && (*distance <= THRESHOLD_1)) {
+    switch (*message) {
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
 	if (vehicle_state->lane < right) { 
@@ -1401,16 +1420,16 @@ void plan_and_control(label_t label,
 	new_vehicle_state.speed = 0;
 	break; /* Stop!!! */
     default:
-      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state->lane], message);
-      exit(-6);
+      printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state->lane], *message);
+      //exit(-6);
     }
   } else {
     // No obstacle-inspired lane change, so try now to occupy the center lane
     switch (vehicle_state->lane) {
     case lhazard:
     case left:
-      if ((message == safe_to_move_right_or_left) ||
-	  (message == safe_to_move_right_only)) {
+      if ((*message == safe_to_move_right_or_left) ||
+	  (*message == safe_to_move_right_only)) {
 	DEBUG(printf("  In %s with Can_move_Right: Moving Right\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane += 1;
       }
@@ -1420,8 +1439,8 @@ void plan_and_control(label_t label,
       break;
     case right:
     case rhazard:
-      if ((message == safe_to_move_right_or_left) ||
-	  (message == safe_to_move_left_only)) {
+      if ((*message == safe_to_move_right_or_left) ||
+	  (*message == safe_to_move_left_only)) {
 	DEBUG(printf("  In %s with Can_move_Left : Moving Left\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.lane -= 1;
       }
@@ -1438,7 +1457,7 @@ void plan_and_control(label_t label,
   new_vehicle_state.speed = 0;
   }
   }
-  else if ((label == no_label) && (distance > THRESHOLD_3))
+  else if ((*label == no_label) && (*distance > THRESHOLD_3))
   {
   // Maintain speed 
   }
@@ -1446,6 +1465,7 @@ void plan_and_control(label_t label,
   
   *vehicle_state = new_vehicle_state;
 
+  __visc__return(1, size_vehicle_state);
   //return new_vehicle_state;
 }
 
@@ -1737,30 +1757,37 @@ calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned in
 
 
 typedef struct __attribute__((__packed__)) {
-  float * radar_data;       size_t bytes_radar_data;
-  unsigned int radar_N;
-  unsigned int radar_logn;
-  int radar_sign;
-  float * radar_distance;   size_t bytes_radar_distance;
+  float * radar_data;       size_t bytes_radar_data;          /*  0,  1 */
+  unsigned int radar_N;				              /*  2 */
+  unsigned int radar_logn;			              /*  3 */
+  int radar_sign;				              /*  4 */
+  float * radar_distance;   size_t bytes_radar_distance;      /*  5,  6 */
   
-  ofdm_param* ofdm_ptr;     size_t bytes_ofdm_parm;
-  frame_param* frame_ptr;   size_t bytes_frame_parm;
-  uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;
-  char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;
-  message_t* vit_out_msg;   size_t bytes_vit_out_msg;
+  ofdm_param* ofdm_ptr;     size_t bytes_ofdm_parm;           /*  7,  8 */
+  frame_param* frame_ptr;   size_t bytes_frame_parm;          /*  9, 10 */
+  uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;	      /* 11, 12 */
+  char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;     /* 13, 14 */
+  message_t* vit_out_msg;   size_t bytes_vit_out_msg;	      /* 15, 16 */
+
+  label_t* label;                 size_t bytes_label;         /* 17, 18 */
+  vehicle_state_t* vehicle_state; size_t bytes_vehicle_state; /* 19, 20 */
+
 } RootIn;
 
 
-void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
+void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */    // RADAR
 		 /*  2 */ unsigned int radar_N,
 		 /*  3 */ unsigned int radar_logn,
 		 /*  4 */ int radar_sign,
-		 /*  5 */ float * radar_distance,  size_t bytes_radar_distance   /*  6 */,
-		 /*  7 */ ofdm_param* ofdm_ptr,    size_t bytes_ofdm_parm,       /*  8 */
-		 /*  9 */ frame_param* frame_ptr,  size_t bytes_frame_parm,      /* 10 */
-		 /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,     /* 12 */
-		 /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt, /* 14 */
-		 /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg      /* 16 */
+		 /*  5 */ float * radar_distance,  size_t bytes_radar_distance     /*  6 */, // Viterbi
+		 /*  7 */ ofdm_param* ofdm_ptr,    size_t bytes_ofdm_parm,         /*  8 */
+		 /*  9 */ frame_param* frame_ptr,  size_t bytes_frame_parm,        /* 10 */
+		 /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,       /* 12 */
+		 /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt,   /* 14 */
+		 /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg,       /* 16 */
+
+		 /* 17 */ label_t* label,                 size_t bytes_label,        /* 18 */ // Pland-and-Control
+		 /* 19 */ vehicle_state_t* vehicle_state, size_t bytes_vehicle_state /* 20 */
 		 )
 {
   //Specifies compilation target for current node
@@ -1769,9 +1796,10 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   // Specifies pointer arguments that will be used as "in" and "out" arguments
   // - count of "in" arguments
   // - list of "in" argument , and similar for "out"
-  __visc__attributes(10, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
+  __visc__attributes(11, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
 		         ofdm_ptr, frame_ptr, vit_in_bits, vit_out_msg_txt, vit_out_msg,
-		     1, radar_distance);          // - count of "out" arguments, list of "out" arguments
+		         vehicle_state,
+		     1, vehicle_state);          // - count of "out" arguments, list of "out" arguments
   //                 3, radar_distance, vit_out_msg_txt, vit_out_msg);          // - count of "out" arguments, list of "out" arguments
 
   // FFT Node
@@ -1784,12 +1812,19 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   // nodes generated from DNN compiled from Keras here
 
   // Plan and Control Node
-  //void* PC_node = __visc__createNodeND(0, planAndControl_node_function);
+  void* PLAN_CTL_node = __visc__createNodeND(0, plan_and_control);
 
   // BindIn binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
+  // - streaming (1) or non-streaming (0)
+
+  // Edge transfers data between nodes within the same level of hierarchy.
+  // - source and destination dataflow nodes
+  // - edge type, all-all (1) or one-one(0)
+  // - source position (in output struct of source node)
+  // - destination position (in argument list of destination node)
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
@@ -1812,23 +1847,21 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */
   __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
   __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
 
-  // Edge transfers data between nodes within the same level of hierarchy.
-  // - source and destination dataflow nodes
-  // - edge type, all-all (1) or one-one(0)
-  // - source position (in output struct of source node)
-  // - destination position (in argument list of destination node)
-  // - streaming (1) or non-streaming (0)
-
-  //__visc__edge(EXEC_RAD_node, PC_node, 1, , , 0);
-  //__visc__edge(EXEC_VIT_node, PC_node, 1, , , 0);
+  __visc__bindIn(PLAN_CTL_node, 17,  0, 0); // label -> PLAN_CTL_node::label
+  __visc__edge(EXEC_RAD_node, PLAN_CTL_node, 1, 0, 1, 0); // EXEC_RAD_node::distance ouput -> PLAN_CTL_node::distance input
+  __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 1, 2, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
+  __visc__bindIn(PLAN_CTL_node, 19,  3, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __visc__bindIn(PLAN_CTL_node, 20,  4, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
+  
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // tensor result
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // size of tensor
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(EXEC_RAD_node, 0, 0, 0);
+  //__visc__bindOut(EXEC_RAD_node, 0, 0, 0);
   //__visc__bindOut(EXEC_VIT_node, 1, 0, 0);
   //__visc__bindOut(EXEC_VIT_node, 2, 1, 1);
+  __visc__bindOut(PLAN_CTL_node, 0, 0, 0);  // Output is just the new vehicle_state
 }
 
 
@@ -1855,8 +1888,13 @@ int main(int argc, char *argv[])
       printf("Using trace file: %s\n", trace_file);
       break;
     case 'v':
-      vit_msgs_behavior = atoi(optarg);
-      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      {
+	int inval = atoi(optarg);
+	if ((inval == 0) || (inval == 1)) {
+	  vit_msgs_behavior = inval;
+	}
+	printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      }
       break;
     case ':':
       printf("option needs a value\n");
@@ -1953,15 +1991,18 @@ int main(int argc, char *argv[])
   ofdm_param  xfer_ofdm;
   frame_param xfer_frame;
   uint8_t     xfer_vit_inputs[MAX_ENCODED_BITS];
-  char        vit_out_msg_txt[1600];
+  char        vit_msg_txt[1600];
   message_t   vit_message;
 
   llvm_visc_track_mem(&xfer_ofdm, sizeof(ofdm_param));
   llvm_visc_track_mem(&xfer_frame, sizeof(frame_param));
   llvm_visc_track_mem(xfer_vit_inputs, MAX_ENCODED_BITS);
 
-  llvm_visc_track_mem(vit_out_msg_txt, 1600);
+  llvm_visc_track_mem(vit_msg_txt, 1600);
   llvm_visc_track_mem(&vit_message, sizeof(message_t));
+
+  llvm_visc_track_mem(&vehicle_state, sizeof(vehicle_state_t));
+  
 
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
@@ -2008,6 +2049,7 @@ int main(int argc, char *argv[])
 
     // EXECUTE the kernels using the now known inputs 
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
+
     // Set up HPVM DFG inputs in the rootArgs struct.
     rootArgs->radar_data       = radar_input;
     rootArgs->bytes_radar_data = 8*RADAR_N;
@@ -2044,23 +2086,20 @@ int main(int argc, char *argv[])
     rootArgs->vit_in_bits       = xfer_vit_inputs;
     //rootArgs->vit_in_bits       = &(vdentry_p->in_bits);
     rootArgs->bytes_vit_in_bits = MAX_ENCODED_BITS;
-    rootArgs->vit_out_msg_txt       = vit_out_msg_txt;
+    rootArgs->vit_out_msg_txt       = vit_msg_txt;
     rootArgs->bytes_vit_out_msg_txt = 1600;
     rootArgs->vit_out_msg       = &vit_message;
     rootArgs->bytes_vit_out_msg = sizeof(message_t);
 
-    
-    // Launch the DFG to do the radar computation
-    //        AND the Viterbi computation...
-    //distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N, RADAR_N, RADAR_LOGN, -1, distance, sizeof(float));
-    void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
-    __visc__wait(radarExecDFG);
+    rootArgs->label               = &cv_infer_label;
+    rootArgs->bytes_label         = sizeof(label_t);
+    rootArgs->vehicle_state       = &vehicle_state;
+    rootArgs->bytes_vehicle_state = sizeof(vehicle_state_t);
 
-    // Request data from graph.    
-    llvm_visc_request_mem(&radar_distance, sizeof(float));
-    llvm_visc_request_mem(&vit_message, sizeof(message_t));
+    /* distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N,  */
+    /* 						RADAR_N, RADAR_LOGN, -1, */
+    /* 						distance, sizeof(float));  */
 
-    
     /* message_t vit_message; */
     /* char out_msg_text[1600]; */
     /* execute_vit_kernel(&(vdentry_p->ofdm_p),  sizeof(ofdm_param), */
@@ -2073,8 +2112,23 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    plan_and_control(cv_infer_label, radar_distance, vit_message,
-		     &vehicle_state, sizeof(vehicle_state));
+    /* plan_and_control(cv_infer_label, radar_distance, vit_message, */
+    /* 		     &vehicle_state, sizeof(vehicle_state)); */
+
+    // Launch the DFG to do the radar computation
+    //        AND the Viterbi computation...
+    //        AND the Plan-and-Control function
+    //void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
+    //__visc__wait(radarExecDFG);
+    void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
+    __visc__wait(doExecPlanControlDFG);
+
+    // Request data from graph.    
+    llvm_visc_request_mem(&radar_distance, sizeof(float));
+    llvm_visc_request_mem(&vit_msg_txt, 1600); 
+    llvm_visc_request_mem(&vit_message, sizeof(message_t));
+    llvm_visc_request_mem(&vehicle_state, sizeof(vehicle_state_t));
+    
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
     // POST-EXECUTE each kernels to gather stats, etc.
@@ -2115,8 +2169,10 @@ int main(int argc, char *argv[])
   llvm_visc_untrack_mem(&xfer_frame);
   llvm_visc_untrack_mem(xfer_vit_inputs);
 
-  llvm_visc_untrack_mem(vit_out_msg_txt);
+  llvm_visc_untrack_mem(vit_msg_txt);
   llvm_visc_untrack_mem(&vit_message);
+
+  llvm_visc_untrack_mem(&vehicle_state);
 
   __visc__cleanup();
 
