@@ -1848,10 +1848,21 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
 
   __visc__bindIn(PLAN_CTL_node, 17,  0, 0); // label -> PLAN_CTL_node::label
+  __visc__bindIn(PLAN_CTL_node, 18,  1, 0); // bytes_label -> PLAN_CTL_node::size_label
+
+  // Use of only bindIn works fine
+  //__visc__bindIn(PLAN_CTL_node,  5,  2, 0); // radar_distance -> PLAN_CTL_node:radar_distance
+  //__visc__bindIn(PLAN_CTL_node,  6,  3, 0); // bytes_radar_dist -> PLAN_CTL_node:bytes_radar_dist
+  // Use of both bindIn and edge for DISTANCE compiles too
   __visc__edge(EXEC_RAD_node, PLAN_CTL_node, 1, 0, 1, 0); // EXEC_RAD_node::distance ouput -> PLAN_CTL_node::distance input
+
+  // Use of only bindIn works fine
+  //__visc__bindIn(PLAN_CTL_node, 15,  4, 0); // vit_out_msg -> PLAN_CTL_node::message input  
+  //__visc__bindIn(PLAN_CTL_node, 16,  5, 0); // bytes_vit_out_msg -> PLAN_CTL_node::size_message input  
   __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 1, 2, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
-  __visc__bindIn(PLAN_CTL_node, 19,  3, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
-  __visc__bindIn(PLAN_CTL_node, 20,  4, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
+
+  __visc__bindIn(PLAN_CTL_node, 19,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __visc__bindIn(PLAN_CTL_node, 20,  7, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
   
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // tensor result
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // size of tensor
