@@ -640,8 +640,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_rad_kernel\n"));
 
-  unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
-  
+  unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The effective "radar bucket" distance
   //distance_t ddist = 1.0 * the_radar_return_dict[tr_val].distance;
 
   /* // We have to make a working copy of the inputs -- I think the calculate_peak_dist_from_fmcw alters the input data space */
@@ -719,37 +718,47 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   unsigned tr_val = 0; // set a default to avoid compiler messages
   switch (vs.lane) {
   case lhazard:
-    if ((nearest_obj[1] != 'N') && (nearest_dist[1] < VIT_CLEAR_THRESHOLD)) {  
-      // Some object is in the left lane within threshold distance
-      tr_val = 3; // Unsafe to move from lhazard lane into the left lane 
-    } else {
-      tr_val = 1;
+    {
+      unsigned nd_1 = RADAR_BUCKET_DISTANCE * (nearest_dist[1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      if ((nearest_obj[1] != 'N') && (nd_1 /*nearest_dist[1]*/ < VIT_CLEAR_THRESHOLD)) {  
+	// Some object is in the left lane within threshold distance
+	tr_val = 3; // Unsafe to move from lhazard lane into the left lane 
+      } else {
+	tr_val = 1;
+      }
     }
     break;
   case left:
   case center:
   case right:
-    tr_val = 0;
-    DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane, 
-		 vs.lane-1, nearest_obj[vs.lane-1], nearest_dist[vs.lane-1],
-		 vs.lane+1, nearest_obj[vs.lane+1], nearest_dist[vs.lane+1]));
-    if ((nearest_obj[vs.lane-1] != 'N') && (nearest_dist[vs.lane-1] < VIT_CLEAR_THRESHOLD)) {
-      // Some object is in the Left lane at distance 0 or 1
-      DEBUG(printf("    Marking unsafe to move left\n"));
-      tr_val += 1; // Unsafe to move from this lane to the left.
-    }
-    if ((nearest_obj[vs.lane+1] != 'N') && (nearest_dist[vs.lane+1] < VIT_CLEAR_THRESHOLD)) {
-      // Some object is in the Right lane at distance 0 or 1
-      DEBUG(printf("    Marking unsafe to move right\n"));
-      tr_val += 2; // Unsafe to move from this lane to the right.
+    {
+      unsigned ndp1 = RADAR_BUCKET_DISTANCE * (nearest_dist[vs.lane+1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      unsigned ndm1 = RADAR_BUCKET_DISTANCE * (nearest_dist[vs.lane-1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      tr_val = 0;
+      DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane, 
+		   vs.lane-1, nearest_obj[vs.lane-1], nearest_dist[vs.lane-1],
+		   vs.lane+1, nearest_obj[vs.lane+1], nearest_dist[vs.lane+1]));
+      if ((nearest_obj[vs.lane-1] != 'N') && (ndm1 /*nearest_dist[vs.lane-1]*/ < VIT_CLEAR_THRESHOLD)) {
+	// Some object is in the Left lane at distance 0 or 1
+	DEBUG(printf("    Marking unsafe to move left\n"));
+	tr_val += 1; // Unsafe to move from this lane to the left.
+      }
+      if ((nearest_obj[vs.lane+1] != 'N') && (ndp1 /*nearest_dist[vs.lane+1]*/ < VIT_CLEAR_THRESHOLD)) {
+	// Some object is in the Right lane at distance 0 or 1
+	DEBUG(printf("    Marking unsafe to move right\n"));
+	tr_val += 2; // Unsafe to move from this lane to the right.
+      }
     }
     break;
   case rhazard:
-    if ((nearest_obj[3] != 'N') && (nearest_dist[3] < VIT_CLEAR_THRESHOLD)) {
-      // Some object is in the right lane within threshold distance
-      tr_val = 3; // Unsafe to move from center lane to the right.
-    } else {
-      tr_val = 2;
+    {
+      unsigned nd_3 = RADAR_BUCKET_DISTANCE * (nearest_dist[3] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      if ((nearest_obj[3] != 'N') && (nd_3 /*nearest_dist[3]*/ < VIT_CLEAR_THRESHOLD)) {
+	// Some object is in the right lane within threshold distance
+	tr_val = 3; // Unsafe to move from center lane to the right.
+      } else {
+	tr_val = 2;
+      }
     }
     break;
   }
@@ -1233,7 +1242,7 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   //printf("void set_viterbi_decode_verif_data() {\n");
 
   int viterbi_butterfly_calls = 0;
-  while(n_decoded < frame->n_data_bits) {
+  while (n_decoded < frame->n_data_bits) {
     //printf("n_decoded = %d vs %d = frame->n_data_bits\n", n_decoded, frame->n_data_bits);
     if ((in_count % 4) == 0) { //0 or 3
       //printf(" Viterbi_Butterfly Call,%d,n_decoded,%d,n_data_bits,%d,in_count,%d,%d\n", viterbi_butterfly_calls, n_decoded, frame->n_data_bits, in_count, (in_count & 0xfffffffc));
@@ -1910,7 +1919,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hot:v:")) != -1) {  
+  while ((opt = getopt(argc, argv, ":hot:v:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);

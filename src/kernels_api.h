@@ -18,6 +18,7 @@
 #ifndef _kernels_api_h
 #define _kernels_api_h
 
+#define VERBOSE
 #ifdef VERBOSE
 #define DEBUG(x) x
 #else
