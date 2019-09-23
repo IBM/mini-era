@@ -657,6 +657,8 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
   //DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
   calculate_peak_dist_from_fmcw(inputs, input_size_bytes, RADAR_N, RADAR_LOGN, -1, distance, dist_size);
 
+  //__visc__return(1, distance);
+  // Return the SIZE -- the pointer is transferred by a __visc__bind
   __visc__return(1, dist_size);
 }
 
@@ -1360,7 +1362,8 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 {
   __visc__hint(CPU_TARGET);
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
-		     2, out_msg_txt, out_message);
+		     //2, out_msg_txt, out_message);
+		     1, out_message);
 
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
   viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
@@ -1369,7 +1372,10 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 			      l_decoded,   MAX_ENCODED_BITS * 3 / 4,
 			      out_msg_txt, 1600,
 			      out_message, sizeof(message_t));
-  __visc__return(2, out_msg_txt_size, out_message_size);
+  //__visc__return(2, out_msg_txt_size, out_message_size);
+  //__visc__return(1, out_message);
+  // Return the SIZE -- the pointer is transferred by a __visc__bind
+  __visc__return(1, out_message_size);
 }
 
 
@@ -1823,8 +1829,8 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   // Edge transfers data between nodes within the same level of hierarchy.
   // - source and destination dataflow nodes
   // - edge type, all-all (1) or one-one(0)
-  // - source position (in output struct of source node)
-  // - destination position (in argument list of destination node)
+  // - source position (in output struct of source node, i.e. __visc__return() statement)
+  // - destination position (in argument list of destination node function parameters)
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
@@ -1850,16 +1856,13 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __visc__bindIn(PLAN_CTL_node, 17,  0, 0); // label -> PLAN_CTL_node::label
   __visc__bindIn(PLAN_CTL_node, 18,  1, 0); // bytes_label -> PLAN_CTL_node::size_label
 
-  // Use of only bindIn works fine
-  //__visc__bindIn(PLAN_CTL_node,  5,  2, 0); // radar_distance -> PLAN_CTL_node:radar_distance
-  //__visc__bindIn(PLAN_CTL_node,  6,  3, 0); // bytes_radar_dist -> PLAN_CTL_node:bytes_radar_dist
-  // Use of both bindIn and edge for DISTANCE compiles too
-  __visc__edge(EXEC_RAD_node, PLAN_CTL_node, 1, 0, 1, 0); // EXEC_RAD_node::distance ouput -> PLAN_CTL_node::distance input
+  // Use bindIn for the distance (pointer) and edge for the size_t (which also creates node->node flow dependence)
+  __visc__bindIn(PLAN_CTL_node,  5,  2, 0); // radar_distance -> PLAN_CTL_node:radar_distance
+  __visc__edge(EXEC_RAD_node, PLAN_CTL_node, 1, 0, 3, 0); // EXEC_RAD_node::dist_size ouput -> PLAN_CTL_node::distance input
 
-  // Use of only bindIn works fine
-  //__visc__bindIn(PLAN_CTL_node, 15,  4, 0); // vit_out_msg -> PLAN_CTL_node::message input  
-  //__visc__bindIn(PLAN_CTL_node, 16,  5, 0); // bytes_vit_out_msg -> PLAN_CTL_node::size_message input  
-  __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 1, 2, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
+  // Use bindIn for the vit_out_msg (pointer) and edge for the size_t (which also creates node->node flow dependence)
+  __visc__bindIn(PLAN_CTL_node, 15,  4, 0); // vit_out_msg -> PLAN_CTL_node::message input  
+  __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 0, 5, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
 
   __visc__bindIn(PLAN_CTL_node, 19,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
   __visc__bindIn(PLAN_CTL_node, 20,  7, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
@@ -2026,12 +2029,14 @@ int main(int argc, char *argv[])
      * next image, and returns the corresponding label. 
      * This process takes place locally (i.e. within this car).
      */
+    printf("Calling iterate_cv_kernel\n");
     label_t cv_tr_label = iterate_cv_kernel(vehicle_state);
 
 
     /* The radar kernel performs distance estimation on the next radar
      * data, and returns the estimated distance to the object.
      */
+    printf("Calling iterate_rad_kernel\n");
     radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
     distance_t rd_dist = rdentry_p->distance;
     float * ref_in = rdentry_p->return_data;
@@ -2046,6 +2051,7 @@ int main(int argc, char *argv[])
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
+    printf("Calling iterate_vit_kernel\n");
     vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
 
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
@@ -2059,6 +2065,7 @@ int main(int argc, char *argv[])
 
 
     // EXECUTE the kernels using the now known inputs 
+    printf("Calling execute_cv_kernel\n");
     label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
 
     // Set up HPVM DFG inputs in the rootArgs struct.
@@ -2072,7 +2079,7 @@ int main(int argc, char *argv[])
     rootArgs->radar_distance       = &radar_distance;
     rootArgs->bytes_radar_distance = sizeof(float);
 
-    /* Viterbi part -0 copy over required inputs */
+    /* Viterbi part 0 copy over required inputs */
     xfer_ofdm.encoding   = vdentry_p->ofdm_p.encoding;
     xfer_ofdm.rate_field = vdentry_p->ofdm_p.rate_field;
     xfer_ofdm.n_bpsc     = vdentry_p->ofdm_p.n_bpsc;
@@ -2131,13 +2138,18 @@ int main(int argc, char *argv[])
     //        AND the Plan-and-Control function
     //void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     //__visc__wait(radarExecDFG);
+    printf("Calling doExecPlanControlDFG\n");
     void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     __visc__wait(doExecPlanControlDFG);
 
-    // Request data from graph.    
+    // Request data from graph.
+    printf("requesting RADAR_DIST\n");
     llvm_visc_request_mem(&radar_distance, sizeof(float));
-    llvm_visc_request_mem(&vit_msg_txt, 1600); 
+    printf("requesting VIT_MSG_TXT\n");
+    //llvm_visc_request_mem(&vit_msg_txt, 1600); 
+    printf("requesting VIT_MESSAGE\n");
     llvm_visc_request_mem(&vit_message, sizeof(message_t));
+    printf("requesting VEHICLE_STATE\n");
     llvm_visc_request_mem(&vehicle_state, sizeof(vehicle_state_t));
     
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
