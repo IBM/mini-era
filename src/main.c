@@ -2015,6 +2015,8 @@ int main(int argc, char *argv[])
   llvm_visc_track_mem(vit_msg_txt, 1600);
   llvm_visc_track_mem(&vit_message, sizeof(message_t));
 
+  label_t cv_infer_label;
+  llvm_visc_track_mem(&cv_infer_label, sizeof(label_t));
   llvm_visc_track_mem(&vehicle_state, sizeof(vehicle_state_t));
   
 
@@ -2029,14 +2031,12 @@ int main(int argc, char *argv[])
      * next image, and returns the corresponding label. 
      * This process takes place locally (i.e. within this car).
      */
-    printf("Calling iterate_cv_kernel\n");
     label_t cv_tr_label = iterate_cv_kernel(vehicle_state);
 
 
     /* The radar kernel performs distance estimation on the next radar
      * data, and returns the estimated distance to the object.
      */
-    printf("Calling iterate_rad_kernel\n");
     radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
     distance_t rd_dist = rdentry_p->distance;
     float * ref_in = rdentry_p->return_data;
@@ -2051,7 +2051,6 @@ int main(int argc, char *argv[])
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
-    printf("Calling iterate_vit_kernel\n");
     vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
 
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
@@ -2065,8 +2064,7 @@ int main(int argc, char *argv[])
 
 
     // EXECUTE the kernels using the now known inputs 
-    printf("Calling execute_cv_kernel\n");
-    label_t cv_infer_label = execute_cv_kernel(cv_tr_label);
+    cv_infer_label = execute_cv_kernel(cv_tr_label);
 
     // Set up HPVM DFG inputs in the rootArgs struct.
     rootArgs->radar_data       = radar_input;
@@ -2138,18 +2136,13 @@ int main(int argc, char *argv[])
     //        AND the Plan-and-Control function
     //void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     //__visc__wait(radarExecDFG);
-    printf("Calling doExecPlanControlDFG\n");
     void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     __visc__wait(doExecPlanControlDFG);
 
     // Request data from graph.
-    printf("requesting RADAR_DIST\n");
     llvm_visc_request_mem(&radar_distance, sizeof(float));
-    printf("requesting VIT_MSG_TXT\n");
     //llvm_visc_request_mem(&vit_msg_txt, 1600); 
-    printf("requesting VIT_MESSAGE\n");
     llvm_visc_request_mem(&vit_message, sizeof(message_t));
-    printf("requesting VEHICLE_STATE\n");
     llvm_visc_request_mem(&vehicle_state, sizeof(vehicle_state_t));
     
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
@@ -2195,6 +2188,7 @@ int main(int argc, char *argv[])
   llvm_visc_untrack_mem(vit_msg_txt);
   llvm_visc_untrack_mem(&vit_message);
 
+  llvm_visc_track_mem(&cv_infer_label, sizeof(label_t));
   llvm_visc_untrack_mem(&vehicle_state);
 
   __visc__cleanup();
