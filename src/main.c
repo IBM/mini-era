@@ -52,11 +52,11 @@ void print_usage(char * pname) {
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
-  printf("               :  NOTE: Any other value currently ignored\n");
-  /* printf("               :      2 = One short message per obstacle per time step\n"); */
-  /* printf("               :      3 = One long  message per obstacle per time step\n"); */
-  /* printf("               :      4 = One short msg per obstacle + 1 per time step\n"); */
-  /* printf("               :      5 = One long  msg per obstacle + 1 per time step\n"); */
+  //printf("               :  NOTE: Any other value currently ignored\n");
+  printf("               :      2 = One short message per obstacle per time step\n");
+  printf("               :      3 = One long  message per obstacle per time step\n");
+  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
+  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
 }
 
 
@@ -655,7 +655,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 }
 
 void execute_rad_kernel(float * inputs, size_t input_size_bytes,
-			unsigned int N, unsigned int logn, int sign,
+			unsigned int input_N, unsigned int in_logn, int in_sign,
 			distance_t * distance, size_t dist_size)
 {
   __visc__hint(CPU_TARGET);
@@ -663,7 +663,7 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
 
   /* 2) Conduct distance estimation on the waveform */
   //DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-  calculate_peak_dist_from_fmcw(inputs, input_size_bytes, RADAR_N, RADAR_LOGN, -1, distance, dist_size);
+  calculate_peak_dist_from_fmcw(inputs, input_size_bytes, input_N, in_logn, in_sign, distance, dist_size);
 
   //__visc__return(1, distance);
   // Return the SIZE -- the pointer is transferred by a __visc__bind
@@ -1362,24 +1362,30 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
 }
 
 
-void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
-			frame_param* frame_ptr,  size_t frame_parm_size,
-			uint8_t* input_bits,     size_t input_bits_size,
-			char* out_msg_txt,       size_t out_msg_txt_size,
-			message_t* out_message,  size_t out_message_size)
+void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,   /*  1 */
+			/*  2 */ frame_param* frame_ptr,  size_t frame_parm_size,  /*  3 */
+			/*  4 */ uint8_t* input_bits,     size_t input_bits_size,  /*  5 */
+			/*  6 */ char* out_msg_txt,       size_t out_msg_txt_size, /*  7 */
+			/*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
+			/* 10 */ int num_msgs_to_decode)
 {
   __visc__hint(CPU_TARGET);
-  __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
+  __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
 		     //2, out_msg_txt, out_message);
 		     1, out_message);
-
+  
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
-  viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
-			      frame_ptr,   sizeof(frame_param),
-			      input_bits,  MAX_ENCODED_BITS,
-			      l_decoded,   MAX_ENCODED_BITS * 3 / 4,
-			      out_msg_txt, 1600,
-			      out_message, sizeof(message_t));
+  // We will decode num_msgs_to_Decode of the same message (for now) and return the last one.
+  DEBUG(printf("Decoding %u messages\n", num_msgs_to_decode));
+  for (int mi = 0; mi < num_msgs_to_decode; mi++) {
+    viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
+				frame_ptr,   sizeof(frame_param),
+				input_bits,  MAX_ENCODED_BITS,
+				l_decoded,   MAX_ENCODED_BITS * 3 / 4,
+				out_msg_txt, 1600,
+				out_message, sizeof(message_t));
+  }
+  
   //__visc__return(2, out_msg_txt_size, out_message_size);
   //__visc__return(1, out_message);
   // Return the SIZE -- the pointer is transferred by a __visc__bind
@@ -1726,7 +1732,8 @@ typedef struct {
 
 
 avg_max_t
-calc_avg_max(float* data, size_t data_size_bytes)
+calc_avg_max(unsigned int input_N,
+	     float* data, size_t data_size_bytes)
 {
   avg_max_t ret_val;
   ret_val.max_psd   = 0;
@@ -1734,7 +1741,7 @@ calc_avg_max(float* data, size_t data_size_bytes)
   
   unsigned int i;
   float temp;
-  for (i=0; i < RADAR_N; i++) {
+  for (i=0; i < input_N; i++) {
     temp = (pow(data[2*i],2) + pow(data[2*i+1],2))/100.0;
     if (temp > ret_val.max_psd) {
       ret_val.max_psd = temp;
@@ -1746,18 +1753,18 @@ calc_avg_max(float* data, size_t data_size_bytes)
 
 
 void
-calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size)
+calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned int input_N, unsigned int logn, int sign, float * distance, size_t dist_size)
 {
   /* __visc__hint(CPU_TARGET); */
   /* __visc__attributes(2, data, distance, 1, distance); */
 
-  fft (inputs, data_size_bytes, N, logn, sign);
+  fft (inputs, data_size_bytes, input_N, logn, sign);
 
-  avg_max_t avg_max = calc_avg_max(inputs, data_size_bytes);
+  avg_max_t avg_max = calc_avg_max(input_N, inputs, data_size_bytes);
 
   float dist = INFINITY;
   if (avg_max.max_psd > 1e-10*pow(8192,2)) {
-    dist = ((float)(avg_max.max_index*((float)RADAR_fs)/((float)(RADAR_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
+    dist = ((float)(avg_max.max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
     //DEBUG(printf("Max distance is %.3f\nMax PSD is %4E\nMax index is %d\n", distance, max_psd, max_index));
     /* *distance = distance; */
     /* } else { */
@@ -1782,9 +1789,10 @@ typedef struct __attribute__((__packed__)) {
   uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;	      /* 11, 12 */
   char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;     /* 13, 14 */
   message_t* vit_out_msg;   size_t bytes_vit_out_msg;	      /* 15, 16 */
+  int   num_msgs_to_decode;				      /* 17 */
 
-  label_t* label;                 size_t bytes_label;         /* 17, 18 */
-  vehicle_state_t* vehicle_state; size_t bytes_vehicle_state; /* 19, 20 */
+  label_t* label;                 size_t bytes_label;         /* 18, 19 */
+  vehicle_state_t* vehicle_state; size_t bytes_vehicle_state; /* 20, 21 */
 
 } RootIn;
 
@@ -1799,9 +1807,10 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
 		 /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,       /* 12 */
 		 /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt,   /* 14 */
 		 /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg,       /* 16 */
-
-		 /* 17 */ label_t* label,                 size_t bytes_label,        /* 18 */ // Pland-and-Control
-		 /* 19 */ vehicle_state_t* vehicle_state, size_t bytes_vehicle_state /* 20 */
+		 /* 17 */ int num_msgs_to_decode,
+		 
+		 /* 18 */ label_t* label,                 size_t bytes_label,        /* 19 */ // Plan-and-Control
+		 /* 20 */ vehicle_state_t* vehicle_state, size_t bytes_vehicle_state /* 21 */
 		 )
 {
   //Specifies compilation target for current node
@@ -1860,9 +1869,10 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:bytes_vit_out_msg_txt
   __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
   __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
+  __visc__bindIn(EXEC_VIT_node, 17, 10, 0); // num_msgs_to_decode -> EXEC_VIT_node:num_msgs_to_decode
 
-  __visc__bindIn(PLAN_CTL_node, 17,  0, 0); // label -> PLAN_CTL_node::label
-  __visc__bindIn(PLAN_CTL_node, 18,  1, 0); // bytes_label -> PLAN_CTL_node::size_label
+  __visc__bindIn(PLAN_CTL_node, 18,  0, 0); // label -> PLAN_CTL_node::label
+  __visc__bindIn(PLAN_CTL_node, 19,  1, 0); // bytes_label -> PLAN_CTL_node::size_label
 
   // Use bindIn for the distance (pointer) and edge for the size_t (which also creates node->node flow dependence)
   __visc__bindIn(PLAN_CTL_node,  5,  2, 0); // radar_distance -> PLAN_CTL_node:radar_distance
@@ -1872,8 +1882,8 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __visc__bindIn(PLAN_CTL_node, 15,  4, 0); // vit_out_msg -> PLAN_CTL_node::message input  
   __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 0, 5, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
 
-  __visc__bindIn(PLAN_CTL_node, 19,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
-  __visc__bindIn(PLAN_CTL_node, 20,  7, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
+  __visc__bindIn(PLAN_CTL_node, 20,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __visc__bindIn(PLAN_CTL_node, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
   
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // tensor result
   //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // size of tensor
@@ -1915,9 +1925,9 @@ int main(int argc, char *argv[])
     case 'v':
       {
 	int inval = atoi(optarg);
-	if ((inval == 0) || (inval == 1)) {
-	  vit_msgs_behavior = inval;
-	}
+ 	//if ((inval == 0) || (inval == 1)) {
+	vit_msgs_behavior = inval;
+	//}
 	printf("Using viterbi behavior %u\n", vit_msgs_behavior);
       }
       break;
@@ -2030,6 +2040,7 @@ int main(int argc, char *argv[])
   llvm_visc_track_mem(&cv_infer_label, sizeof(label_t));
   llvm_visc_track_mem(&vehicle_state, sizeof(vehicle_state_t));
   
+  int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
 
   /* The input trace contains the per-epoch (time-step) input data */
   read_next_trace_record(vehicle_state);
@@ -2065,7 +2076,7 @@ int main(int argc, char *argv[])
     vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
 
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
-    int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
+    num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
     switch(vit_msgs_behavior) {
     case 2: num_vit_msgs = total_obj; break;
     case 3: num_vit_msgs = total_obj; break;
@@ -2104,49 +2115,27 @@ int main(int argc, char *argv[])
       xfer_vit_inputs[bi] = vdentry_p->in_bits[bi];
     }
 
-    rootArgs->ofdm_ptr          = &xfer_ofdm;
-    //rootArgs->ofdm_ptr          = &(vdentry_p->ofdm_p);
-    rootArgs->bytes_ofdm_parm   = sizeof(ofdm_param);
-    rootArgs->frame_ptr         = &xfer_frame;
-    //rootArgs->frame_ptr         = &(vdentry_p->frame_p);
-    rootArgs->bytes_frame_parm  = sizeof(frame_param);
-    rootArgs->vit_in_bits       = xfer_vit_inputs;
-    //rootArgs->vit_in_bits       = &(vdentry_p->in_bits);
-    rootArgs->bytes_vit_in_bits = MAX_ENCODED_BITS;
+    rootArgs->ofdm_ptr           = &xfer_ofdm;
+    rootArgs->bytes_ofdm_parm    = sizeof(ofdm_param);
+    rootArgs->frame_ptr          = &xfer_frame;
+    rootArgs->bytes_frame_parm   = sizeof(frame_param);
+    rootArgs->vit_in_bits        = xfer_vit_inputs;
+    rootArgs->bytes_vit_in_bits  = MAX_ENCODED_BITS;
     rootArgs->vit_out_msg_txt       = vit_msg_txt;
     rootArgs->bytes_vit_out_msg_txt = 1600;
-    rootArgs->vit_out_msg       = &vit_message;
-    rootArgs->bytes_vit_out_msg = sizeof(message_t);
-
+    rootArgs->vit_out_msg        = &vit_message;
+    rootArgs->bytes_vit_out_msg  = sizeof(message_t);
+    rootArgs->num_msgs_to_decode = num_vit_msgs;
+    
+    
     rootArgs->label               = &cv_infer_label;
     rootArgs->bytes_label         = sizeof(label_t);
     rootArgs->vehicle_state       = &vehicle_state;
     rootArgs->bytes_vehicle_state = sizeof(vehicle_state_t);
 
-    /* distance_t radar_dist  = execute_rad_kernel(radar_input, 8*RADAR_N,  */
-    /* 						RADAR_N, RADAR_LOGN, -1, */
-    /* 						distance, sizeof(float));  */
-
-    /* message_t vit_message; */
-    /* char out_msg_text[1600]; */
-    /* execute_vit_kernel(&(vdentry_p->ofdm_p),  sizeof(ofdm_param), */
-    /* 		       &(vdentry_p->frame_p), sizeof(frame_param), */
-    /* 		       vdentry_p->in_bits,    MAX_ENCODED_BITS, */
-    /* 		       out_msg_text,          1600, */
-    /* 		       &vit_message,          sizeof(message_t)); */
-
-    /* The plan_and_control() function makes planning and control decisions
-     * based on the currently perceived information. It returns the new
-     * vehicle state.
-     */
-    /* plan_and_control(cv_infer_label, radar_distance, vit_message, */
-    /* 		     &vehicle_state, sizeof(vehicle_state)); */
-
     // Launch the DFG to do the radar computation
     //        AND the Viterbi computation...
     //        AND the Plan-and-Control function
-    //void* radarExecDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
-    //__visc__wait(radarExecDFG);
     void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     __visc__wait(doExecPlanControlDFG);
 

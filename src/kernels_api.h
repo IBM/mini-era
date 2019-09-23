@@ -133,7 +133,9 @@ void execute_vit_kernel(ofdm_param* ofdm_ptr,    size_t ofdm_parms_size,
 			frame_param* frame_ptr,  size_t frame_parm_size,
 			uint8_t* input_bits,     size_t input_bits_size,
 			char* out_msg_txt,       size_t out_msg_txt_size,
-			message_t* out_message,  size_t out_message_size);
+			message_t* out_message,  size_t out_message_size,
+			int num_msgs_to_decode);
+
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
 void plan_and_control(label_t* label,                 size_t size_label,
