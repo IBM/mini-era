@@ -38,10 +38,16 @@ char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
 
 
+// This controls whether we output the Visualizer trace
+bool output_viz_trace = false;
+  
+
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
+  printf("    -h         : print this help information\n");
+  printf("    -o         : output the Visualizer trace (to stdout)\n");
   printf("    -t <trace> : defines the input trace file to use\n");
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
@@ -530,7 +536,9 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   }
   DEBUG(printf("IN_LINE : %s\n", in_line_buf));
   //DEBUG(
-  printf("  VizTrace: %u,%s\n", vs.lane, in_line_buf);//);
+  if (output_viz_trace) {
+    printf("  VizTrace: %u,%s\n", vs.lane, in_line_buf);//);
+  }
   last_i = 0;
   in_tok = 0;
   in_lane = 1;
@@ -1888,15 +1896,18 @@ int main(int argc, char *argv[])
 
   char* trace_file; 
   int opt; 
-      
+
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":ht:v:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hot:v:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
       exit(0);
+    case 'o':
+      output_viz_trace = true;
+      break;
     case 't':
       trace_file = optarg;
       printf("Using trace file: %s\n", trace_file);
