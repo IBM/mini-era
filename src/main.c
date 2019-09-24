@@ -384,88 +384,6 @@ bool_t eof_trace_reader()
 }
 
 
-label_t run_object_classification_syscall(unsigned tr_val) 
-{
-  DEBUG(printf("Entered run_object_classification...\n"));
-  label_t object;	
-#ifdef BYPASS_KERAS_CV_CODE
-  object = (label_t)tr_val;
-#else
-  char shell_cmd[100];
-  snprintf(shell_cmd, sizeof(shell_cmd), "sh utils/cnn_shell.sh %u", tr_val);
-  DEBUG(printf("  Invoking CV CNN using `%s`\n", shell_cmd));
-  FILE *testing = popen(shell_cmd, "r");
-  if (testing == NULL)
-  {
-    printf("FAIL to open CV kernel !\n");
-    return 1;
-  }
-  char pbuffer[100];
-  while (fgets(pbuffer, 100, testing) != NULL)
-  {
-    //printf(pbuffer);
-  }
-  DEBUG(printf("Label Prediction done \n"));
-  DEBUG(printf("pbuffer : %s\n", pbuffer));
-  int val = atoi(pbuffer);   //the last thing printed by the Keras code is the predicted label 
-  object = (label_t)val;
-  pclose(testing);
-  DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
-#endif
-  return object;  
-}
-
-label_t run_object_classification(unsigned tr_val) 
-{
-  DEBUG(printf("Entered run_object_classification...\n"));
-  label_t object = (label_t)tr_val;
-#ifndef BYPASS_KERAS_CV_CODE
-  if (pModule != NULL) {
-          pFunc = PyObject_GetAttrString(pModule, python_func);
-  
-	  if (pFunc && PyCallable_Check(pFunc)) {
-	     pArgs = PyTuple_New(1);
-	     pValue = PyLong_FromLong(tr_val);
-	     if (!pValue) {
-		Py_DECREF(pArgs);
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-		fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
-		return 1;
-	      }
-	      PyTuple_SetItem(pArgs, 0, pValue);
-	      pretValue = PyObject_CallObject(pFunc, pArgs);
-	      Py_DECREF(pArgs);
-	      if (pretValue != NULL) {
-		DEBUG(printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue)));
-	  	int val = PyLong_AsLong(pretValue);    
-	  	object = (label_t)val;
-          	DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
-		Py_DECREF(pretValue);
-	      }
-	      else {
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-		PyErr_Print();
-		printf("Trying to run CNN kernel : Python function call failed\n");
-		return 1;
-	       }
-	   }
-	   else {
-	      if (PyErr_Occurred())
-	      PyErr_Print();
-	      printf("Cannot find python function");
-	    }
-        Py_XDECREF(pFunc);
-    //Py_DECREF(pModule);
-   }
-   
-	  
-#endif
-  return object;  
-}
-
-
 void
 get_object_token(char c)
 {
@@ -593,6 +511,10 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   return true;
 }
 
+/*********************************************************************************
+ * The following is code to support the CV CNN kernel
+ *********************************************************************************/
+
 // This prepares the input for the execute_cv_kernel call
 label_t iterate_cv_kernel(vehicle_state_t vs)
 {
@@ -610,6 +532,89 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   label_t d_object = (label_t)tr_val;
   return d_object;
 }
+
+
+label_t run_object_classification_syscall(unsigned tr_val) 
+{
+  DEBUG(printf("Entered run_object_classification...\n"));
+  label_t object;	
+#ifdef BYPASS_KERAS_CV_CODE
+  object = (label_t)tr_val;
+#else
+  char shell_cmd[100];
+  snprintf(shell_cmd, sizeof(shell_cmd), "sh utils/cnn_shell.sh %u", tr_val);
+  DEBUG(printf("  Invoking CV CNN using `%s`\n", shell_cmd));
+  FILE *testing = popen(shell_cmd, "r");
+  if (testing == NULL)
+  {
+    printf("FAIL to open CV kernel !\n");
+    return 1;
+  }
+  char pbuffer[100];
+  while (fgets(pbuffer, 100, testing) != NULL)
+  {
+    //printf(pbuffer);
+  }
+  DEBUG(printf("Label Prediction done \n"));
+  DEBUG(printf("pbuffer : %s\n", pbuffer));
+  int val = atoi(pbuffer);   //the last thing printed by the Keras code is the predicted label 
+  object = (label_t)val;
+  pclose(testing);
+  DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+#endif
+  return object;  
+}
+
+label_t run_object_classification(unsigned tr_val) 
+{
+  DEBUG(printf("Entered run_object_classification...\n"));
+  label_t object = (label_t)tr_val;
+#ifndef BYPASS_KERAS_CV_CODE
+  if (pModule != NULL) {
+          pFunc = PyObject_GetAttrString(pModule, python_func);
+  
+	  if (pFunc && PyCallable_Check(pFunc)) {
+	     pArgs = PyTuple_New(1);
+	     pValue = PyLong_FromLong(tr_val);
+	     if (!pValue) {
+		Py_DECREF(pArgs);
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+		fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
+		return 1;
+	      }
+	      PyTuple_SetItem(pArgs, 0, pValue);
+	      pretValue = PyObject_CallObject(pFunc, pArgs);
+	      Py_DECREF(pArgs);
+	      if (pretValue != NULL) {
+		DEBUG(printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue)));
+	  	int val = PyLong_AsLong(pretValue);    
+	  	object = (label_t)val;
+          	DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+		Py_DECREF(pretValue);
+	      }
+	      else {
+		Py_DECREF(pFunc);
+		Py_DECREF(pModule);
+		PyErr_Print();
+		printf("Trying to run CNN kernel : Python function call failed\n");
+		return 1;
+	       }
+	   }
+	   else {
+	      if (PyErr_Occurred())
+	      PyErr_Print();
+	      printf("Cannot find python function");
+	    }
+        Py_XDECREF(pFunc);
+    //Py_DECREF(pModule);
+   }
+   
+	  
+#endif
+  return object;  
+}
+
 
 void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
 		       /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
@@ -640,6 +645,9 @@ void post_execute_cv_kernel(label_t d_object, label_t object)
 
 
 
+/*********************************************************************************
+ * The following is code to support the RADAR kernel
+ *********************************************************************************/
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_rad_kernel\n"));
@@ -649,6 +657,177 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   /* DEBUG(printf("  Using dist tr_val %u : in meters %f\n", tr_val, ddist)); */
   return &(the_radar_return_dict[tr_val]);
 }
+
+
+/* -*-Mode: C;-*- */
+
+/** #include fft-1d/fft.c **/
+/**BeginCopyright************************************************************
+ *
+ * $HeadURL: https://pastec.gtri.gatech.edu/svn/svn-dpc/INNC/projects/PERFECT-TAV-ES/suite/required/fft-1d/src/fft.c $
+ * $Id: fft.c 8546 2014-04-02 21:36:22Z tallent $
+ *
+ *---------------------------------------------------------------------------
+ * Part of PERFECT Benchmark Suite (hpc.pnnl.gov/projects/PERFECT/)
+ *---------------------------------------------------------------------------
+ *
+ * Copyright ((c)) 2014, Battelle Memorial Institute
+ * Copyright ((c)) 2014, Georgia Tech Research Corporation
+ * All rights reserved.
+ *
+ * 1. Battelle Memorial Institute (hereinafter Battelle) and Georgia Tech
+ *    Research Corporation (GTRC) hereby grant permission to any person
+ *    or entity lawfully obtaining a copy of this software and associated
+ *    documentation files (hereinafter "the Software") to redistribute
+ *    and use the Software in source and binary forms, with or without
+ *    modification.  Such person or entity may use, copy, modify, merge,
+ *    publish, distribute, sublicense, and/or sell copies of the
+ *    Software, and may permit others to do so, subject to the following
+ *    conditions:
+ * 
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimers.
+ * 
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ * 
+ *    * Other than as used herein, neither the name Battelle Memorial
+ *      Institute nor Battelle may be used in any form whatsoever without
+ *      the express written consent of Battelle.
+ * 
+ *      Other than as used herein, neither the name Georgia Tech Research
+ *      Corporation nor GTRC may not be used in any form whatsoever
+ *      without the express written consent of GTRC.
+ * 
+ *    * Redistributions of the software in any form, and publications
+ *      based on work performed using the software should include the
+ *      following citation as a reference:
+ * 
+ *      Kevin Barker, Thomas Benson, Dan Campbell, David Ediger, Roberto
+ *      Gioiosa, Adolfy Hoisie, Darren Kerbyson, Joseph Manzano, Andres
+ *      Marquez, Leon Song, Nathan R. Tallent, and Antonino Tumeo.
+ *      PERFECT (Power Efficiency Revolution For Embedded Computing
+ *      Technologies) Benchmark Suite Manual. Pacific Northwest National
+ *      Laboratory and Georgia Tech Research Institute, December 2013.
+ *      http://hpc.pnnl.gov/projects/PERFECT/
+ *
+ * 2. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *    FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+ *    BATTELLE, GTRC, OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *    INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ *    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ *    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ *    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ *    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ *    OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ **EndCopyright*************************************************************/
+
+static unsigned int
+_rev (unsigned int v)
+{
+  unsigned int r = v; 
+  int s = sizeof(v) * CHAR_BIT - 1; 
+
+  for (v >>= 1; v; v >>= 1)
+  {   
+    r <<= 1;
+    r |= v & 1;
+    s--;
+  }
+  r <<= s; 
+
+  return r;
+}
+
+
+static float *
+bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
+{
+  unsigned int i, s, shift;
+  s = sizeof(i) * CHAR_BIT - 1;
+  shift = s - bits + 1;
+
+  for (i = 0; i < N; i++) {
+    unsigned int r;
+    float t_real, t_imag;
+    r = _rev (i);
+    r >>= shift;
+
+    if (i < r) {
+      t_real = w[2 * i];
+      t_imag = w[2 * i + 1];
+      w[2 * i] = w[2 * r];
+      w[2 * i + 1] = w[2 * r + 1];
+      w[2 * r] = t_real;
+      w[2 * r + 1] = t_imag;
+    }
+  }
+
+  return w;
+}
+
+
+int
+fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign)
+{
+  unsigned int transform_length;
+  unsigned int a, b, i, j, bit;
+  float theta, t_real, t_imag, w_real, w_imag, s, t, s2, z_real, z_imag;
+
+  transform_length = 1;
+
+  /* bit reversal */
+  bit_reverse (data, data_size_bytes, N, logn);
+
+  /* calculation */
+  for (bit = 0; bit < logn; bit++) {
+    w_real = 1.0;
+    w_imag = 0.0;
+
+    theta = 1.0 * sign * M_PI / (float) transform_length;
+
+    s = sin (theta);
+    t = sin (0.5 * theta);
+    s2 = 2.0 * t * t;
+
+    for (a = 0; a < transform_length; a++) {
+      for (b = 0; b < N; b += 2 * transform_length) {
+	i = b + a;
+	j = b + a + transform_length;
+
+	z_real = data[2*j  ];
+	z_imag = data[2*j+1];
+
+	t_real = w_real * z_real - w_imag * z_imag;
+	t_imag = w_real * z_imag + w_imag * z_real;
+
+	/* write the result */
+	data[2*j  ]  = data[2*i  ] - t_real;
+	data[2*j+1]  = data[2*i+1] - t_imag;
+	data[2*i  ] += t_real;
+	data[2*i+1] += t_imag;
+      }
+
+      /* adjust w */
+      t_real = w_real - (s * w_imag + s2 * w_real);
+      t_imag = w_imag + (s * w_real - s2 * w_imag);
+      w_real = t_real;
+      w_imag = t_imag;
+
+    }
+
+    transform_length *= 2;
+  }
+
+  return 0;
+}
+
 
 void get_dist_from_fft(float * distance, size_t dist_size,
 		       unsigned int input_N,
@@ -692,6 +871,7 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
   __visc__return(1, dist_size);
 }
 
+
 void post_execute_rad_kernel(distance_t ddist, distance_t dist)
 {
   // Get an error estimate (Root-Squared?)
@@ -729,6 +909,10 @@ void post_execute_rad_kernel(distance_t ddist, distance_t dist)
   }
 }
 
+
+/*********************************************************************************
+ * The following is code to support the RADAR kernel
+ *********************************************************************************/
 
 /* Each time-step of the trace, we read in the 
  * trace values for the left, middle and right lanes
@@ -1434,6 +1618,9 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 }
 
 
+/*********************************************************************************
+ * The following is code to support the PLAN-AND-CONTROL kernel
+ *********************************************************************************/
 void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,    /* 1 */ 
 		      /* 2 */ distance_t* distance,           size_t size_distance, /* 3 */ 
 		      /* 4 */ message_t* message,             size_t size_message,  /* 5 */ 
@@ -1522,6 +1709,9 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 }
 
 
+/*********************************************************************************
+ * The following is code that runs to close-out the full simulation run
+ *********************************************************************************/
 void closeout_trace_reader()
 {
   fclose(input_trace);
@@ -1585,179 +1775,6 @@ void closeout_vit_kernel()
   double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
 }
-
-
-/* -*-Mode: C;-*- */
-
-/** #include fft-1d/fft.c **/
-/**BeginCopyright************************************************************
- *
- * $HeadURL: https://pastec.gtri.gatech.edu/svn/svn-dpc/INNC/projects/PERFECT-TAV-ES/suite/required/fft-1d/src/fft.c $
- * $Id: fft.c 8546 2014-04-02 21:36:22Z tallent $
- *
- *---------------------------------------------------------------------------
- * Part of PERFECT Benchmark Suite (hpc.pnnl.gov/projects/PERFECT/)
- *---------------------------------------------------------------------------
- *
- * Copyright ((c)) 2014, Battelle Memorial Institute
- * Copyright ((c)) 2014, Georgia Tech Research Corporation
- * All rights reserved.
- *
- * 1. Battelle Memorial Institute (hereinafter Battelle) and Georgia Tech
- *    Research Corporation (GTRC) hereby grant permission to any person
- *    or entity lawfully obtaining a copy of this software and associated
- *    documentation files (hereinafter "the Software") to redistribute
- *    and use the Software in source and binary forms, with or without
- *    modification.  Such person or entity may use, copy, modify, merge,
- *    publish, distribute, sublicense, and/or sell copies of the
- *    Software, and may permit others to do so, subject to the following
- *    conditions:
- * 
- *    * Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimers.
- * 
- *    * Redistributions in binary form must reproduce the above copyright
- *      notice, this list of conditions and the following disclaimer in
- *      the documentation and/or other materials provided with the
- *      distribution.
- * 
- *    * Other than as used herein, neither the name Battelle Memorial
- *      Institute nor Battelle may be used in any form whatsoever without
- *      the express written consent of Battelle.
- * 
- *      Other than as used herein, neither the name Georgia Tech Research
- *      Corporation nor GTRC may not be used in any form whatsoever
- *      without the express written consent of GTRC.
- * 
- *    * Redistributions of the software in any form, and publications
- *      based on work performed using the software should include the
- *      following citation as a reference:
- * 
- *      Kevin Barker, Thomas Benson, Dan Campbell, David Ediger, Roberto
- *      Gioiosa, Adolfy Hoisie, Darren Kerbyson, Joseph Manzano, Andres
- *      Marquez, Leon Song, Nathan R. Tallent, and Antonino Tumeo.
- *      PERFECT (Power Efficiency Revolution For Embedded Computing
- *      Technologies) Benchmark Suite Manual. Pacific Northwest National
- *      Laboratory and Georgia Tech Research Institute, December 2013.
- *      http://hpc.pnnl.gov/projects/PERFECT/
- *
- * 2. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *    FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
- *    BATTELLE, GTRC, OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *    INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- *    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
- *    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- *    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- *    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- *    ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
- *    OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- **EndCopyright*************************************************************/
-
-static unsigned int
-_rev (unsigned int v)
-{
-  unsigned int r = v; 
-  int s = sizeof(v) * CHAR_BIT - 1; 
-
-  for (v >>= 1; v; v >>= 1)
-  {   
-    r <<= 1;
-    r |= v & 1;
-    s--;
-  }
-  r <<= s; 
-
-  return r;
-}
-
-
-static float *
-bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
-{
-  unsigned int i, s, shift;
-  s = sizeof(i) * CHAR_BIT - 1;
-  shift = s - bits + 1;
-
-  for (i = 0; i < N; i++) {
-    unsigned int r;
-    float t_real, t_imag;
-    r = _rev (i);
-    r >>= shift;
-
-    if (i < r) {
-      t_real = w[2 * i];
-      t_imag = w[2 * i + 1];
-      w[2 * i] = w[2 * r];
-      w[2 * i + 1] = w[2 * r + 1];
-      w[2 * r] = t_real;
-      w[2 * r + 1] = t_imag;
-    }
-  }
-
-  return w;
-}
-
-
-int
-fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign)
-{
-  unsigned int transform_length;
-  unsigned int a, b, i, j, bit;
-  float theta, t_real, t_imag, w_real, w_imag, s, t, s2, z_real, z_imag;
-
-  transform_length = 1;
-
-  /* bit reversal */
-  bit_reverse (data, data_size_bytes, N, logn);
-
-  /* calculation */
-  for (bit = 0; bit < logn; bit++) {
-    w_real = 1.0;
-    w_imag = 0.0;
-
-    theta = 1.0 * sign * M_PI / (float) transform_length;
-
-    s = sin (theta);
-    t = sin (0.5 * theta);
-    s2 = 2.0 * t * t;
-
-    for (a = 0; a < transform_length; a++) {
-      for (b = 0; b < N; b += 2 * transform_length) {
-	i = b + a;
-	j = b + a + transform_length;
-
-	z_real = data[2*j  ];
-	z_imag = data[2*j+1];
-
-	t_real = w_real * z_real - w_imag * z_imag;
-	t_imag = w_real * z_imag + w_imag * z_real;
-
-	/* write the result */
-	data[2*j  ]  = data[2*i  ] - t_real;
-	data[2*j+1]  = data[2*i+1] - t_imag;
-	data[2*i  ] += t_real;
-	data[2*i+1] += t_imag;
-      }
-
-      /* adjust w */
-      t_real = w_real - (s * w_imag + s2 * w_real);
-      t_imag = w_imag + (s * w_real - s2 * w_imag);
-      w_real = t_real;
-      w_imag = t_imag;
-
-    }
-
-    transform_length *= 2;
-  }
-
-  return 0;
-}
-
-
-
 
 
 
