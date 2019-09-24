@@ -18,7 +18,8 @@
 #ifndef _kernels_api_h
 #define _kernels_api_h
 
-#define VERBOSE
+// If you uncomment the #define VERBOSE then run generates debugging output
+//#define VERBOSE
 #ifdef VERBOSE
 #define DEBUG(x) x
 #else
@@ -120,7 +121,10 @@ status_t init_vit_kernel(char* dict_fn);
 label_t run_object_classification(unsigned tr_val);
 
 label_t iterate_cv_kernel(vehicle_state_t vs);
-label_t execute_cv_kernel(label_t tr_val);
+
+void execute_cv_kernel(label_t* in_tr_val, size_t in_tr_val_size,
+		       label_t* out_label, size_t out_label_size);
+
 void post_execute_cv_kernel(label_t tr_val, label_t cnn_val);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);

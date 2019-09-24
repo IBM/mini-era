@@ -611,13 +611,17 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   return d_object;
 }
 
-label_t execute_cv_kernel(label_t tr_val)
+void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
+		       /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
 {
+  __visc__hint(DEVICE);
+  __visc__attributes(2, in_tr_val, out_label, 1, out_label);
+
   /* 2) Conduct object detection on the image frame */
-  // Call Keras Code  
-  label_t object = run_object_classification(tr_val); 
-  //label_t object = the_cv_object_dict[tr_val].object;
-  return object;
+  // Should replace with nodes generated from DNN compiled from Keras here?
+  *out_label = run_object_classification(*in_tr_val);
+  
+  __visc__return(1, out_label_size);
 }
 
 void post_execute_cv_kernel(label_t d_object, label_t object)
@@ -657,7 +661,7 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
 			unsigned int input_N, unsigned int in_logn, int in_sign,
 			distance_t * distance, size_t dist_size)
 {
-  __visc__hint(CPU_TARGET);
+  __visc__hint(DEVICE);
   __visc__attributes(2, inputs, distance, 1, distance);
 
   /* 2) Conduct distance estimation on the waveform */
@@ -1378,7 +1382,7 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 			/*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
 			/* 10 */ int num_msgs_to_decode)
 {
-  __visc__hint(CPU_TARGET);
+  __visc__hint(DEVICE);
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
 		     //2, out_msg_txt, out_message);
 		     1, out_message);
@@ -1411,10 +1415,10 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 }
 
 
-void plan_and_control(label_t* label,                 size_t size_label,
-		      distance_t* distance,           size_t size_distance,
-		      message_t* message,             size_t size_message,
-		      vehicle_state_t* vehicle_state, size_t size_vehicle_state)
+void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,    /* 1 */ 
+		      /* 2 */ distance_t* distance,           size_t size_distance, /* 3 */ 
+		      /* 4 */ message_t* message,             size_t size_message,  /* 5 */ 
+		      /* 6 */ vehicle_state_t* vehicle_state, size_t size_vehicle_state /* 7 */ )
 {
   __visc__hint(CPU_TARGET);
   __visc__attributes(4, label, distance, message, vehicle_state,
@@ -1762,14 +1766,16 @@ calc_avg_max(unsigned int input_N,
 
 
 void
-calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned int input_N, unsigned int logn, int sign, float * distance, size_t dist_size)
+calculate_peak_dist_from_fmcw(float* inputs, size_t input_size_bytes,
+			      unsigned int input_N, unsigned int logn, int sign,
+			      float * distance, size_t dist_size)
 {
-  /* __visc__hint(CPU_TARGET); */
-  /* __visc__attributes(2, data, distance, 1, distance); */
+  //__visc__hint(CPU_TARGET);
+  //__visc__attributes(2, data, distance, 1, distance);
 
-  fft (inputs, data_size_bytes, input_N, logn, sign);
+  fft (inputs, input_size_bytes, input_N, logn, sign);
 
-  avg_max_t avg_max = calc_avg_max(input_N, inputs, data_size_bytes);
+  avg_max_t avg_max = calc_avg_max(input_N, inputs, input_size_bytes);
 
   float dist = INFINITY;
   if (avg_max.max_psd > 1e-10*pow(8192,2)) {
@@ -1785,6 +1791,114 @@ calculate_peak_dist_from_fmcw(float* inputs, size_t data_size_bytes, unsigned in
 
 
 
+/********************************************************************/
+/*** HPVM Internal node Functions - Determine the graph structure ***/
+/********************************************************************/
+
+// We create a wrapper node per leaf node - this is an implementation
+// requirement for the FPGA backend . The CPU backend also supports this,
+// so it does not cause a portability issue.
+
+void execute_cv_wrapper(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
+			/* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
+{
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(2, in_tr_val, out_label, 1, out_label);
+
+  // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
+  // associated with node function execute_cv_kernel
+  //void* EXEC_CV_node = __visc__createNodeND(1, execute_cv_kernel, (size_t)1); // 1-D with 1 instance
+  void* EXEC_CV_node = __visc__createNodeND(0, execute_cv_kernel);
+
+  // Binds inputs of current node with specified node
+  // - destination node
+  // - argument position in argument list of function of source node
+  // - argument position in argument list of function of destination node
+  // - streaming (1) or non-streaming (0)
+  __visc__bindIn(EXEC_CV_node,  0,  0, 0); // in_tr_val -> EXEC_CV_node:in_tr_val
+  __visc__bindIn(EXEC_CV_node,  1,  1, 0); // in_tr_val_size -> EXEC_CV_node:in_tr_val_size
+  __visc__bindIn(EXEC_CV_node,  2,  2, 0); // out_label -> EXEC_CV_node:out_label
+  __visc__bindIn(EXEC_CV_node,  3,  3, 0); // out_label_size -> EXEC_CV_node:out_label_size
+
+  // Similar to bindIn, but for the output. Output of a node is a struct, and
+  // we consider the fields in increasing ordering.
+  __visc__bindOut(EXEC_CV_node, 0, 0, 0);
+}
+
+
+void execute_rad_wrapper(float * inputs, size_t input_size_bytes,
+			unsigned int input_N, unsigned int in_logn, int in_sign,
+			distance_t * distance, size_t dist_size)
+{
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(2, inputs, distance, 1, distance);
+
+  // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
+  // associated with node function execute_rad_kernel
+  //void* EXEC_RAD_node = __visc__createNodeND(1, execute_rad_kernel, (size_t)1); // 1-D with 1 instance
+  void* EXEC_RAD_node = __visc__createNodeND(0, execute_rad_kernel);
+
+  // Binds inputs of current node with specified node
+  // - destination node
+  // - argument position in argument list of function of source node
+  // - argument position in argument list of function of destination node
+  // - streaming (1) or non-streaming (0)
+  __visc__bindIn(EXEC_RAD_node,  0,  0, 0); // inputs -> EXEC_RAD_node:inputs
+  __visc__bindIn(EXEC_RAD_node,  1,  1, 0); // input_size_bytes -> EXEC_RAD_node:input_size_bytes
+  __visc__bindIn(EXEC_RAD_node,  2,  2, 0); // input_N -> EXEC_RAD_node:input_N
+  __visc__bindIn(EXEC_RAD_node,  3,  3, 0); // in_logn -> EXEC_RAD_node:in_logn
+  __visc__bindIn(EXEC_RAD_node,  4,  4, 0); // in_sign -> EXEC_RAD_node:in_sign
+  __visc__bindIn(EXEC_RAD_node,  5,  5, 0); // distance -> EXEC_RAD_node:distance
+  __visc__bindIn(EXEC_RAD_node,  6,  6, 0); // dist_size -> EXEC_RAD_node:dist_size
+
+  // Similar to bindIn, but for the output. Output of a node is a struct, and
+  // we consider the fields in increasing ordering.
+  __visc__bindOut(EXEC_RAD_node, 0, 0, 0);
+}
+
+void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,   /*  1 */
+			 /*  2 */ frame_param* frame_ptr,  size_t frame_parm_size,  /*  3 */
+			 /*  4 */ uint8_t* input_bits,     size_t input_bits_size,  /*  5 */
+			 /*  6 */ char* out_msg_txt,       size_t out_msg_txt_size, /*  7 */
+			 /*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
+			 /* 10 */ int num_msgs_to_decode)
+{
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
+		     //2, out_msg_txt, out_message);
+		     1, out_message);
+  
+  // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
+  // associated with node function execute_rad_kernel
+  void* EXEC_VIT_node = __visc__createNodeND(0, execute_vit_kernel);
+
+  // Binds inputs of current node with specified node
+  // - destination node
+  // - argument position in argument list of function of source node
+  // - argument position in argument list of function of destination node
+  // - streaming (1) or non-streaming (0)
+  __visc__bindIn(EXEC_VIT_node,  0,  0, 0); // ofdm_ptr -> EXEC_VIT_node::ofdm_ptr
+  __visc__bindIn(EXEC_VIT_node,  1,  1, 0); // ofdm_parm_size -> EXEC_VIT_node::ofdm_parm_size
+  __visc__bindIn(EXEC_VIT_node,  2,  2, 0); // frame_ptr -> EXEC_VIT_node::frame_ptr
+  __visc__bindIn(EXEC_VIT_node,  3,  3, 0); // frame_parm_size  -> EXEC_VIT_node::frame_parm_size
+  __visc__bindIn(EXEC_VIT_node,  4,  4, 0); // input_bits -> EXEC_VIT_node::input_bits
+  __visc__bindIn(EXEC_VIT_node,  5,  5, 0); // input_bits_size -> EXEC_VIT_node::input_bits_size
+  __visc__bindIn(EXEC_VIT_node,  6,  6, 0); // out_msg_txt -> EXEC_VIT_node::out_msg_txt
+  __visc__bindIn(EXEC_VIT_node,  7,  7, 0); // out_msg_txt_size -> EXEC_VIT_node::out_msg_txt_size
+  __visc__bindIn(EXEC_VIT_node,  8,  8, 0); // out_message -> EXEC_VIT_node::out_message
+  __visc__bindIn(EXEC_VIT_node,  9,  9, 0); // out_message_size -> EXEC_VIT_node::out_message_size
+  __visc__bindIn(EXEC_VIT_node, 10, 10, 0); // num_msgs_to_decode -> EXEC_VIT_node::num_msgs_to_decode
+
+  // Similar to bindIn, but for the output. Output of a node is a struct, and
+  // we consider the fields in increasing ordering.
+  __visc__bindOut(EXEC_VIT_node, 0, 0, 0);
+}
+
+
+
+
+// Type definition for struct used to pass arguments to the HPVM dataflow graph
+// using the hpvm launch operation
 
 typedef struct __attribute__((__packed__)) {
   float * radar_data;       size_t bytes_radar_data;          /*  0,  1 */
@@ -1806,6 +1920,7 @@ typedef struct __attribute__((__packed__)) {
 } RootIn;
 
 
+/*** ROOT Node - Top Level of the Graph Hierarchy ***/
 void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */    // RADAR
 		 /*  2 */ unsigned int radar_N,
 		 /*  3 */ unsigned int radar_logn,
@@ -1835,13 +1950,14 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   //                 3, radar_distance, vit_out_msg_txt, vit_out_msg);          // - count of "out" arguments, list of "out" arguments
 
   // FFT Node
-  void* EXEC_RAD_node = __visc__createNodeND(0, execute_rad_kernel);
+  //void* EXEC_RAD_node = __visc__createNodeND(0, execute_rad_kernel);
+  void* RAD_wrap_node = __visc__createNodeND(0, execute_rad_wrapper);
 
   // Viterbi Node
-  void* EXEC_VIT_node = __visc__createNodeND(0, execute_vit_kernel);
+  void* VIT_wrap_node = __visc__createNodeND(0, execute_vit_wrapper);
 
   // CV Nodes
-  // nodes generated from DNN compiled from Keras here
+  void* CV_wrap_node = __visc__createNodeND(0, execute_cv_wrapper);
 
   // Plan and Control Node
   void* PLAN_CTL_node = __visc__createNodeND(0, plan_and_control);
@@ -1860,48 +1976,49 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
-  __visc__bindIn(EXEC_RAD_node,  0,  0, 0); // radar_data -> EXEC_RAD_node:radar_data
-  __visc__bindIn(EXEC_RAD_node,  1,  1, 0); // bytes_radar_data -> EXEC_RAD_node:bytes_radar_data
-  __visc__bindIn(EXEC_RAD_node,  2,  2, 0); // radar_N -> EXEC_RAD_node:radar_N
-  __visc__bindIn(EXEC_RAD_node,  3,  3, 0); // radar_logn -> EXEC_RAD_node:radar_logn
-  __visc__bindIn(EXEC_RAD_node,  4,  4, 0); // radar_sign -> EXEC_RAD_node:radar_sign
-  __visc__bindIn(EXEC_RAD_node,  5,  5, 0); // radar_distance -> EXEC_RAD_node:radar_distance
-  __visc__bindIn(EXEC_RAD_node,  6,  6, 0); // bytes_radar_dist -> EXEC_RAD_node:bytes_radar_dist
+  __visc__bindIn(RAD_wrap_node,  0,  0, 0); // radar_data -> RAD_wrap_node:radar_data
+  __visc__bindIn(RAD_wrap_node,  1,  1, 0); // bytes_radar_data -> RAD_wrap_node:bytes_radar_data
+  __visc__bindIn(RAD_wrap_node,  2,  2, 0); // radar_N -> RAD_wrap_node:radar_N
+  __visc__bindIn(RAD_wrap_node,  3,  3, 0); // radar_logn -> RAD_wrap_node:radar_logn
+  __visc__bindIn(RAD_wrap_node,  4,  4, 0); // radar_sign -> RAD_wrap_node:radar_sign
+  __visc__bindIn(RAD_wrap_node,  5,  5, 0); // radar_distance -> RAD_wrap_node:radar_distance
+  __visc__bindIn(RAD_wrap_node,  6,  6, 0); // bytes_radar_dist -> RAD_wrap_node:bytes_radar_dist
 
-  __visc__bindIn(EXEC_VIT_node,  7,  0, 0); // ofdm_ptr -> EXEC_VIT_node:ofdm_ptr
-  __visc__bindIn(EXEC_VIT_node,  8,  1, 0); // bytes_ofdm_parm -> EXEC_VIT_node:bytes_ofdm_parm
-  __visc__bindIn(EXEC_VIT_node,  9,  2, 0); // frame_ptr -> EXEC_VIT_node:frame_ptr
-  __visc__bindIn(EXEC_VIT_node, 10,  3, 0); // bytes_frame_parm -> EXEC_VIT_node:bytes_frame_parm
-  __visc__bindIn(EXEC_VIT_node, 11,  4, 0); // vit_in_bits -> EXEC_VIT_node:vit_in_bits
-  __visc__bindIn(EXEC_VIT_node, 12,  5, 0); // bytes_vit_in_bits -> EXEC_VIT_node:bytes_vit_in_bits
-  __visc__bindIn(EXEC_VIT_node, 13,  6, 0); // vit_out_msg_txt -> EXEC_VIT_node:vit_out_msg_txt
-  __visc__bindIn(EXEC_VIT_node, 14,  7, 0); // bytes_vit_out_msg_txt -> EXEC_VIT_node:bytes_vit_out_msg_txt
-  __visc__bindIn(EXEC_VIT_node, 15,  8, 0); // vit_out_msg -> EXEC_VIT_node:vit_out_msg
-  __visc__bindIn(EXEC_VIT_node, 16,  9, 0); // bytes_vit_out_msg -> EXEC_VIT_node:bytes_vit_out_msg
-  __visc__bindIn(EXEC_VIT_node, 17, 10, 0); // num_msgs_to_decode -> EXEC_VIT_node:num_msgs_to_decode
+  __visc__bindIn(VIT_wrap_node,  7,  0, 0); // ofdm_ptr -> VIT_wrap_node:ofdm_ptr
+  __visc__bindIn(VIT_wrap_node,  8,  1, 0); // bytes_ofdm_parm -> VIT_wrap_node:bytes_ofdm_parm
+  __visc__bindIn(VIT_wrap_node,  9,  2, 0); // frame_ptr -> VIT_wrap_node:frame_ptr
+  __visc__bindIn(VIT_wrap_node, 10,  3, 0); // bytes_frame_parm -> VIT_wrap_node:bytes_frame_parm
+  __visc__bindIn(VIT_wrap_node, 11,  4, 0); // vit_in_bits -> VIT_wrap_node:vit_in_bits
+  __visc__bindIn(VIT_wrap_node, 12,  5, 0); // bytes_vit_in_bits -> VIT_wrap_node:bytes_vit_in_bits
+  __visc__bindIn(VIT_wrap_node, 13,  6, 0); // vit_out_msg_txt -> VIT_wrap_node:vit_out_msg_txt
+  __visc__bindIn(VIT_wrap_node, 14,  7, 0); // bytes_vit_out_msg_txt -> VIT_wrap_node:bytes_vit_out_msg_txt
+  __visc__bindIn(VIT_wrap_node, 15,  8, 0); // vit_out_msg -> VIT_wrap_node:vit_out_msg
+  __visc__bindIn(VIT_wrap_node, 16,  9, 0); // bytes_vit_out_msg -> VIT_wrap_node:bytes_vit_out_msg
+  __visc__bindIn(VIT_wrap_node, 17, 10, 0); // num_msgs_to_decode -> VIT_wrap_node:num_msgs_to_decode
 
-  __visc__bindIn(PLAN_CTL_node, 18,  0, 0); // label -> PLAN_CTL_node::label
-  __visc__bindIn(PLAN_CTL_node, 19,  1, 0); // bytes_label -> PLAN_CTL_node::size_label
+  __visc__bindIn(CV_wrap_node, 18, 0, 0); // label -> CV_wrap_node:in_tr_val
+  __visc__bindIn(CV_wrap_node, 19, 1, 0); // label_size -> CV_wrap_node:in_tr_val_size
+  __visc__bindIn(CV_wrap_node, 18, 2, 0); // label -> CV_wrap_node:out_label
+  __visc__bindIn(CV_wrap_node, 19, 3, 0); // label_size -> CV_wrap_node:out_label_size
+
+  // Use bindIn for the label (pointer) and edge for the size_t (which also creates node->node flow dependence)
+  __visc__bindIn(PLAN_CTL_node, 18,  0, 0); // out_label -> PLAN_CTL_node::label
+  __visc__edge(CV_wrap_node, PLAN_CTL_node, 1, 0, 1, 0); // RAD_wrap_node::out_label_size output -> PLAN_CTL_node::size_label
 
   // Use bindIn for the distance (pointer) and edge for the size_t (which also creates node->node flow dependence)
   __visc__bindIn(PLAN_CTL_node,  5,  2, 0); // radar_distance -> PLAN_CTL_node:radar_distance
-  __visc__edge(EXEC_RAD_node, PLAN_CTL_node, 1, 0, 3, 0); // EXEC_RAD_node::dist_size ouput -> PLAN_CTL_node::distance input
+  __visc__edge(RAD_wrap_node, PLAN_CTL_node, 1, 0, 3, 0); // RAD_wrap_node::dist_size ouput -> PLAN_CTL_node::distance input
 
   // Use bindIn for the vit_out_msg (pointer) and edge for the size_t (which also creates node->node flow dependence)
   __visc__bindIn(PLAN_CTL_node, 15,  4, 0); // vit_out_msg -> PLAN_CTL_node::message input  
-  __visc__edge(EXEC_VIT_node, PLAN_CTL_node, 1, 0, 5, 0); // EXEC_VIT_NODE::out_message -> PLAN_CTL_node::message input
+  __visc__edge(VIT_wrap_node, PLAN_CTL_node, 1, 0, 5, 0); // VIT_wrap_node::out_message -> PLAN_CTL_node::message input
 
   __visc__bindIn(PLAN_CTL_node, 20,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
   __visc__bindIn(PLAN_CTL_node, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
+  //__visc__edge(PLAN_CTL_node, PLAN_CTL_node, 1, 0, 7, 0); // PLAN_CTL_node::size_vehicle_stat -> PLAN_CTL_node::size_vehicle_state
   
-  //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // tensor result
-  //__visc__edge(/* last of Keras nodes */, PC_node, 1, , , 0); // size of tensor
-
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  //__visc__bindOut(EXEC_RAD_node, 0, 0, 0);
-  //__visc__bindOut(EXEC_VIT_node, 1, 0, 0);
-  //__visc__bindOut(EXEC_VIT_node, 2, 1, 1);
   __visc__bindOut(PLAN_CTL_node, 0, 0, 0);  // Output is just the new vehicle_state
 }
 
@@ -1909,9 +2026,6 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
-  /* label_t label; */
-  /* distance_t distance; */
-  /* message_t message; */
 
   char* trace_file; 
   int opt; 
@@ -2095,7 +2209,7 @@ int main(int argc, char *argv[])
 
 
     // EXECUTE the kernels using the now known inputs 
-    cv_infer_label = execute_cv_kernel(cv_tr_label);
+    cv_infer_label = cv_tr_label; // Set default output to match the input (in case we bypass CNN call)
 
     // Set up HPVM DFG inputs in the rootArgs struct.
     rootArgs->radar_data       = radar_input;
@@ -2142,9 +2256,12 @@ int main(int argc, char *argv[])
     rootArgs->vehicle_state       = &vehicle_state;
     rootArgs->bytes_vehicle_state = sizeof(vehicle_state_t);
 
-    // Launch the DFG to do the radar computation
+    // Launch the DFG to do:
+    //            the CV CNN analysis,
+    //        AND the radar computation
     //        AND the Viterbi computation...
     //        AND the Plan-and-Control function
+
     void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
     __visc__wait(doExecPlanControlDFG);
 
