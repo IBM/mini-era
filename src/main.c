@@ -144,13 +144,11 @@ unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
   
 
-void descrambler(uint8_t* in,   size_t in_size,
-		 int psdusize,
-		 char* out_msg, size_t out_msg_size);
 
 
-
-
+/*********************************************************************************
+ * The following is code to support the initialization of the simulation run
+ *********************************************************************************/
 
 status_t init_trace_reader(char* trace_filename)
 {
@@ -510,10 +508,6 @@ bool_t read_next_trace_record(vehicle_state_t vs)
 #endif
   return true;
 }
-
-/*********************************************************************************
- * The following is code to support the CV CNN kernel
- *********************************************************************************/
 
 // This prepares the input for the execute_cv_kernel call
 label_t iterate_cv_kernel(vehicle_state_t vs)
@@ -1491,9 +1485,9 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
 
 
 
-void descrambler(uint8_t* in,   size_t in_size,
-		 int psdusize,
-		 char* out_msg, size_t out_msg_size)
+void viterbi_descrambler(uint8_t* in,   size_t in_size,
+			 int psdusize,
+			 char* out_msg, size_t out_msg_size)
 {
   uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
   uint32_t msg_length = (psdusize)-28;
@@ -1566,10 +1560,10 @@ void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
   
   /* Now descramble the output from the decoder to get to plain-text message */
   int psdusize = frame_ptr->psdu_size;
-  DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-  descrambler(l_decoded,   MAX_ENCODED_BITS * 3 / 4, 
-	      psdusize,    
-	      out_msg_txt, 1600);
+  DEBUG(printf("  Calling the viterbi_descrambler routine\n"));
+  viterbi_descrambler(l_decoded,   MAX_ENCODED_BITS * 3 / 4, 
+		      psdusize,    
+		      out_msg_txt, 1600);
 
   /* This analyzes the message text and sets the out_message message_t indicator */
   viterbi_analyze_msg_text(out_msg_txt, out_msg_txt_size,
