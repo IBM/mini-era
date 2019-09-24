@@ -645,17 +645,34 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   DEBUG(printf("In iterate_rad_kernel\n"));
 
   unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The effective "radar bucket" distance
-  //distance_t ddist = 1.0 * the_radar_return_dict[tr_val].distance;
-
-  /* // We have to make a working copy of the inputs -- I think the calculate_peak_dist_from_fmcw alters the input data space */
-  /* float * ref_in = the_radar_return_dict[tr_val].return_data; */
-  /* for (int ii = 0; ii < 2*RADAR_N; ii++) { */
-  /*   inputs[ii] = ref_in[ii]; */
-  /* } */
 
   /* DEBUG(printf("  Using dist tr_val %u : in meters %f\n", tr_val, ddist)); */
   return &(the_radar_return_dict[tr_val]);
 }
+
+void get_dist_from_fft(float * distance, size_t dist_size,
+		       unsigned int input_N,
+		       float* data, size_t data_size_bytes)
+{
+  float max_psd   = 0.0;
+  unsigned int max_index = data_size_bytes; /* A too large value */
+  
+  float temp;
+  for (int i = 0; i < input_N; i++) {
+    temp = (pow(data[2*i],2) + pow(data[2*i+1],2))/100.0;
+    if (temp > max_psd) {
+      max_psd = temp;
+      max_index = i;
+    }
+  }
+
+  float dist = INFINITY;
+  if (max_psd > 1e-10*pow(8192,2)) {
+    dist = ((float)(max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
+  }
+  *distance = dist;
+}
+
 
 void execute_rad_kernel(float * inputs, size_t input_size_bytes,
 			unsigned int input_N, unsigned int in_logn, int in_sign,
@@ -665,10 +682,12 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
   __visc__attributes(2, inputs, distance, 1, distance);
 
   /* 2) Conduct distance estimation on the waveform */
-  //DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-  calculate_peak_dist_from_fmcw(inputs, input_size_bytes, input_N, in_logn, in_sign, distance, dist_size);
+  // The fft routine reads from inputs and writes results in the same memory
+  fft (inputs, input_size_bytes, input_N, in_logn, in_sign);
 
-  //__visc__return(1, distance);
+  // get_dist_from_fft takes fft output and puts a distance into distance
+  get_dist_from_fft(distance, dist_size, input_N, inputs, input_size_bytes);
+
   // Return the SIZE -- the pointer is transferred by a __visc__bind
   __visc__return(1, dist_size);
 }
@@ -1738,44 +1757,7 @@ fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, in
 }
 
 
-void get_dist_from_fft(float * distance, size_t dist_size,
-		       unsigned int input_N,
-		       float* data, size_t data_size_bytes)
-{
-  //calc_avg_max(input_N, data, data_size_bytes);
-  float max_psd   = 0.0;
-  unsigned int max_index = data_size_bytes; /* A too large value */
-  
-  float temp;
-  for (int i = 0; i < input_N; i++) {
-    temp = (pow(data[2*i],2) + pow(data[2*i+1],2))/100.0;
-    if (temp > max_psd) {
-      max_psd = temp;
-      max_index = i;
-    }
-  }
 
-  float dist = INFINITY;
-  if (max_psd > 1e-10*pow(8192,2)) {
-    dist = ((float)(max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
-  }
-  *distance = dist;
-}
-
-
-void
-calculate_peak_dist_from_fmcw(float* inputs, size_t input_size_bytes,
-			      unsigned int input_N, unsigned int logn, int sign,
-			      float * distance, size_t dist_size)
-{
-  //__visc__hint(DEVICE);
-  //__visc__attributes(2, data, distance, 1, distance);
-  // The fft routine reads from inputs and writes results in the same memory
-  fft (inputs, input_size_bytes, input_N, logn, sign);
-  // get_dist_from_fft takes fft output and puts a distance into distance
-  get_dist_from_fft(distance, dist_size, input_N, inputs, input_size_bytes);
-  //__visc__return(1, dist_size)
-}
 
 
 
