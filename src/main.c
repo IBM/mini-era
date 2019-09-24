@@ -1738,30 +1738,28 @@ fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, in
 }
 
 
-typedef struct {
-  float max_psd;
-  unsigned int max_index;
-} avg_max_t;
-
-
-avg_max_t
-calc_avg_max(unsigned int input_N,
-	     float* data, size_t data_size_bytes)
+void get_dist_from_fft(float * distance, size_t dist_size,
+		       unsigned int input_N,
+		       float* data, size_t data_size_bytes)
 {
-  avg_max_t ret_val;
-  ret_val.max_psd   = 0;
-  ret_val.max_index = data_size_bytes; /* A too large value */
+  //calc_avg_max(input_N, data, data_size_bytes);
+  float max_psd   = 0.0;
+  unsigned int max_index = data_size_bytes; /* A too large value */
   
-  unsigned int i;
   float temp;
-  for (i=0; i < input_N; i++) {
+  for (int i = 0; i < input_N; i++) {
     temp = (pow(data[2*i],2) + pow(data[2*i+1],2))/100.0;
-    if (temp > ret_val.max_psd) {
-      ret_val.max_psd = temp;
-      ret_val.max_index = i;
+    if (temp > max_psd) {
+      max_psd = temp;
+      max_index = i;
     }
   }
-  return ret_val;
+
+  float dist = INFINITY;
+  if (max_psd > 1e-10*pow(8192,2)) {
+    dist = ((float)(max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
+  }
+  *distance = dist;
 }
 
 
@@ -1770,22 +1768,12 @@ calculate_peak_dist_from_fmcw(float* inputs, size_t input_size_bytes,
 			      unsigned int input_N, unsigned int logn, int sign,
 			      float * distance, size_t dist_size)
 {
-  //__visc__hint(CPU_TARGET);
+  //__visc__hint(DEVICE);
   //__visc__attributes(2, data, distance, 1, distance);
-
+  // The fft routine reads from inputs and writes results in the same memory
   fft (inputs, input_size_bytes, input_N, logn, sign);
-
-  avg_max_t avg_max = calc_avg_max(input_N, inputs, input_size_bytes);
-
-  float dist = INFINITY;
-  if (avg_max.max_psd > 1e-10*pow(8192,2)) {
-    dist = ((float)(avg_max.max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
-    //DEBUG(printf("Max distance is %.3f\nMax PSD is %4E\nMax index is %d\n", distance, max_psd, max_index));
-    /* *distance = distance; */
-    /* } else { */
-    /*   *distance = INFINITY; */
-  }
-  *distance = dist;
+  // get_dist_from_fft takes fft output and puts a distance into distance
+  get_dist_from_fft(distance, dist_size, input_N, inputs, input_size_bytes);
   //__visc__return(1, dist_size)
 }
 
