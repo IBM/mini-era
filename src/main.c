@@ -22,11 +22,13 @@
 #include <unistd.h>
 
 //#include <Python.h>
+//#include "fft-1d.h"
+#include <stdint.h>
 #include <math.h>
+#include <limits.h>
 
 #include "kernels_api.h"
 
-#include "fft-1d.h"
 
 #include "calc_fmcw_dist.h"
 #include "visc.h"
@@ -767,8 +769,7 @@ bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
 }
 
 
-int
-fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign)
+void fft(float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign)
 {
   unsigned int transform_length;
   unsigned int a, b, i, j, bit;
@@ -818,8 +819,6 @@ fft (float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, in
 
     transform_length *= 2;
   }
-
-  return 0;
 }
 
 

@@ -12,5 +12,4 @@
 
 /* Some function declarations */
 
-extern void calculate_peak_dist_from_fmcw(float* data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign, float * distance, size_t dist_size);
 #endif
