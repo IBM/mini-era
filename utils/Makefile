@@ -68,8 +68,10 @@ objv_dbg/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DFOR_VIS -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 clean:
-	$(RM) tracegen   $(T_OBJ)
-	$(RM) vtracegen  $(T_OBJ_DBG)
+	$(RM) tracegen           $(T_OBJ)
+	$(RM) vistracegen        $(T_OBJV)
+	$(RM) debug_tracegen     $(T_OBJ_DBG)
+	$(RM) debug_vistracegen  $(T_OBJV_DBG)
 
 allclean: clean
 	$(RM) -rf $(OBJDIR)

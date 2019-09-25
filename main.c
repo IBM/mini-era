@@ -22,19 +22,23 @@
 #include <unistd.h>
 
 #include "kernels_api.h"
-
+#include "sim_environs.h"
 
 #define TIME
 char * cv_dict  = "traces/objects_dictionary.dfn";
 char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
 
-
-
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
+  printf("    -h         : print this helpfule usage info\n");
+  printf("    -o         : print the Visualizer output traace information during the run\n");
+#ifdef USE_SIM_ENVIRON
+  printf("    -s <N>     : Sets the max number of time steps to simulate\n");
+#else
   printf("    -t <trace> : defines the input trace file to use\n");
+#endif
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
@@ -52,21 +56,33 @@ int main(int argc, char *argv[])
   distance_t distance;
   message_t message;
 
+#ifndef USE_SIM_ENVIRON
   char* trace_file; 
+#endif
   int opt; 
       
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":ht:v:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hot:v:s:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
       exit(0);
+    case 'o':
+      output_viz_trace = true;
+      break;
+#ifdef USE_SIM_ENVIRON
+    case 's':
+      max_time_steps = atoi(optarg);
+      printf("Using %u maximum time steps (simulation)\n", max_time_steps);
+      break;
+#else
     case 't':
       trace_file = optarg;
       printf("Using trace file: %s\n", trace_file);
       break;
+#endif
     case 'v':
       vit_msgs_behavior = atoi(optarg);
       printf("Using viterbi behavior %u\n", vit_msgs_behavior);
@@ -104,11 +120,12 @@ int main(int argc, char *argv[])
   /* } */
 
 
+  char cv_py_file[] = "../cv/keras_cnn/lenet.py";
+
+#ifndef USE_SIM_ENVIRON
   /* Trace filename construction */
   /* char * trace_file = argv[1]; */
   printf("Input trace file: %s\n", trace_file);
-
-  char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
   /* Trace Reader initialization */
   if (!init_trace_reader(trace_file))
@@ -116,7 +133,8 @@ int main(int argc, char *argv[])
     printf("Error: the trace reader couldn't be initialized properly.\n");
     return 1;
   }
-
+#endif
+  
   /* Kernels initialization */
   if (!init_cv_kernel(cv_py_file, cv_dict))
   {
@@ -134,6 +152,10 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+#ifdef USE_SIM_ENVIRON
+  init_sim_environs();
+#endif
+  
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
    *  - Speed: 50 mph
@@ -142,14 +164,19 @@ int main(int argc, char *argv[])
   vehicle_state.speed = 50;
   DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
+  unsigned time_step = 0;
   #ifdef TIME
-         int loop=0;
-         struct timeval stop, start;
+  struct timeval stop, start;
   #endif
 
   /* The input trace contains the per-epoch (time-step) input data */
+#ifdef USE_SIM_ENVIRON
+  DEBUG(printf("\n\nTime Step %d\n", time_step));  
+  while (iterate_sim_environs(vehicle_state))
+#else //TRACE DRIVEN MODE
   read_next_trace_record(vehicle_state);
   while (!eof_trace_reader())
+#endif
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
@@ -182,14 +209,17 @@ int main(int argc, char *argv[])
      */
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
-    
+
     #ifdef TIME  
-          loop++;
-          if (loop == 1) { 
-  	  gettimeofday(&start, NULL);
-	  }
+    time_step++;
+    if (time_step == 1) { 
+      gettimeofday(&start, NULL);
+    }
     #endif	  
+
+    #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
+    #endif
   }
 
   #ifdef TIME
@@ -202,7 +232,7 @@ int main(int argc, char *argv[])
   closeout_vit_kernel();
 
   #ifdef TIME
-  	printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+  printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
   #endif 
   printf("\nDone.\n");
   return 0;

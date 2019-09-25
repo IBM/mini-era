@@ -36,8 +36,12 @@ typedef enum {error, success} status_t;
 #define NUM_OBJECTS   5
 #define NUM_MESSAGES  4
 
-#define INF_DISTANCE           550 // radar tops out at ~500m 
-#define RADAR_BUCKET_DISTANCE  50  // The radar is in steps of 50
+#define MAX_OBJ_IN_LANE  16
+
+#define MAX_DISTANCE     500.0  // Max resolution distance of radar is < 500.0m
+#define DIST_STEP_SIZE    50.0
+#define INF_DISTANCE     (MAX_DISTANCE + DIST_STEP_SIZE)
+#define RADAR_BUCKET_DISTANCE  DIST_STEP_SIZE  // The radar is in steps of 50
 
 /* These thresholds (in meters) are used by the plan_and_control()
  * function to make plan and control decisions.
@@ -49,22 +53,33 @@ typedef enum {error, success} status_t;
 #define VIT_CLEAR_THRESHOLD  THRESHOLD_1
 
 
+/* Pre-defined labels used by the computer vision kernel */
+typedef enum {
+  myself = -1,
+  no_label = 0,
+  car,
+  truck,
+  pedestrian,
+  bicycle
+} label_t;
+
+
+/* The potential (horizontal) positions of any object (i.e. lane indications) */
+typedef enum {
+  lhazard = 0, 
+  left, 
+  center, 
+  right,
+  rhazard,
+} lane_t;
+
 /* These are some global type defines, etc. */
 typedef struct
 {
-  enum {lhazard, left, center, right, rhazard} lane;
+  lane_t lane;
   float speed;
 } vehicle_state_t;
 
-
-/* Pre-defined labels used by the computer vision kernel */
-typedef enum {
-  no_label,
-  bus,
-  car,
-  pedestrian,
-  truck
-} label_t;
 
 
 /* Pre-defined messages used by the Viterbi decoding kernel */
@@ -76,12 +91,24 @@ typedef enum {
   unsafe_to_move_left_or_right = 3 
 } message_t;
 
+
+extern bool_t output_viz_trace;
+
 extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
 
 extern unsigned vit_msgs_behavior;
   
+extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
+extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
+extern unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
+char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
+
+char     nearest_obj[NUM_LANES];
+extern unsigned nearest_dist[NUM_LANES];
+
+extern unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 
 /* Input Trace Functions */
