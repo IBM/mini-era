@@ -769,7 +769,10 @@ bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
 }
 
 
-void fft(float * data, size_t data_size_bytes, unsigned int N, unsigned int logn, int sign)
+void fft(/* 0 */ float * data, size_t data_size_bytes, /* 1 */ 
+	 /* 2 */ unsigned int N,
+	 /* 3 */ unsigned int logn,
+	 /* 4 */ int sign)
 {
   unsigned int transform_length;
   unsigned int a, b, i, j, bit;
@@ -822,9 +825,9 @@ void fft(float * data, size_t data_size_bytes, unsigned int N, unsigned int logn
 }
 
 
-void get_dist_from_fft(float * distance, size_t dist_size,
-		       unsigned int input_N,
-		       float* data, size_t data_size_bytes)
+void get_dist_from_fft(/* 0 */ float * distance, size_t dist_size, /* 1 */ 
+		       /* 2 */ unsigned int input_N,
+		       /* 3 */ float* data, size_t data_size_bytes /* 4 */ )
 {
   float max_psd   = 0.0;
   unsigned int max_index = data_size_bytes; /* A too large value */
@@ -1580,11 +1583,10 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 {
   __visc__hint(DEVICE);
   __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
-		     //2, out_msg_txt, out_message);
-		     1, out_message);
+		     2, out_message, out_msg_txt);
   
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
-  // We will decode num_msgs_to_Decode of the same message (for now) and return the last one.
+  // We will decode num_msgs_to_decode of the same message (for now) and return the last one.
   DEBUG(printf("Decoding %u messages\n", num_msgs_to_decode));
   for (int mi = 0; mi < num_msgs_to_decode; mi++) {
     viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
@@ -1595,10 +1597,8 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 				out_message, sizeof(message_t));
   }
   
-  //__visc__return(2, out_msg_txt_size, out_message_size);
-  //__visc__return(1, out_message);
   // Return the SIZE -- the pointer is transferred by a __visc__bind
-  __visc__return(1, out_message_size);
+  __visc__return(2, out_message_size, out_msg_txt_size);
 }
 
 
