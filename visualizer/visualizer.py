@@ -60,7 +60,10 @@ def set_background():
     screen.fill(grass_color)
 
     # Draw background
-    pygame.draw.rect(screen, DARK_GREY , pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+    if (five_lane_trace) :
+        pygame.draw.rect(screen, DARK_GREY , pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+    else:
+        pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(lane_width, 0, road_width, screen_height)) # road
     pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(2*lane_width, 0, 3*lane_width, screen_height)) # road
     pygame.draw.line(screen, TANGERINE, [lane_width*2, 0], [lane_width*2, screen_height], 3) # first road line
     pygame.draw.line(screen, TANGERINE, [lane_width*3, 0], [lane_width*3, screen_height], 3) # second road line
