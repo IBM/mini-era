@@ -103,6 +103,9 @@ init_sim_environs()
   my_car.next = NULL;		// not used for my_car
 
   time_steps = 0;
+
+  srand(rand_seed);
+  printf("Using rand seed: %u\n", rand_seed);
 }
 
 

@@ -50,6 +50,7 @@ float    nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, I
 
 unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
+unsigned rand_seed = 0; // Only used if -r <N> option set
 
 
 

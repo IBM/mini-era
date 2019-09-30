@@ -39,6 +39,7 @@ void print_usage(char * pname) {
 #else
   printf("    -t <trace> : defines the input trace file to use\n");
 #endif
+  printf("    -r <N>     : Sets the rand random number seed to N\n");
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
@@ -55,7 +56,6 @@ int main(int argc, char *argv[])
   label_t label;
   distance_t distance;
   message_t message;
-
 #ifndef USE_SIM_ENVIRON
   char* trace_file; 
 #endif
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hot:v:s:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hot:v:s:r:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
@@ -83,6 +83,9 @@ int main(int argc, char *argv[])
       printf("Using trace file: %s\n", trace_file);
       break;
 #endif
+    case 'r':
+      rand_seed = atoi(optarg);
+      break;
     case 'v':
       vit_msgs_behavior = atoi(optarg);
       printf("Using viterbi behavior %u\n", vit_msgs_behavior);

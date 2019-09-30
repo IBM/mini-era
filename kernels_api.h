@@ -110,6 +110,7 @@ extern float nearest_dist[NUM_LANES];
 
 extern unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
+extern unsigned rand_seed;
 
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);
