@@ -105,8 +105,8 @@ extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each la
 extern unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
 char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
 
-char     nearest_obj[NUM_LANES];
-extern unsigned nearest_dist[NUM_LANES];
+extern char  nearest_obj[NUM_LANES];
+extern float nearest_dist[NUM_LANES];
 
 extern unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 

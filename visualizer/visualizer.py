@@ -47,6 +47,9 @@ MOVE_DOWN = 100 # 500 # every 500ms
 
 obj_list = []
 
+five_lane_trace = False;
+
+
 # HELPER FUNCTIONS
 def set_background():
     """
@@ -80,7 +83,7 @@ def get_img(path):
         img_lib[path] = image
     return image
 
-def parse_trace(filename):  
+def parse_trace(filename, five_lanes):  
     """
     Objective: Parces trace files
     Trace_Format:  One epoch per line: my_lane, Left-Lane Objs, Mid-Lane Objs, Right-Lane-Objs\n
@@ -93,19 +96,28 @@ def parse_trace(filename):
         filename: path name of the trace file
     """ 
     my_lane    = []
+    lhaz_lane  = []
     left_lane  = []
     mid_lane   = []
     right_lane = []
+    rhaz_lane = []
 
     with open(filename) as f:
         lines = f.readlines()
     for line in lines:
         tokens = line.split(",")
         my_lane.append(tokens[0])
-        left_lane.append(tokens[1])
-        mid_lane.append(tokens[2])
-        right_lane.append(tokens[3].strip("\n"))
-    return my_lane, left_lane, mid_lane, right_lane
+        if five_lanes :
+            lhaz_lane.append(tokens[1])
+            left_lane.append(tokens[2])
+            mid_lane.append(tokens[3])
+            right_lane.append(tokens[4])
+            rhaz_lane.append(tokens[5].strip("\n"))
+        else:
+            left_lane.append(tokens[1])
+            mid_lane.append(tokens[2])
+            right_lane.append(tokens[3].strip("\n"))
+    return my_lane, lhaz_lane, left_lane, mid_lane, right_lane, rhaz_lane
 
 # def get_object(bit_str):
 #     """
@@ -208,6 +220,12 @@ def main(argv):
         #print argv[ii]
         if ((argv[ii] == "-h") | (argv[ii] == "--help")) :
             usage_and_exit(2)
+        elif ((argv[ii] == "-5") | (argv[ii] == "--five-lane")) :
+            five_lane_trace = True;
+            print("%s using Five-Lane trace\n" % (argv[0]));
+        elif ((argv[ii] == "-3") | (argv[ii] == "--three-lane")) :
+            five_lane_trace = False;
+            print("%s using Three-Lane trace\n" % (argv[0]));
         elif ((argv[ii] == "-t") | (argv[ii] == "--trace")) :
             tracefile = argv[ii+1];
             print("%s tracefile = %s\n" % (argv[0], tracefile));
@@ -220,6 +238,7 @@ def main(argv):
         usage_and_exit(4);
         
     print("Reading trace %s\n" % tracefile);
+    print("%s using Five-Lane trace = %u\n" % (argv[0], five_lane_trace));
 
     # Establish clock
     clock = pygame.time.Clock()
@@ -235,11 +254,14 @@ def main(argv):
     # Trace format: 3 columns per epoch with the form XY
     #               where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck) and
     #               where Y is a 10-bit string representing distance from car (0 to 1023 in binary)
-    mine, left, mid, right = parse_trace(tracefile)
-    mine.reverse();
+    mine, lhaz, left, mid, right, rhaz  = parse_trace(tracefile, five_lane_trace)
+    print("Sizes of mine %u lhaz %u left %u mid %u right %u rhaz %u\n" % (len(mine), len(lhaz), len(left), len(mid), len(right), len(rhaz)))
+    mine.reverse()
+    lhaz.reverse()
     left.reverse() # reverse list order so popping gives chronological order
     mid.reverse()
     right.reverse()
+    rhaz.reverse()
 
     x_per_lane = (x_lhaz, x_left, x_mid, x_right, x_rhaz)
 
@@ -265,6 +287,9 @@ def main(argv):
                 left_data  = left.pop()
                 mid_data   = mid.pop()
                 right_data = right.pop()
+                if (five_lane_trace):
+                    lhaz_data  = lhaz.pop()
+                    rhaz_data  = rhaz.pop()
 
                 #DEBUG print my_data, left_data, mid_data, right_data
                 # Update lane position (x position) of your car
@@ -273,6 +298,13 @@ def main(argv):
                 # Create list of objects to display
                 #   Parse trace entries into tuples: (x-position, pixel distance from tip of car, object type)
                 obj_list = []
+                if (five_lane_trace):
+                    lhobjs = lhaz_data.split(" ")
+                    for obj in lhobjs:
+                        (trtype, trdist) = obj.split(":")
+                        trtup  = (x_lhaz, 500 - get_dist(trdist), trtype) # get_object(trtype))
+                        obj_list.append(trtup);
+
                 lobjs = left_data.split(" ")
                 for obj in lobjs:
                     (trtype, trdist) = obj.split(":")
@@ -291,6 +323,12 @@ def main(argv):
                     trtup  = (x_right, 500 - get_dist(trdist), trtype) #get_object(trtype))
                     obj_list.append(trtup);
 
+                if (five_lane_trace):
+                    rhobjs = rhaz_data.split(" ")
+                    for obj in rhobjs:
+                        (trtype, trdist) = obj.split(":")
+                        trtup  = (x_rhaz, 500 - get_dist(trdist), trtype) # get_object(trtype))
+                        obj_list.append(trtup);
 
 
         # Set background

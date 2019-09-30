@@ -129,8 +129,11 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
     nearest_dist[i] = INF_DISTANCE;
   }
 
+  my_car.lane = vehicle_state.lane;
+  my_car.speed = vehicle_state.speed;
+  
   // For each lane in the world, advance the objects relative to My-Car
-  for (int in_lane = 0; in_lane < 5; in_lane++) {
+  for (int in_lane = 0; in_lane < NUM_LANES; in_lane++) {
     // Iterate through the objects in the lane from farthest to closest
     // If this obstacle would move "past" (or "through") another obstacle,
     //   adjust that obstacle's speed (downward) and check it will not collide
@@ -176,7 +179,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   
   // Now determine for each major lane (i.e. Left, Middle, Right) 
   //   whether to add a new object or not...
-  for (int in_lane = 1; in_lane < 4; in_lane++) {
+  for (int in_lane = 0; in_lane < NUM_LANES; in_lane++) {
     object_state_t * pobj = the_objects[in_lane];
     if ((pobj == NULL) ||
 	(!one_obstacle_per_lane && (pobj->distance < (MAX_DISTANCE - MAX_OBJECT_SIZE - MIN_OBJECT_DIST))) ) {
@@ -242,7 +245,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
 	}
 	the_objects[in_lane] = no_p;
 	DEBUG(printf("Adding"); print_object(no_p));
-	//printf("Adding"); print_object(no_p);
+	printf("Adding"); print_object(no_p);
       }
     }
   }
@@ -251,10 +254,10 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   if (output_viz_trace) {
     printf("  VizTrace: %u,", vehicle_state.lane);
   }
-  for (int in_lane = 1; in_lane < 4; in_lane++) {
+  for (int in_lane = 0; in_lane < NUM_LANES; in_lane++) {
     object_state_t* obj = the_objects[in_lane];
     int outputs_in_lane = 0;
-    if (output_viz_trace && (in_lane > 1)) {
+    if (output_viz_trace && (in_lane > 0)) {
       printf(",");
     }
     if (obj != NULL) {

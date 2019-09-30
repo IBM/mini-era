@@ -29,10 +29,8 @@
 #endif
 
 
-#ifdef VERBOSE
 char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
-#endif
 char* object_names[NUM_OBJECTS] = {"Nothing", "Car", "Truck", "Person", "Bike" };
 
 
@@ -48,7 +46,7 @@ unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle
 char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
 
 char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-unsigned nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+float    nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
 
 unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
@@ -506,7 +504,7 @@ distance_t iterate_rad_kernel(vehicle_state_t vs)
     }
   }
   /* 3) Return the estimated distance */
-  float tdist = 1.0*nearest_dist[vs.lane];
+  float tdist = nearest_dist[vs.lane];
   DEBUG(printf("  Returning distance %f (vs %f and %f)\n", tdist, dist, ddist));
 
   //return dist;
@@ -555,7 +553,7 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
   case center:
   case right:
     tr_val = 0;
-    DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane, 
+    DEBUG(printf("  Lane %u : obj in %u is %c at %.1f : obj in %u is %c at %.1f\n", vs.lane, 
 		 vs.lane-1, nearest_obj[vs.lane-1], nearest_dist[vs.lane-1],
 		 vs.lane+1, nearest_obj[vs.lane+1], nearest_dist[vs.lane+1]));
     if ((nearest_obj[vs.lane-1] != 'N') && (nearest_dist[vs.lane-1] < VIT_CLEAR_THRESHOLD)) {
@@ -643,14 +641,18 @@ message_t iterate_vit_kernel(vehicle_state_t vs)
 }
 
 
+/* #undef DEBUG */
+/* #define DEBUG(x) x */
+
 vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t message, vehicle_state_t vehicle_state)
 {
   DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
 	       label, object_names[label], distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
   vehicle_state_t new_vehicle_state = vehicle_state;
   
-  if ((label != no_label) && (distance <= THRESHOLD_1))
-  {
+  if ((label != no_label) && (distance <= THRESHOLD_1)) {
+    // Some object ahead of us that needs to be avoided.
+    DEBUG(printf("  In lane %s with %c (%u) at %.1f\n", lane_names[vehicle_state.lane], nearest_obj[vehicle_state.lane], label, nearest_dist[vehicle_state.lane]));
     switch (message) {
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
@@ -671,8 +673,18 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 	new_vehicle_state.lane -= 1;
 	break;
       case unsafe_to_move_left_or_right :
+	#ifdef USE_SIM_ENVIRON
+	if (vehicle_state.speed > 15.0) {
+	  new_vehicle_state.speed = vehicle_state.speed / 2.0;
+	  DEBUG(printf("   In %s with No_Safe_Move -- SLOWING DOWN from %.2f to %.2f\n", lane_names[vehicle_state.lane], vehicle_state.speed, new_vehicle_state.speed));
+	} else {
+	  DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
+	  new_vehicle_state.speed = 0.0;
+	}
+	#else
 	DEBUG(printf("   In %s with No_Safe_Move : STOPPING\n", lane_names[vehicle_state.lane]));
-	new_vehicle_state.speed = 0;
+	new_vehicle_state.speed = 0.0;
+	#endif
 	break; /* Stop!!! */
     }
   } else {
@@ -698,35 +710,21 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
       }
       break;
     }
+    if (vehicle_state.speed < 50.0) {
+      if (vehicle_state.speed <= 35.0) {
+	new_vehicle_state.speed += 15.0;
+      } else {
+	new_vehicle_state.speed = 50.0;
+      }
+      DEBUG(printf("  Going %.2f : slower than target speed %.2f : Speeding up to %.2f\n", vehicle_state.speed, 50.0, new_vehicle_state.speed));
+    }
   } // else clause
-
-
-  /** For now we'll igfnore other thresholds, etc.
-  else if ((label != no_label) && (distance <= THRESHOLD_2))
-  {
-  switch (message) {
-  case safe_to_move_right_or_left   : new_vehicle_state.lane += 1; break; // prefer right lane
-  case safe_to_move_right_only      : new_vehicle_state.lane += 1; break;
-  case safe_to_move_left_only       : new_vehicle_state.lane -= 1; break;
-  case unsafe_to_move_left_or_right : new_vehicle_state.speed = 0; break; // Stop!!!
-  }
-  // Slow down!
-  new_vehicle_state.speed -= 10;
-  if (new_vehicle_state.speed < 0)
-  {
-  new_vehicle_state.speed = 0;
-  }
-  }
-  else if ((label == no_label) && (distance > THRESHOLD_3))
-  {
-  // Maintain speed 
-  }
-  **/
 
 
   return new_vehicle_state;
 }
-
+/* #undef DEBUG */
+/* #define DEBUG(x) */
 
 
 void closeout_cv_kernel()
