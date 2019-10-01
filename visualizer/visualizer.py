@@ -51,7 +51,7 @@ five_lane_trace = False;
 
 
 # HELPER FUNCTIONS
-def set_background():
+def set_background(five_lane_trace):
     """
     Objective: Initializes Visualizer's screen.
     Draws grass, road, and tree background.
@@ -61,9 +61,9 @@ def set_background():
 
     # Draw background
     if (five_lane_trace) :
-        pygame.draw.rect(screen, DARK_GREY , pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+        pygame.draw.rect(screen, LIGHT_GREY , pygame.Rect(lane_width, 0, road_width, screen_height)) # road
     else:
-        pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(lane_width, 0, road_width, screen_height)) # road
+        pygame.draw.rect(screen, DARK_GREY, pygame.Rect(lane_width, 0, road_width, screen_height)) # road
     pygame.draw.rect(screen, LIGHT_GREY, pygame.Rect(2*lane_width, 0, 3*lane_width, screen_height)) # road
     pygame.draw.line(screen, TANGERINE, [lane_width*2, 0], [lane_width*2, screen_height], 3) # first road line
     pygame.draw.line(screen, TANGERINE, [lane_width*3, 0], [lane_width*3, screen_height], 3) # second road line
@@ -200,6 +200,8 @@ def usage_and_exit(exit_code):
     print(" OPTIONS: -h or --help  : print this usage info");
     print("          -t <TF> or --trace=<TF> : specifies the input trace file <TF>");
     print("          -d <N>  or --delay=<N>  : specifies the delay (in ms) between frames");
+    print("          -5      or --five--lane : indicates the trace has obstacles in all five lanes");
+    print("          -3      or --three-lane : indicates the trace has obstacles in only three lanes");
     sys.exit(exit_code)
 
     
@@ -336,7 +338,7 @@ def main(argv):
 
 
         # Set background
-        set_background()
+        set_background(five_lane_trace)
 
         # Scrolling background
         global bgY, bgY2
