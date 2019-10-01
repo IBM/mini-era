@@ -214,6 +214,7 @@ def main(argv):
     global x_lhaz, x_left, x_mid, x_right, x_rhaz, x_main_car
     global MOVE_DOWN
     global obj_list
+    global five_lane_trace
     
     tracefile = '' # NO Default value
     # parse command line arguments
