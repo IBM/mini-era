@@ -87,6 +87,9 @@ print_object(object_state_t* st) {
   printf("at distance %.1f speed %u\n", st->distance, st->speed);
 }  
 
+int    min_obst_lane;
+int    max_obst_lane;
+
 
 void
 init_sim_environs()
@@ -106,6 +109,15 @@ init_sim_environs()
 
   srand(rand_seed);
   printf("Using rand seed: %u\n", rand_seed);
+
+  if (all_obstacle_lanes_mode == true) {
+    min_obst_lane  = 0;
+    max_obst_lane = NUM_LANES;
+  } else {
+    // Obstacles are NOT in the far-left or far-right (Hazard) lanes
+    min_obst_lane  = 1;
+    max_obst_lane = (NUM_LANES - 1);
+  }    
 }
 
 
@@ -136,7 +148,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   my_car.speed = vehicle_state.speed;
   
   // For each lane in the world, advance the objects relative to My-Car
-  for (int in_lane = 0; in_lane < NUM_LANES; in_lane++) {
+  for (int in_lane = min_obst_lane; in_lane < max_obst_lane; in_lane++) {
     // Iterate through the objects in the lane from farthest to closest
     // If this obstacle would move "past" (or "through") another obstacle,
     //   adjust that obstacle's speed (downward) and check it will not collide
@@ -182,7 +194,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   
   // Now determine for each major lane (i.e. Left, Middle, Right) 
   //   whether to add a new object or not...
-  for (int in_lane = 0; in_lane < NUM_LANES; in_lane++) {
+  for (int in_lane = min_obst_lane; in_lane < max_obst_lane; in_lane++) {
     object_state_t * pobj = the_objects[in_lane];
     if ((pobj == NULL) ||
 	(!one_obstacle_per_lane && (pobj->distance < (MAX_DISTANCE - MAX_OBJECT_SIZE - MIN_OBJECT_DIST))) ) {
@@ -248,7 +260,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
 	}
 	the_objects[in_lane] = no_p;
 	DEBUG(printf("Adding"); print_object(no_p));
-	printf("Adding"); print_object(no_p);
+	//printf("Adding"); print_object(no_p);
       }
     }
   }
@@ -257,10 +269,10 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   if (output_viz_trace) {
     printf("  VizTrace: %u,", vehicle_state.lane);
   }
-  for (int in_lane = 0; in_lane < NUM_LANES; in_lane++) {
+  for (int in_lane = min_obst_lane; in_lane < max_obst_lane; in_lane++) {
     object_state_t* obj = the_objects[in_lane];
     int outputs_in_lane = 0;
-    if (output_viz_trace && (in_lane > 0)) {
+    if (output_viz_trace && (in_lane > min_obst_lane)) {
       printf(",");
     }
     if (obj != NULL) {

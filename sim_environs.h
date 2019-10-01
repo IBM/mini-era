@@ -66,5 +66,7 @@ void   visualize_world();
 
 extern unsigned max_time_steps; // The max stime steps to simulate
 
+extern bool_t all_obstacle_lanes_mode;
+
 #endif
 

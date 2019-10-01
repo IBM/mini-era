@@ -29,6 +29,8 @@ char * cv_dict  = "traces/objects_dictionary.dfn";
 char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
 
+bool_t all_obstacle_lanes_mode = false;
+
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
@@ -36,10 +38,11 @@ void print_usage(char * pname) {
   printf("    -o         : print the Visualizer output traace information during the run\n");
 #ifdef USE_SIM_ENVIRON
   printf("    -s <N>     : Sets the max number of time steps to simulate\n");
+  printf("    -r <N>     : Sets the rand random number seed to N\n");
+  printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
 #else
   printf("    -t <trace> : defines the input trace file to use\n");
 #endif
-  printf("    -r <N>     : Sets the rand random number seed to N\n");
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
@@ -64,11 +67,14 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hot:v:s:r:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
       exit(0);
+    case 'A':
+      all_obstacle_lanes_mode = true;
+      break;
     case 'o':
       output_viz_trace = true;
       break;
