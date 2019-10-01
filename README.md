@@ -127,6 +127,7 @@ Usage: ./csim_main.exe <OPTIONS>
     -o         : print the Visualizer output traace information during the run
     -s <N>     : Sets the max number of time steps to simulate
     -r <N>     : Sets the rand random number seed to N
+    -A         : Allow obstacle vehicles in All lanes (otherwise not in left or right hazard lanes)
     -v <N>     : defines Viterbi messaging behavior:
                :      0 = One short message per time step
                :      1 = One long  message per time step
@@ -137,6 +138,9 @@ Usage: ./csim_main.exe <OPTIONS>
 ```
 
 Note that in simulation mode, there is no option to specify a trace (the '-t' of trace-mode) as there is no need for or use of a trace.  There are two additional options in simulation-mode: the '-s' which indicates the number of time steps to simulate (which is analogous to the trace length) and '-r' which sets the seed value (and unsigned int) for the C ```rand()``` function used in the simulation.  Both modes support the '-v' and '-o' options.
+
+In the Simulation mode there is also a `-A` option, which allows the simulation to add obstacle vehicles to all five lanes of the highway.  This is allowable in the simulation mode because the autonomous vehicle ("red car") is allowed to alter speed, etc. in order to avoid collisions, which otherwise tend to require a clear lane in the trace mode.  It is possible, however, to run simulation mode in either the default 3-lanes of obstacle traffic (leaving the left-most and right-most free of obstacles) or in a five-lane obstacles mode by specifying the '-A' for "All lanes can contain obstacle vehicles."
+
 
 ## Status
 
