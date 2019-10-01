@@ -72,19 +72,22 @@ int main(int argc, char *argv[])
     case 'o':
       output_viz_trace = true;
       break;
-#ifdef USE_SIM_ENVIRON
     case 's':
+#ifdef USE_SIM_ENVIRON
       max_time_steps = atoi(optarg);
       printf("Using %u maximum time steps (simulation)\n", max_time_steps);
+#endif
       break;
-#else
+    case 'r':
+#ifdef USE_SIM_ENVIRON
+      rand_seed = atoi(optarg);
+#endif
+      break;
     case 't':
+#ifndef USE_SIM_ENVIRON
       trace_file = optarg;
       printf("Using trace file: %s\n", trace_file);
-      break;
 #endif
-    case 'r':
-      rand_seed = atoi(optarg);
       break;
     case 'v':
       vit_msgs_behavior = atoi(optarg);
