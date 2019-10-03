@@ -1874,6 +1874,40 @@ void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size
   __visc__bindOut(EXEC_VIT_node, 0, 0, 0);
 }
 
+void plan_and_control_wrapper(/* 0 */ label_t* label,                 size_t size_label,    /* 1 */ 
+			      /* 2 */ distance_t* distance,           size_t size_distance, /* 3 */ 
+			      /* 4 */ message_t* message,             size_t size_message,  /* 5 */ 
+			      /* 6 */ vehicle_state_t* vehicle_state, size_t size_vehicle_state /* 7 */ )
+{
+  __visc__hint(CPU_TARGET);
+  __visc__attributes(4, label, distance, message, vehicle_state,
+		     1, vehicle_state);
+  
+  DEBUG(printf("In the plan_and_control wrapper : label %u %s distance %.1f message %u Lane %u Speed %.2f\n", 
+	       *label, object_names[*label], *distance, *message, vehicle_state->lane, vehicle_state->speed));
+
+  // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
+  void* PLAN_CTL_node = __visc__createNodeND(0, plan_and_control);
+
+  // Binds inputs of current node with specified node
+  // - destination node
+  // - argument position in argument list of function of source node
+  // - argument position in argument list of function of destination node
+  // - streaming (1) or non-streaming (0)
+  __visc__bindIn(PLAN_CTL_node,  0,  0, 0); // label -> PLAN_CTL_node::label
+  __visc__bindIn(PLAN_CTL_node,  1,  1, 0); // size_label -> PLAN_CTL_node::size_label
+  __visc__bindIn(PLAN_CTL_node,  2,  2, 0); // distance -> PLAN_CTL_node::distance
+  __visc__bindIn(PLAN_CTL_node,  3,  3, 0); // size_distance  -> PLAN_CTL_node::size_distance
+  __visc__bindIn(PLAN_CTL_node,  4,  4, 0); // message -> PLAN_CTL_node::message
+  __visc__bindIn(PLAN_CTL_node,  5,  5, 0); // size_message -> PLAN_CTL_node::size_message
+  __visc__bindIn(PLAN_CTL_node,  6,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __visc__bindIn(PLAN_CTL_node,  7,  7, 0); // vehicle_state_size -> PLAN_CTL_node::vehicle_state_size
+
+  // Similar to bindIn, but for the output. Output of a node is a struct, and
+  // we consider the fields in increasing ordering.
+  __visc__bindOut(PLAN_CTL_node, 0, 0, 0);
+}
+
 
 
 
@@ -1940,7 +1974,7 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   void* CV_wrap_node = __visc__createNodeND(0, execute_cv_wrapper);
 
   // Plan and Control Node
-  void* PLAN_CTL_node = __visc__createNodeND(0, plan_and_control);
+  void* PLAN_CTL_wrap = __visc__createNodeND(0, plan_and_control_wrapper);
 
   // BindIn binds inputs of current node with specified node
   // - destination node
@@ -1982,24 +2016,24 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __visc__bindIn(CV_wrap_node, 19, 3, 0); // label_size -> CV_wrap_node:out_label_size
 
   // Use bindIn for the label (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __visc__bindIn(PLAN_CTL_node, 18,  0, 0); // out_label -> PLAN_CTL_node::label
-  __visc__edge(CV_wrap_node, PLAN_CTL_node, 1, 0, 1, 0); // RAD_wrap_node::out_label_size output -> PLAN_CTL_node::size_label
+  __visc__bindIn(PLAN_CTL_wrap, 18,  0, 0); // out_label -> PLAN_CTL_node::label
+  __visc__edge(CV_wrap_node, PLAN_CTL_wrap, 1, 0, 1, 0); // RAD_wrap_node::out_label_size output -> PLAN_CTL_wrap::size_label
 
   // Use bindIn for the distance (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __visc__bindIn(PLAN_CTL_node,  5,  2, 0); // radar_distance -> PLAN_CTL_node:radar_distance
-  __visc__edge(RAD_wrap_node, PLAN_CTL_node, 1, 0, 3, 0); // RAD_wrap_node::dist_size ouput -> PLAN_CTL_node::distance input
+  __visc__bindIn(PLAN_CTL_wrap,  5,  2, 0); // radar_distance -> PLAN_CTL_wrap:radar_distance
+  __visc__edge(RAD_wrap_node, PLAN_CTL_wrap, 1, 0, 3, 0); // RAD_wrap_node::dist_size ouput -> PLAN_CTL_wrap::distance input
 
   // Use bindIn for the vit_out_msg (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __visc__bindIn(PLAN_CTL_node, 15,  4, 0); // vit_out_msg -> PLAN_CTL_node::message input  
-  __visc__edge(VIT_wrap_node, PLAN_CTL_node, 1, 0, 5, 0); // VIT_wrap_node::out_message -> PLAN_CTL_node::message input
+  __visc__bindIn(PLAN_CTL_wrap, 15,  4, 0); // vit_out_msg -> PLAN_CTL_wrap::message input  
+  __visc__edge(VIT_wrap_node, PLAN_CTL_wrap, 1, 0, 5, 0); // VIT_wrap_node::out_message -> PLAN_CTL_wrap::message input
 
-  __visc__bindIn(PLAN_CTL_node, 20,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
-  __visc__bindIn(PLAN_CTL_node, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_node::size_vehicle_state
-  //__visc__edge(PLAN_CTL_node, PLAN_CTL_node, 1, 0, 7, 0); // PLAN_CTL_node::size_vehicle_stat -> PLAN_CTL_node::size_vehicle_state
+  __visc__bindIn(PLAN_CTL_wrap, 20,  6, 0); // vehicle_state -> PLAN_CTL_wrap::vehicle_state
+  __visc__bindIn(PLAN_CTL_wrap, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_wrap::size_vehicle_state
+  //__visc__edge(PLAN_CTL_wrap, PLAN_CTL_wrap, 1, 0, 7, 0); // PLAN_CTL_wrap::size_vehicle_stat -> PLAN_CTL_wrap::size_vehicle_state
   
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(PLAN_CTL_node, 0, 0, 0);  // Output is just the new vehicle_state
+  __visc__bindOut(PLAN_CTL_wrap, 0, 0, 0);  // Output is just the new vehicle_state
 }
 
 
