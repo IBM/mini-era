@@ -31,6 +31,26 @@ typedef float distance_t;
 typedef enum {false, true} bool_t;
 typedef enum {error, success} status_t;
 
+/* These are some top-level defines for the dictionaries */
+
+#include "radar/calc_fmcw_dist.h"
+
+typedef struct {
+  unsigned int return_id;
+  float distance;
+  float return_data[2 * RADAR_N];
+} radar_dict_entry_t;
+
+#include "viterbi/utils.h"
+typedef struct {
+  unsigned int msg_num;
+  unsigned int msg_id;
+  ofdm_param   ofdm_p;
+  frame_param  frame_p;
+  uint8_t      in_bits[MAX_ENCODED_BITS];
+} vit_dict_entry_t;
+
+
 /* These are GLOBAL and affect the underlying world, etc. */
 #define NUM_LANES     5
 #define NUM_OBJECTS   5
@@ -88,7 +108,8 @@ typedef enum {
   safe_to_move_right_or_left   = 0,
   safe_to_move_right_only      = 1,
   safe_to_move_left_only       = 2,
-  unsafe_to_move_left_or_right = 3 
+  unsafe_to_move_left_or_right = 3,
+  num_message_t
 } message_t;
 
 
@@ -126,8 +147,17 @@ status_t init_vit_kernel(char* dict_fn);
 
 label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
-distance_t iterate_rad_kernel(vehicle_state_t vs);
-message_t iterate_vit_kernel(vehicle_state_t vs);
+label_t execute_cv_kernel(label_t in_tr_val);
+void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
+
+radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
+distance_t execute_rad_kernel(float * inputs);
+void       post_execute_rad_kernel(distance_t tr_dist, distance_t dist);
+
+vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
+message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
+void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
+
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 

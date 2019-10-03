@@ -196,14 +196,18 @@ int main(int argc, char *argv[])
      * next image, and returns the corresponding label. 
      * This process takes place locally (i.e. within this car).
      */
-    label = iterate_cv_kernel(vehicle_state);
-
+    label_t cv_tr_label = iterate_cv_kernel(vehicle_state);
 
     /* The radar kernel performs distance estimation on the next radar
      * data, and returns the estimated distance to the object.
      */
-    distance = iterate_rad_kernel(vehicle_state);
-
+    radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
+    distance_t rdict_dist = rdentry_p->distance;
+    float * ref_in = rdentry_p->return_data;
+    float radar_inputs[2*RADAR_N];
+    for (int ii = 0; ii < 2*RADAR_N; ii++) {
+      radar_inputs[ii] = ref_in[ii];
+    }
 
     /* The Viterbi decoding kernel performs Viterbi decoding on the next
      * OFDM symbol (message), and returns the extracted message.
@@ -212,9 +216,30 @@ int main(int argc, char *argv[])
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
-    message = iterate_vit_kernel(vehicle_state);
+    vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
+
+    // Here we will simulate multiple cases, based on global vit_msgs_behavior
+    int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
+    switch(vit_msgs_behavior) {
+    case 2: num_vit_msgs = total_obj; break;
+    case 3: num_vit_msgs = total_obj; break;
+    case 4: num_vit_msgs = total_obj + 1; break;
+    case 5: num_vit_msgs = total_obj + 1; break;
+    }
 
 
+    // EXECUTE the kernels using the now known inputs 
+    label = execute_cv_kernel(cv_tr_label);
+    distance = execute_rad_kernel(radar_inputs);
+    message = execute_vit_kernel(vdentry_p, num_vit_msgs);
+
+    // POST-EXECUTE each kernels to gather stats, etc.
+    post_execute_cv_kernel(cv_tr_label, label);
+    post_execute_rad_kernel(rdict_dist, distance);
+    for (int mi = 0; mi < num_vit_msgs; mi++) {
+      post_execute_vit_kernel(vdentry_p->msg_id, message);
+    }
+    
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new
      * vehicle state.

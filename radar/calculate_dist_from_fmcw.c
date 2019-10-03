@@ -23,9 +23,10 @@ float calculate_peak_dist_from_fmcw(float* data)
   }
   float distance = ((float)(max_index*((float)RADAR_fs)/((float)(RADAR_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
   //printf("Max distance is %.3f\nMax PSD is %4E\nMax index is %d\n", distance, max_psd, max_index);
-  if (max_psd > 1e-10*pow(8192,2))
+  if (max_psd > 1e-10*pow(8192,2)) {
     return distance;
-  else
+  } else {
     return INFINITY;
+  }
 }
 
