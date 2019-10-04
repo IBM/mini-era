@@ -44,6 +44,7 @@ char * cv_dict  = "traces/objects_dictionary.dfn";
 char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
 
+bool_t all_obstacle_lanes_mode = false;
 
 // This controls whether we output the Visualizer trace
 bool output_viz_trace = false;
@@ -88,7 +89,7 @@ unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle
 char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
 
 char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-unsigned nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+float    nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
 
 unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
@@ -372,7 +373,7 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
   unsigned tr_val = 0; // Default nothing
   switch(nearest_obj[vs.lane]) {
     case 'N' : tr_val = no_label; break;
-    case 'B' : tr_val = bus; break;
+    case 'B' : tr_val = bicycle; break;
     case 'C' : tr_val = car; break;
     case 'P' : tr_val = pedestrian; break;
     case 'T' : tr_val = truck; break;
@@ -775,8 +776,8 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   switch (vs.lane) {
   case lhazard:
     {
-      unsigned nd_1 = RADAR_BUCKET_DISTANCE * (nearest_dist[1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
-      if ((nearest_obj[1] != 'N') && (nd_1 /*nearest_dist[1]*/ < VIT_CLEAR_THRESHOLD)) {  
+      unsigned nd_1 = RADAR_BUCKET_DISTANCE * (unsigned)(nearest_dist[1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      if ((nearest_obj[1] != 'N') && (nd_1 < VIT_CLEAR_THRESHOLD)) {  
 	// Some object is in the left lane within threshold distance
 	tr_val = 3; // Unsafe to move from lhazard lane into the left lane 
       } else {
@@ -788,18 +789,18 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   case center:
   case right:
     {
-      unsigned ndp1 = RADAR_BUCKET_DISTANCE * (nearest_dist[vs.lane+1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
-      unsigned ndm1 = RADAR_BUCKET_DISTANCE * (nearest_dist[vs.lane-1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      unsigned ndp1 = RADAR_BUCKET_DISTANCE * (unsigned)(nearest_dist[vs.lane+1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      unsigned ndm1 = RADAR_BUCKET_DISTANCE * (unsigned)(nearest_dist[vs.lane-1] / RADAR_BUCKET_DISTANCE); // floor by bucket...
       tr_val = 0;
       DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane, 
-		   vs.lane-1, nearest_obj[vs.lane-1], nearest_dist[vs.lane-1],
-		   vs.lane+1, nearest_obj[vs.lane+1], nearest_dist[vs.lane+1]));
-      if ((nearest_obj[vs.lane-1] != 'N') && (ndm1 /*nearest_dist[vs.lane-1]*/ < VIT_CLEAR_THRESHOLD)) {
+		   vs.lane-1, nearest_obj[vs.lane-1], ndm1,
+		   vs.lane+1, nearest_obj[vs.lane+1], ndp1));
+      if ((nearest_obj[vs.lane-1] != 'N') && (ndm1  < VIT_CLEAR_THRESHOLD)) {
 	// Some object is in the Left lane at distance 0 or 1
 	DEBUG(printf("    Marking unsafe to move left\n"));
 	tr_val += 1; // Unsafe to move from this lane to the left.
       }
-      if ((nearest_obj[vs.lane+1] != 'N') && (ndp1 /*nearest_dist[vs.lane+1]*/ < VIT_CLEAR_THRESHOLD)) {
+      if ((nearest_obj[vs.lane+1] != 'N') && (ndp1 < VIT_CLEAR_THRESHOLD)) {
 	// Some object is in the Right lane at distance 0 or 1
 	DEBUG(printf("    Marking unsafe to move right\n"));
 	tr_val += 2; // Unsafe to move from this lane to the right.
@@ -808,8 +809,8 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
     break;
   case rhazard:
     {
-      unsigned nd_3 = RADAR_BUCKET_DISTANCE * (nearest_dist[3] / RADAR_BUCKET_DISTANCE); // floor by bucket...
-      if ((nearest_obj[3] != 'N') && (nd_3 /*nearest_dist[3]*/ < VIT_CLEAR_THRESHOLD)) {
+      unsigned nd_3 = RADAR_BUCKET_DISTANCE * (unsigned)(nearest_dist[3] / RADAR_BUCKET_DISTANCE); // floor by bucket...
+      if ((nearest_obj[3] != 'N') && (nd_3  < VIT_CLEAR_THRESHOLD)) {
 	// Some object is in the right lane within threshold distance
 	tr_val = 3; // Unsafe to move from center lane to the right.
       } else {
@@ -1502,8 +1503,8 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 	break;
       case unsafe_to_move_left_or_right :
 	#ifdef USE_SIM_ENVIRON
-	if (vehicle_state.speed > 15.0) {
-	  new_vehicle_state.speed = vehicle_state.speed / 2.0;
+	if (vehicle_state->speed > 15.0) {
+	  new_vehicle_state.speed = vehicle_state->speed / 2.0;
 	  DEBUG(printf("   In %s with No_Safe_Move -- SLOWING DOWN from %.2f to %.2f\n", lane_names[vehicle_state.lane], vehicle_state.speed, new_vehicle_state.speed));
 	} else {
 	  DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
@@ -1899,11 +1900,15 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while ((opt = getopt(argc, argv, ":hot:v:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
       exit(0);
+    case 'A':
+      all_obstacle_lanes_mode = true;
+      printf("Running in All-obstacle-lanes mode (i.e. obstacles in all 5 lanes)\n");
+      break;
     case 'o':
       output_viz_trace = true;
       break;

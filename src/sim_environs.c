@@ -20,12 +20,17 @@
 #include "kernels_api.h"
 #include "sim_environs.h"
 
+// This controls whether we output the Visualizer trace
+extern bool output_viz_trace;
+
 /* These are structures, etc. used in the environment */
 
 // This is the master list of all currently live objects in the world.
 //  This is a sorted list (by distance) of objects per lane
 unsigned global_object_id = 0;
 object_state_t* the_objects[5];
+
+unsigned rand_seed = 0;
 
 // This represents my car.
 object_state_t my_car;		

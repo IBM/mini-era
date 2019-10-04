@@ -24,6 +24,8 @@
  #define DEBUG(x)
 #endif
 
+#include "kernels_api.h"
+
 /* Types definitions */
 #define MAX_OBJECT_SIZE   50.0  // Max size of an object
 #define MIN_OBJECT_DIST   MAX_OBJECT_SIZE
@@ -41,6 +43,8 @@ typedef struct obj_struct {
   struct obj_struct* next;      // The next object in the list
 } object_state_t;
 
+
+extern unsigned rand_seed;
 
 /* The "world" consists of the (5) lanes (horizontal) and N vertical distances *
  *       "x"     0         1         2         3       4
