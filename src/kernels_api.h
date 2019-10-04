@@ -41,6 +41,8 @@ typedef enum {error, success} status_t;
 #define INF_DISTANCE           550 // radar tops out at ~500m 
 #define RADAR_BUCKET_DISTANCE  50  // The radar is in steps of 50
 
+#define MAX_OBJ_IN_LANE  16
+
 /* These thresholds (in meters) are used by the plan_and_control()
  * function to make plan and control decisions.
  */

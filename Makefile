@@ -47,7 +47,7 @@ LFLAGS += -pthread
 
 ## BEGIN HPVM MAKEFILE
 LANGUAGE=visc
-SRCDIR_OBJS=
+SRCDIR_OBJS=read_trace.ll
 OBJS_SRC=$(wildcard $(SRC_DIR)/*.c)
 VISC_OBJS=main.visc.ll
 APP = $(EXE)

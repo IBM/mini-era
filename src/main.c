@@ -29,6 +29,11 @@
 
 #include "kernels_api.h"
 
+#ifdef USE_SIM_ENVIRON
+ #include "sim_environs.h"
+#else
+ #include "read_trace.h"
+#endif
 
 #include "calc_fmcw_dist.h"
 #include "visc.h"
@@ -50,7 +55,13 @@ void print_usage(char * pname) {
   printf(" OPTIONS:\n");
   printf("    -h         : print this help information\n");
   printf("    -o         : output the Visualizer trace (to stdout)\n");
+#ifdef USE_SIM_ENVIRON
+  printf("    -s <N>     : Sets the max number of time steps to simulate\n");
+  printf("    -r <N>     : Sets the rand random number seed to N\n");
+  printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
+#else
   printf("    -t <trace> : defines the input trace file to use\n");
+#endif
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
@@ -70,13 +81,6 @@ char* object_names[NUM_OBJECTS+1] = {"Nothing", "Bike", "Car", "Person", "Truck"
 
 /* These are globals for the trace read parsing routines */
 #define MAX_TR_LINE_SZ   256
-
-char in_line_buf[MAX_TR_LINE_SZ];
-int last_i = 0;
-int in_tok = 0;
-int in_lane = 0;
-
-#define MAX_OBJ_IN_LANE  16
 
 unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
@@ -103,8 +107,6 @@ char *python_module = "mio";
 char *python_func = "predict";	  
 char *python_func_load = "loadmodel";	  
 #endif
-/* File pointer to the input trace */
-FILE *input_trace = NULL;
 
 
 /* These are some top-level defines needed for CV kernel */
@@ -151,21 +153,6 @@ unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the f
 /*********************************************************************************
  * The following is code to support the initialization of the simulation run
  *********************************************************************************/
-
-status_t init_trace_reader(char* trace_filename)
-{
-  DEBUG(printf("In init_trace_reader...\n"));
-  /* Now open the mini-ERA trace */
-  input_trace = fopen(trace_filename,"r");
-  if (!input_trace)
-  {
-    printf("Error: unable to open trace file %s\n", trace_filename);
-    return error;
-  }
-
-  return success;
-}
-
 
 status_t init_rad_kernel(char* dict_fn)
 {
@@ -376,140 +363,6 @@ status_t init_cv_kernel(char* dict_fn)
 }
 
 
-bool_t eof_trace_reader()
-{
-  bool_t res = feof(input_trace);
-  DEBUG(printf("In eof_trace_reader feof = %u\n", res));
-  return res;
-}
-
-
-void
-get_object_token(char c)
-{
-  //DEBUG(printf("  get_object_token TK %u c %c last_i %u for %s\n", in_tok, c, last_i, &in_line_buf[last_i]));
-  if (in_tok == 0) { // 0 => the object character
-    char objc; 
-    sscanf(&in_line_buf[last_i], "%c", &objc);
-    lane_obj[in_lane][obj_in_lane[in_lane]] = objc;
-    //if (obj_in_lane[in_lane] == 0) { // LAST is nearest -- but should be safer than that!
-    nearest_obj[in_lane] = objc;
-    if (objc != 'N') {
-      total_obj++;
-    }
-  } else { // a distance
-    printf("ERROR : trace syntax is weird!\n");
-    printf(" LINE : %s\n", in_line_buf);
-    printf(" TOKN : %u hit %c from %s\n", last_i, c, &in_line_buf[last_i]);
-    exit(-3);
-  }
-  in_tok = 1 - in_tok; // Flip to expect distance token
-}
-
-void
-get_distance_token(char c)
-{
-  //DEBUG(printf("  get_distance_token TK %u c %c last_i %u for %s\n", in_tok, c, last_i, &in_line_buf[last_i]));
-  if (in_tok == 1) { // 0 => the distance value
-    unsigned distv;
-    sscanf(&in_line_buf[last_i], "%u", &distv);
-    lane_dist[in_lane][obj_in_lane[in_lane]] = distv;
-    //if (obj_in_lane[in_lane] == 0) {
-    nearest_dist[in_lane] = distv;
-    obj_in_lane[in_lane]++;
-  } else { // a distance
-    printf("ERROR : trace syntax is weird!\n");
-    printf(" LINE : %s\n", in_line_buf);
-    printf(" TOKN : %u hit %c from %s\n", last_i, c, &in_line_buf[last_i]);
-    exit(-4);
-  }
-  in_tok = 1 - in_tok; // Flip to expect object char token
-}
-
-bool_t read_next_trace_record(vehicle_state_t vs)
-{
-  DEBUG(printf("In read_next_trace_record\n"));
-  if (feof(input_trace)) { 
-    printf("ERROR : invocation of read_next_trace_record indicates feof\n");
-    exit(-1);
-  }
-
-  total_obj = 0;
-  for (int i = 0; i < NUM_LANES; i++) {
-    obj_in_lane[i] = 0;
-    nearest_obj[i]  = 'N';
-    nearest_dist[i] = INF_DISTANCE;
-  }
-  
-  /* 1) Read the next entry (line, epoch) from the trace */
-  void* fres = fgets(in_line_buf, MAX_TR_LINE_SZ, input_trace);
-  if (fres == NULL) { // If fgets returns NULL then we hit EOF
-    printf(" FGETS returned NULL - feof = %u\n", feof(input_trace));
-    return false; // Indicate we didn't read from the trace (EOF)
-  }
-  
-  if ((strlen(in_line_buf) > 0) &&
-      (in_line_buf[strlen (in_line_buf) - 1] == '\n')) {
-    in_line_buf[strlen (in_line_buf) - 1] = '\0';
-  }
-  DEBUG(printf("IN_LINE : %s\n", in_line_buf));
-  //DEBUG(
-  if (output_viz_trace) {
-    printf("  VizTrace: %u,%s\n", vs.lane, in_line_buf);//);
-  }
-  last_i = 0;
-  in_tok = 0;
-  in_lane = 1;
-  for (int i = 0; i < 256; i++) { // Scan the input line
-    // Find the token seperators
-    char c = in_line_buf[i];
-    //DEBUG(printf("TR_CHAR '%c'\n", c));
-    switch(c) {
-    case ':':
-      in_line_buf[i] = '\0';
-      get_object_token(c);
-      last_i = i+1;
-      break;
-    case ',':
-      in_line_buf[i] = '\0';
-      get_distance_token(c);
-      last_i = i+1;
-      in_lane++;
-      break;
-    case ' ':
-      in_line_buf[i] = '\0';
-      get_distance_token(c);
-      last_i = i+1;
-      break;
-    case '\0':
-    case '\n':
-      in_line_buf[i] = '\0';
-      get_distance_token(c);
-      last_i = i+1;
-      i = 256;
-      break;
-    }
-  }
-
-
-#ifdef SUPER_VERBOSE
-  for (int i = 1; i < (NUM_LANES-1); i++) {
-    printf("  Lane %u %8s : ", i, lane_names[i]);
-    if (obj_in_lane[i] > 0) {
-      for (int j = 0; j < obj_in_lane[i]; j++) {
-	if (j > 0) {
-	  printf(", ");
-	}
-	printf("%c:%u", lane_obj[i][j], lane_dist[i][j]);
-      }
-      printf("\n");
-    } else {
-      printf("%c:%u\n", 'N', INF_DISTANCE);
-    }
-  }
-#endif
-  return true;
-}
 
 // This prepares the input for the execute_cv_kernel call
 label_t iterate_cv_kernel(vehicle_state_t vs)
@@ -1648,8 +1501,18 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 	new_vehicle_state.lane -= 1;
 	break;
       case unsafe_to_move_left_or_right :
+	#ifdef USE_SIM_ENVIRON
+	if (vehicle_state.speed > 15.0) {
+	  new_vehicle_state.speed = vehicle_state.speed / 2.0;
+	  DEBUG(printf("   In %s with No_Safe_Move -- SLOWING DOWN from %.2f to %.2f\n", lane_names[vehicle_state.lane], vehicle_state.speed, new_vehicle_state.speed));
+	} else {
+	  DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
+	  new_vehicle_state.speed = 0.0;
+	}
+	#else
 	DEBUG(printf("   In %s with No_Safe_Move : STOPPING\n", lane_names[vehicle_state->lane]));
 	new_vehicle_state.speed = 0;
+	#endif
 	break; /* Stop!!! */
     default:
       printf(" ERROR  In %s with UNDEFINED MESSAGE: %u\n", lane_names[vehicle_state->lane], *message);
@@ -1678,23 +1541,16 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
       }
       break;
     }
+    if (vehicle_state->speed < 50.0) {
+      if (vehicle_state->speed <= 35.0) {
+	new_vehicle_state.speed += 15.0;
+      } else {
+	new_vehicle_state.speed = 50.0;
+      }
+      DEBUG(printf("  Going %.2f : slower than target speed %.2f : Speeding up to %.2f\n", vehicle_state.speed, 50.0, new_vehicle_state.speed));
+    }
   } // else clause
 
-
- /** For now we'll ignore other thresholds, etc.
-  // Slow down!
-  new_vehicle_state.speed -= 10;
-  if (new_vehicle_state.speed < 0)
-  {
-  new_vehicle_state.speed = 0;
-  }
-  }
-  else if ((*label == no_label) && (*distance > THRESHOLD_3))
-  {
-  // Maintain speed 
-  }
-  **/
-  
   *vehicle_state = new_vehicle_state;
 
   __visc__return(1, size_vehicle_state);
@@ -1705,12 +1561,6 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 /*********************************************************************************
  * The following is code that runs to close-out the full simulation run
  *********************************************************************************/
-void closeout_trace_reader()
-{
-  fclose(input_trace);
-}
-
-
 void closeout_cv_kernel()
 {
   float label_correct_pctg = (100.0*label_match[NUM_OBJECTS])/(1.0*label_lookup[NUM_OBJECTS]);
@@ -2041,7 +1891,9 @@ int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
 
+#ifndef USE_SIM_ENVIRON
   char* trace_file; 
+#endif
   int opt; 
 
   // put ':' in the starting of the 
@@ -2055,9 +1907,22 @@ int main(int argc, char *argv[])
     case 'o':
       output_viz_trace = true;
       break;
+    case 's':
+#ifdef USE_SIM_ENVIRON
+      max_time_steps = atoi(optarg);
+      printf("Using %u maximum time steps (simulation)\n", max_time_steps);
+#endif
+      break;
+    case 'r':
+#ifdef USE_SIM_ENVIRON
+      rand_seed = atoi(optarg);
+#endif
+      break;
     case 't':
+#ifndef USE_SIM_ENVIRON
       trace_file = optarg;
       printf("Using trace file: %s\n", trace_file);
+#endif
       break;
     case 'v':
       {
@@ -2101,10 +1966,10 @@ int main(int argc, char *argv[])
   /* } */
 
 
+#ifndef USE_SIM_ENVIRON
   /* Trace filename construction */
   /* char * trace_file = argv[1]; */
   printf("Input trace file: %s\n", trace_file);
-
 
   /* Trace Reader initialization */
   if (!init_trace_reader(trace_file))
@@ -2112,7 +1977,8 @@ int main(int argc, char *argv[])
     printf("Error: the trace reader couldn't be initialized properly.\n");
     return 1;
   }
-
+#endif
+  
   /* Kernels initialization */
   if (!init_cv_kernel(cv_dict))
   {
@@ -2129,6 +1995,10 @@ int main(int argc, char *argv[])
     printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
     return 1;
   }
+
+#ifdef USE_SIM_ENVIRON
+  init_sim_environs();
+#endif
 
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
@@ -2180,10 +2050,15 @@ int main(int argc, char *argv[])
   int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
 
   /* The input trace contains the per-epoch (time-step) input data */
+  //DEBUG(printf("\n\nTime Step %d\n", time_step));  
+#ifdef USE_SIM_ENVIRON
+  while (iterate_sim_environs(vehicle_state))
+#else //TRACE DRIVEN MODE
   read_next_trace_record(vehicle_state);
   while (!eof_trace_reader())
+#endif
   {
-    DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
+    DEBUG(printf("\nTime Step %d : Vehicle_State: Lane %u %s Speed %.1f\n", time_step, vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
     // Iterate the various kernels (PREP their states for execution, get inputs, etc.)
     /* The computer vision kernel performs object recognition on the
@@ -2300,8 +2175,11 @@ int main(int argc, char *argv[])
     if (loop == 1) { 
       gettimeofday(&start, NULL);
     }
-    #endif	  
+    #endif
+    
+    #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
+    #endif
   }
 
   #ifdef TIME
