@@ -365,50 +365,49 @@ label_t run_object_classification_syscall(unsigned tr_val)
 
 label_t run_object_classification(unsigned tr_val) 
 {
-  DEBUG(printf("Entered run_object_classification...\n"));
+  DEBUG(printf("Entered run_object_classification... tr_val = %u\n", tr_val));
   label_t object = (label_t)tr_val;
 #ifndef BYPASS_KERAS_CV_CODE
   if (pModule != NULL) {
-          pFunc = PyObject_GetAttrString(pModule, python_func);
+    DEBUG(printf("  Starting call to pModule...\n"));
+    pFunc = PyObject_GetAttrString(pModule, python_func);
   
-	  if (pFunc && PyCallable_Check(pFunc)) {
-	     pArgs = PyTuple_New(1);
-	     pValue = PyLong_FromLong(tr_val);
-	     if (!pValue) {
-		Py_DECREF(pArgs);
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-		fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
-		return 1;
-	      }
-	      PyTuple_SetItem(pArgs, 0, pValue);
-	      pretValue = PyObject_CallObject(pFunc, pArgs);
-	      Py_DECREF(pArgs);
-	      if (pretValue != NULL) {
-		DEBUG(printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue)));
-	  	int val = PyLong_AsLong(pretValue);    
-	  	object = (label_t)val;
-          	DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
-		Py_DECREF(pretValue);
-	      }
-	      else {
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-		PyErr_Print();
-		printf("Trying to run CNN kernel : Python function call failed\n");
-		return 1;
-	       }
-	   }
-	   else {
-	      if (PyErr_Occurred())
-	      PyErr_Print();
-	      printf("Cannot find python function");
-	    }
-        Py_XDECREF(pFunc);
+    if (pFunc && PyCallable_Check(pFunc)) {
+      pArgs = PyTuple_New(1);
+      pValue = PyLong_FromLong(tr_val);
+      if (!pValue) {
+	Py_DECREF(pArgs);
+	Py_DECREF(pFunc);
+	Py_DECREF(pModule);
+	fprintf(stderr, "Trying to run CNN kernel: Cannot convert C argument into python\n");
+	return 1;
+      }
+      PyTuple_SetItem(pArgs, 0, pValue);
+      pretValue = PyObject_CallObject(pFunc, pArgs);
+      Py_DECREF(pArgs);
+      if (pretValue != NULL) {
+	DEBUG(printf("Predicted label from Python program: %ld\n", PyLong_AsLong(pretValue)));
+	int val = PyLong_AsLong(pretValue);    
+	object = (label_t)val;
+	DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
+	Py_DECREF(pretValue);
+      }
+      else {
+	Py_DECREF(pFunc);
+	Py_DECREF(pModule);
+	PyErr_Print();
+	printf("Trying to run CNN kernel : Python function call failed\n");
+	return 1;
+      }
+    }
+    else {
+      if (PyErr_Occurred())
+	PyErr_Print();
+      printf("Cannot find python function");
+    }
+    Py_XDECREF(pFunc);
     //Py_DECREF(pModule);
-   }
-   
-	  
+  }
 #endif
   return object;  
 }
@@ -436,24 +435,25 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 label_t execute_cv_kernel(label_t in_tr_val)
 {
   /* 2) Conduct object detection on the image frame */
-  // Call Keras Code  
-  label_t object = run_object_classification(in_tr_val); 
+  DEBUG(printf("  Calling run_object_detection with in_tr_val tr_val %u %s\n", in_tr_val, object_names[in_tr_val]));
+  // Call Keras Code
+  label_t object = run_object_classification((unsigned)in_tr_val); 
   //label_t object = the_cv_object_dict[tr_val].object;
 
   DEBUG(printf("  Returning object %u %s : tr_val %u %s\n", object, object_names[object], in_tr_val, object_names[in_tr_val]));
   return object;
 }
 
-void post_execute_cv_kernel(label_t tr_val, label_t d_object)
+void post_execute_cv_kernel(label_t tr_val, label_t cv_object)
 {
-  if (d_object == tr_val) {
-    label_match[d_object]++;
+  if (cv_object == tr_val) {
+    label_match[cv_object]++;
     label_match[NUM_OBJECTS]++;
   } else {
-    label_mismatch[d_object][tr_val]++;
+    label_mismatch[tr_val][cv_object]++;
   }
   label_lookup[NUM_OBJECTS]++;
-  label_lookup[d_object]++;
+  label_lookup[cv_object]++;
 }
 
 
