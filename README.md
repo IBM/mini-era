@@ -26,14 +26,24 @@ This last step (`python mio_dataset.py`) has to be run **only once** to create t
 
 ### Build
 
-A basic Mini-ERA build is straightforward, and requires only that one execute the default make action in the ```mini-era``` directory.  
+A basic HPVM Mini-ERA build is straightforward, assuming the system is properly setup for HPVM compilation, etc.
+To build the basic, trace-driven HPVM Mini-ERA model:
 
 ```
-make allclean
-make
+make TARGET=seq
 ```
 
-The ```make allclean``` is added just for surety that all code is re-built, i.e. in case there are odd time-stamps on the files, etc.  The ```make``` command should produce the ```main.exe``` target, which provides the basic means to run a Mini-ERA simulation.
+The basic command to build the simulation-driven HPVM Mini-ERA model:
+```
+make -f Makefile.sim TARGET=seq
+```
+
+Note that we currently do not have an equivalent of ```make clean``` so to build both models, one needs to build one model, use a ```touch src/*``` and then build the other model, e.g.
+```
+make TARGET=seq
+touch src/*
+make -f Makefile.sim TARGET=seq
+```
 
 ### Usage
 ```
@@ -54,31 +64,12 @@ Usage: ./cmain.exe <OPTIONS>
 
 #### Other Targets
 
-Mini-ERA also supports a number of other targets.  One can build these individually, or can build them all and provision a variety of available run types.  The simplest means to build all targets is:
-```
-make all
-```
-
-The primary update is that Mini-ERA now supports two modes of execution: 
- - a trace-driven mode (the "classic" mode) where the simulation is driven by an input trace of obstacle positions per simulation time step 
- - a new, developing mode which uses on-board environment simulation to both introduce new obstacle vehicles and track the positions, etc. during simulation
-This new simulation version is developed from the trace generation utility, and provides a greater range of behaviors to the autonomous vehicle ("red car") during a Mini-ERA run.
-
-The ```make all``` command should compile a number of targets:
- - The default, trace-driven Mini-ERA:
-   - main.exe : the trace-driven Mini-ERA
-   - vmain.exe : trace-driven Mini-ERA in "verbose" mode (includes debug output)
- - The trace-driven Mini-ERA with no use of Keras/Python code:
-   - cmain.exe : the trace-driven Mini-ERA with no use of Keras/Python code
-   - vcmain.exe : the trace-driven Mini-ERA in "verbose" mode, with no use of Keras/Python code 
- - The default, trace-driven Mini-ERA:
-   - sim_main.exe : the base Mini-ERA code running in a simulation (not trace-driven) mode
-   - vsim_main.exe : the simulation-mode Mini-ERA in "verbose" mode (includes debug output)
- - The default, trace-driven Mini-ERA:
-   - csim_main.exe : the simulation-mode Mini-ERA with no use of Keras/Python code
-   - vcsim_main.exe : the simulation-mode Mini-ERA in "verbose" mode, with no use of Keras/Python code
+While Mini-ERA also supports a number of other targets, the HPVM version currently only supports the two base models, trace-driven adn simulation-drive, with the "standard" (non-verbose, non-debug) output.  The resulting executables are no longer named "main.exe" and the like, but have the names:
+ - miniera-visc-trace-Default-seq : the trace-driven model
+ - miniera-visc-sim-Default-seq : the simulation-driven model
 
 ### Execution (Example)
+
 The usage for the trace-driven Mini-ERA and simulation-mode Mini-ERA differ slightly.  Here we will give two examples, one for each mode.
 
 #### Trace Mode:
@@ -297,21 +288,22 @@ To install the Mini-ERA workload, clone the git repository:
 
 ```
   git clone https://github.com/IBM/mini-era
-  cd mini-era/cv/CNN_MIO_KERAS
+  cd mini-era
+  git checkout hpvm
+  git pull --update
+  cd cv/CNN_MIO_KERAS
   export PYTHONPATH=`pwd`  (path_to_mini_era/cv/CNN_MIO_KERAS)
   python mio_dataset.py
 ```
 
-To build Mini-ERA::
+To build Mini-ERA:
 
 ```
   cd mini-era
-  make all
+  make TARGET=seq   /* Trace-Driven Version */
+  touch src/*
+  make -f Makefile.sim TARGET=seq  /* Simulation-Driven Version */
 ```
-This will build all the necessary programs; the mini-era main program(s), the
-utilities programs, etc. Some of these can be built independently, e.g. the
-trace generator includes compile-time parameters (at present) and thus might
-need to be recompiled to change the output trace.
 
 To build the trace-generation program:
 
@@ -334,14 +326,18 @@ The '''test_trace1.new''' is a short trace, and the
 The main mini-era program is invoked using the program main.exe, but there is also a debugging (verbose) version named vmain.exe.
 The invocation also requires an input trace file to be specifed:
 ```
-  main.exe -t traces/test_trace1.new
+  miniera-visc-trace-Default-seq -t traces/test_trace1.new
+```
+or
+```
+  miniera-visc-sim-Default-seq 
 ```
 
 The visualizer can also be used to visualize the operation of the simulation.  The visualizer sits in the visualizer subdirectory, and currently requires its own version of the trace to operate. Please see the visualizer README.md file in the visualizer subdirectory.
 
 To drive the visualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself driven by a Mini-ERA input trace) is to run the verbose version of Mini-ERA and pull out the Visualizer trace data from that output stream.  This is easily done as follows:
 ```
-  ./vmain.exe -t traces/test_trace1.new | grep VizTrace | sed 's/VizTrace: //' > visualizer/traces/viz_tet_trace1.new
+  ./vmain.exe -t traces/test_trace1.new | grep VizTrace | sed 's/VizTrace: //' > visualizer/traces/viz_test_trace1.new
 ```
 
 ## Contacts and Current Maintainers

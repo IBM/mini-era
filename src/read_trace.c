@@ -27,7 +27,7 @@ extern unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each o
 extern char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
 
 extern char     nearest_obj[NUM_LANES];
-extern unsigned nearest_dist[NUM_LANES];
+extern float    nearest_dist[NUM_LANES];
 
 extern bool output_viz_trace;
 
@@ -90,7 +90,7 @@ get_distance_token(char c)
     sscanf(&in_line_buf[last_i], "%u", &distv);
     lane_dist[in_lane][obj_in_lane[in_lane]] = distv;
     //if (obj_in_lane[in_lane] == 0) {
-    nearest_dist[in_lane] = distv;
+    nearest_dist[in_lane] = (float)distv;
     obj_in_lane[in_lane]++;
   } else { // a distance
     printf("ERROR : trace syntax is weird!\n");

@@ -32,7 +32,7 @@ INCLUDES += -I$(CONFUSE_ROOT)/include
 LFLAGS += -L$(CONFUSE_ROOT)/lib
 endif
 
-EXE = miniera-visc-trace-$(VERSION)-$(TARGET)
+EXE = miniera-visc-sim-$(VERSION)-$(TARGET)
 
 CAM_CFLAGS += -mf16c -flax-vector-conversions
 LFLAGS += -pthread
@@ -46,13 +46,13 @@ LFLAGS += -pthread
 #	rm -f $(NATIVE) $(DEBUG)
 
 ## BEGIN HPVM MAKEFILE
-LANGUAGE=visc
-SRCDIR_OBJS=read_trace.ll
+      LANGUAGE=visc
+SRCDIR_OBJS=sim_environs.ll
 OBJS_SRC=$(wildcard $(SRC_DIR)/*.c)
 VISC_OBJS=main.visc.ll
 APP = $(EXE)
 APP_CUDALDFLAGS=-lm -lstdc++
-APP_CFLAGS= $(INCLUDES) -DDMA_MODE -DDMA_INTERFACE_V3
+APP_CFLAGS= $(INCLUDES) -DDMA_MODE -DDMA_INTERFACE_V3 -DUSE_SIM_ENVIRON
 APP_CXXFLAGS=-ffast-math -O0 -I/opt/opencv/include
 APP_LDFLAGS=$(LFLAGS)
 OPT_FLAGS = -tti -targetlibinfo -tbaa -scoped-noalias -assumption-cache-tracker -profile-summary-info -forceattrs -inferattrs -ipsccp -globalopt -domtree -mem2reg -deadargelim -domtree -basicaa -aa -simplifycfg -pgo-icall-prom -basiccg -globals-aa -prune-eh -always-inline -functionattrs -domtree -sroa -early-cse -lazy-value-info -jump-threading -correlated-propagation -simplifycfg -domtree -basicaa -aa -libcalls-shrinkwrap -tailcallelim -simplifycfg -reassociate -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -licm -loop-unswitch -simplifycfg -domtree -basicaa -aa -loops -loop-simplify -lcssa-verification -lcssa -scalar-evolution -indvars -loop-idiom -loop-deletion -memdep -memcpyopt -sccp -domtree -demanded-bits -bdce -basicaa -aa -lazy-value-info -jump-threading -correlated-propagation -domtree -basicaa -aa -memdep -dse -loops -loop-simplify -lcssa-verification -lcssa -aa -scalar-evolution -licm -postdomtree -adce -simplifycfg -domtree -basicaa -aa -barrier -basiccg -rpo-functionattrs -globals-aa -float2int -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -loop-accesses -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-distribute -loop-simplify -lcssa-verification -lcssa -branch-prob -block-freq -scalar-evolution -basicaa -aa -loop-accesses -demanded-bits -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-vectorize -loop-simplify -scalar-evolution -aa -loop-accesses -loop-load-elim -basicaa -aa -simplifycfg -domtree -basicaa -aa -loops -scalar-evolution -alignment-from-assumptions -strip-dead-prototypes -domtree -loops -branch-prob -block-freq -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -branch-prob -block-freq -loop-sink -instsimplify 
