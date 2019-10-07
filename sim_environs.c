@@ -94,16 +94,40 @@ int    max_obst_lane;
 void
 init_sim_environs()
 {
-  for (int i = 0; i < 5; i++) {
-    the_objects[i] = NULL;
-  }
-
+  DEBUG(printf("In init_sim_environs...\n"));
   // Set up the default initial state of my car: Middle lane at medium speed.
   my_car.lane = center;
   my_car.object = myself;
   my_car.speed = 50;
   my_car.previous = NULL;	// not used for my_car
   my_car.next = NULL;		// not used for my_car
+
+  DEBUG({
+      printf("NEW_OBJ_THRESHOLD %u\n", NEW_OBJ_THRESHOLD);
+      printf("NEW_OBJ: CAR %u TRUCK %u BIKE %u\n", NEW_OBJ_CAR_THRESHOLD, NEW_OBJ_TRUCK_THRESHOLD, NEW_OBJ_BIKE_THRESHOLD);
+      printf("NUM_CAR_SPEEDS %u\n", NUM_CAR_SPEEDS);
+      for (int i = 0; i < NUM_CAR_SPEEDS; i++) {
+	printf(" CAR_SPEED %u PROB %u\n", car_speeds[i], car_sp_thds[i]);
+      }
+      printf("NUM_TRUCK_SPEEDS %u\n", NUM_TRUCK_SPEEDS);
+      for (int i = 0; i < NUM_TRUCK_SPEEDS; i++) {
+	printf(" TRUCK_SPEED %u PROB %u\n", truck_speeds[i], truck_sp_thds[i]);
+      }
+      printf("NUM_BIKE_SPEEDS %u\n", NUM_BIKE_SPEEDS);
+      for (int i = 0; i < NUM_BIKE_SPEEDS; i++) {
+	printf(" BIKE_SPEED %u PROB %u\n", bike_speeds[i], bike_sp_thds[i]);
+      }
+      printf("NUM_PERSON_SPEEDS %u\n", NUM_PERSON_SPEEDS);
+      for (int i = 0; i < NUM_PERSON_SPEEDS; i++) {
+	printf(" PERSON_SPEED %u PROB %u\n", person_speeds[i], person_sp_thds[i]);
+      }
+      printf("MY_CAR LANE %u SPEED %u\n", my_car.lane, my_car.speed);
+    });
+
+  // Initialize everything else...
+  for (int i = 0; i < 5; i++) {
+    the_objects[i] = NULL;
+  }
 
   time_steps = 0;
 
