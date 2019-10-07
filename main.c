@@ -59,7 +59,9 @@ int main(int argc, char *argv[])
   label_t label;
   distance_t distance;
   message_t message;
-#ifndef USE_SIM_ENVIRON
+#ifdef USE_SIM_ENVIRON
+  char* world_desc_file_name = "default_world.desc";
+#else
   char* trace_file; 
 #endif
   int opt; 
@@ -165,7 +167,7 @@ int main(int argc, char *argv[])
   }
 
 #ifdef USE_SIM_ENVIRON
-  init_sim_environs();
+  init_sim_environs(world_desc_file_name);
 #endif
   
   /* We assume the vehicle starts in the following state:

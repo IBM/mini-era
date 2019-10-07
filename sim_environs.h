@@ -59,10 +59,10 @@ typedef struct obj_struct {
  */
 
 // Function/interface declarations
-void   print_object(object_state_t* st);
-void   init_sim_environs();
-bool_t iterate_sim_environs(vehicle_state_t vehicle_state);
-void   visualize_world();
+void     print_object(object_state_t* st);
+status_t init_sim_environs(char* wdecsc_fn);
+bool_t   iterate_sim_environs(vehicle_state_t vehicle_state);
+void     visualize_world();
 
 extern unsigned max_time_steps; // The max stime steps to simulate
 
