@@ -357,8 +357,8 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
       int delta_dist = my_car.speed - obj->speed;
       float new_dist  = (obj->distance - (1.0 * delta_dist));
       DEBUG(printf(" Lane %u ddist %d to new_dist %.1f for", in_lane, delta_dist, new_dist); print_object(obj)); 
-      if (new_dist < 0) { // Object is "off the world" (we've passed it completely)
-	DEBUG(printf("  new_dist < 0 --> drop object from environment\n");
+      if ((new_dist < 0) || (new_dist > MAX_DISTANCE)) { // Object is "off the world" (we've passed it completely)
+	DEBUG(printf("  new_dist < 0 or > MAX_DIST --> drop object from environment\n");
 	      printf("   OBJ :"); print_object(obj);
 	      printf("   LIST:"); print_object(the_objects[in_lane]);
 	      if (obj->next != NULL) { printf("   NEXT:"); print_object(obj->next); }
