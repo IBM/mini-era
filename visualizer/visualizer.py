@@ -261,7 +261,7 @@ def main(argv):
     #               where X is a 2-bit string representing object type ('01' car, '10' motorcycle, '11' truck) and
     #               where Y is a 10-bit string representing distance from car (0 to 1023 in binary)
     mine, lhaz, left, mid, right, rhaz  = parse_trace(tracefile, five_lane_trace)
-    print("Sizes of mine %u lhaz %u left %u mid %u right %u rhaz %u\n" % (len(mine), len(lhaz), len(left), len(mid), len(right), len(rhaz)))
+    print("Sizes of mine %i lhaz %u left %u mid %u right %u rhaz %u\n" % (len(mine), len(lhaz), len(left), len(mid), len(right), len(rhaz)))
     mine.reverse()
     lhaz.reverse()
     left.reverse() # reverse list order so popping gives chronological order
@@ -273,8 +273,8 @@ def main(argv):
 
 
     # MAIN LOOP
+    my_inactive = False
     while not done:
-        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 # Catch event when window is closed, exit while loop
@@ -299,7 +299,12 @@ def main(argv):
 
                 #DEBUG print my_data, left_data, mid_data, right_data
                 # Update lane position (x position) of your car
-                x_main_car = x_per_lane[int(my_data)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
+                my_lane = int(my_data)
+                if (my_lane < 0):
+                    my_lane = -my_lane
+                    my_inactive = True
+
+                x_main_car = x_per_lane[int(my_lane)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
 
                 # Create list of objects to display
                 #   Parse trace entries into tuples: (x-position, pixel distance from tip of car, object type)
@@ -350,7 +355,12 @@ def main(argv):
             bgY2 = -500
 
         # Draw objects every epoch
-        screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
+        #DEBUG print "My_inactive = ", my_inactive
+        if (my_inactive):
+            screen.blit(get_img('images/red-crash.png'), (x_main_car, y_main_car)) # your car crashed            
+        else:
+            screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
+            
         for obj in obj_list:
             blit_obj(screen, obj[2], obj[0], obj[1]-55)
             #DEBUG print obj[2], obj[0], obj[1]

@@ -118,8 +118,13 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   }
   DEBUG(printf("IN_LINE : %s\n", in_line_buf));
   if (output_viz_trace) {
-    printf("  VizTrace: %u,%s\n", vs.lane, in_line_buf);
+    if (!vs.active) {
+      printf("  VizTrace: %d,%s\n", -vs.lane, in_line_buf);
+    } else {
+      printf("  VizTrace: %d,%s\n", vs.lane, in_line_buf);
+    }      
   }
+
   last_i = 0;
   in_tok = 0;
   in_lane = 1;

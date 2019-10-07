@@ -668,6 +668,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   if ((label != no_label) && (distance <= THRESHOLD_1)) {
     if (distance <= IMPACT_DISTANCE) {
       printf("WHOOPS: We've suffered a collision on time_step %u!\n", time_step);
+      //fprintf(stderr, "WHOOPS: We've suffered a collision on time_step %u!\n", time_step);
       new_vehicle_state.speed = 0.0;
       new_vehicle_state.active = false; // We should add visualizer stuff for this!
       return new_vehicle_state;

@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
@@ -101,6 +101,12 @@ int main(int argc, char *argv[])
     case 'v':
       vit_msgs_behavior = atoi(optarg);
       printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      break;
+    case 'W':
+#ifdef USE_SIM_ENVIRON
+      world_desc_file_name = optarg;
+      printf("Using world description file: %s\n", world_desc_file_name);
+#endif
       break;
     case ':':
       printf("option needs a value\n");
