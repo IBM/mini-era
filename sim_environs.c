@@ -110,21 +110,21 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   }
 
   if (fscanf(wdescF, "MAX_OBJECT_SIZE %f\n", &MAX_OBJECT_SIZE)) {
-    DEBUG(printf("MAX_OBJECT_SIZE %.1f\n", MAX_OBJECT_SIZE));
+    printf("MAX_OBJECT_SIZE %.1f\n", MAX_OBJECT_SIZE);
   } else {
     printf("Error: unable to read MAX_OBJECT_SIZE from %s\n", wdesc_fn);
     return error;
   }
 
   if (fscanf(wdescF, "MIN_OBJECT_DIST %f\n", &MIN_OBJECT_DIST)) {
-    DEBUG(printf("MIN_OBJECT_DIST %.1f\n", MIN_OBJECT_DIST));
+    printf("MIN_OBJECT_DIST %.1f\n", MIN_OBJECT_DIST);
   } else {
     printf("Error: unable to read MIN_OBJECT_DIST from %s\n", wdesc_fn);
     return error;
   }
 
   if (fscanf(wdescF, "IMPACT_DISTANCE %f\n", &IMPACT_DISTANCE)) {
-    DEBUG(printf("IMPACT_DISTANCE %.1f\n", IMPACT_DISTANCE));
+    printf("IMPACT_DISTANCE %.1f\n", IMPACT_DISTANCE);
   } else {
     printf("Error: unable to read IMPACT_DISTANCE from %s\n", wdesc_fn);
     return error;
@@ -132,7 +132,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
 
   /* #define NEW_OBJ_THRESHOLD 97     // RAND > this to create new obstacle object */
   if (fscanf(wdescF, "NEW_OBJ_THRESHOLD %u\n", &NEW_OBJ_THRESHOLD)) {
-    DEBUG(printf("NEW_OBJ_THRESHOLD %u\n", NEW_OBJ_THRESHOLD));
+    printf("NEW_OBJ_THRESHOLD %u\n", NEW_OBJ_THRESHOLD);
   } else {
     printf("Error: unable to read NEW_OBJ_THRESHOLD from %s\n", wdesc_fn);
     return error;
@@ -143,7 +143,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   /* #define NEW_OBJ_TRUCK_THRESHOLD  70   // RAND >= car and < this -- it is a truck */
   /* #define NEW_OBJ_BIKE_THRESHOLD   95   // RAND >= truck and < this, it is a bike (else a person) */
   if (fscanf(wdescF, "NEW_OBJ: CAR %u TRUCK %u BIKE %u\n", &NEW_OBJ_CAR_THRESHOLD, &NEW_OBJ_TRUCK_THRESHOLD, &NEW_OBJ_BIKE_THRESHOLD)) {
-    DEBUG(printf("NEW_OBJ: CAR %u TRUCK %u BIKE %u\n", NEW_OBJ_CAR_THRESHOLD, NEW_OBJ_TRUCK_THRESHOLD, NEW_OBJ_BIKE_THRESHOLD));
+    printf("NEW_OBJ: CAR %u TRUCK %u BIKE %u\n", NEW_OBJ_CAR_THRESHOLD, NEW_OBJ_TRUCK_THRESHOLD, NEW_OBJ_BIKE_THRESHOLD);
   } else {
     printf("Error: unable to read NEW_OBJ CAR TRUCK and BIKE THRESHOLDS from %s\n", wdesc_fn);
     return error;
@@ -151,7 +151,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
 
   /* #define NUM_CAR_SPEEDS      5 */
   if (fscanf(wdescF, "NUM_CAR_SPEEDS %u\n", &NUM_CAR_SPEEDS)) {
-    DEBUG(printf("NUM_CAR_SPEEDS %u\n", NUM_CAR_SPEEDS));
+    printf("NUM_CAR_SPEEDS %u\n", NUM_CAR_SPEEDS);
   } else {
     printf("Error: unable to read NUM_CAR_SPEEDS from %s\n", wdesc_fn);
     return error;
@@ -170,7 +170,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   }
   for (int i = 0; i < NUM_CAR_SPEEDS; i++) {
     if (fscanf(wdescF, " CAR SPEED %f PROB %u\n", &(car_speeds[i]), &(car_sp_thds[i]))) {
-      DEBUG(printf(" CAR_SPEED %.1f PROB %u\n", car_speeds[i], car_sp_thds[i]));
+      printf(" CAR_SPEED %.1f PROB %u\n", car_speeds[i], car_sp_thds[i]);
     } else {
       printf("Error: unable to read CAR_SPEEDS %u from %s\n", i, wdesc_fn);
       return error;
@@ -179,7 +179,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     
   /* #define NUM_TRUCK_SPEEDS    4 */
   if (fscanf(wdescF, "NUM_TRUCK_SPEEDS %u\n", &NUM_TRUCK_SPEEDS)) {
-    DEBUG(printf("NUM_TRUCK_SPEEDS %u\n", NUM_TRUCK_SPEEDS));
+    printf("NUM_TRUCK_SPEEDS %u\n", NUM_TRUCK_SPEEDS);
   } else {
     printf("Error: unable to read NUM_TRUCK_SPEEDS from %s\n", wdesc_fn);
     return error;
@@ -198,7 +198,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   }
   for (int i = 0; i < NUM_TRUCK_SPEEDS; i++) {
     if (fscanf(wdescF, " TRUCK SPEED %f PROB %u\n", &(truck_speeds[i]), &(truck_sp_thds[i]))) {
-      DEBUG(printf(" TRUCK_SPEED %.1f PROB %u\n", truck_speeds[i], truck_sp_thds[i]));
+      printf(" TRUCK_SPEED %.1f PROB %u\n", truck_speeds[i], truck_sp_thds[i]);
     } else {
       printf("Error: unable to read TRUCK_SPEEDS %u from %s\n", i, wdesc_fn);
       return error;
@@ -207,7 +207,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
 
   /* #define NUM_BIKE_SPEEDS     3 */
   if (fscanf(wdescF, "NUM_BIKE_SPEEDS %u\n", &NUM_BIKE_SPEEDS)) {
-    DEBUG(printf("NUM_BIKE_SPEEDS %u\n", NUM_BIKE_SPEEDS));
+    printf("NUM_BIKE_SPEEDS %u\n", NUM_BIKE_SPEEDS);
   } else {
     printf("Error: unable to read NUM_BIKE_SPEEDS from %s\n", wdesc_fn);
     return error;
@@ -226,7 +226,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   }
   for (int i = 0; i < NUM_BIKE_SPEEDS; i++) {
     if (fscanf(wdescF, " BIKE SPEED %f PROB %u\n", &(bike_speeds[i]), &(bike_sp_thds[i]))) {
-      DEBUG(printf(" BIKE_SPEED %.1f PROB %u\n", bike_speeds[i], bike_sp_thds[i]));
+      printf(" BIKE_SPEED %.1f PROB %u\n", bike_speeds[i], bike_sp_thds[i]);
     } else {
       printf("Error: unable to read BIKE_SPEEDS %u from %s\n", i, wdesc_fn);
       return error;
@@ -234,8 +234,8 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   }
 
   /* #define NUM_PERSON_SPEEDS   2 */
-    if (fscanf(wdescF, "NUM_PERSON_SPEEDS %u\n", &NUM_PERSON_SPEEDS)) {
-    DEBUG(printf("NUM_PERSON_SPEEDS %u\n", NUM_PERSON_SPEEDS));
+  if (fscanf(wdescF, "NUM_PERSON_SPEEDS %u\n", &NUM_PERSON_SPEEDS)) {
+    printf("NUM_PERSON_SPEEDS %u\n", NUM_PERSON_SPEEDS);
   } else {
     printf("Error: unable to read NUM_PERSON_SPEEDS from %s\n", wdesc_fn);
     return error;
@@ -254,7 +254,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   }
   for (int i = 0; i < NUM_PERSON_SPEEDS; i++) {
     if (fscanf(wdescF, " PERSON SPEED %f PROB %u\n", &(person_speeds[i]), &(person_sp_thds[i]))) {
-      DEBUG(printf(" PERSON_SPEED %.1f PROB %u\n", person_speeds[i], person_sp_thds[i]));
+      printf(" PERSON_SPEED %.1f PROB %u\n", person_speeds[i], person_sp_thds[i]);
     } else {
       printf("Error: unable to read PERSON_SPEEDS %u from %s\n", i, wdesc_fn);
       return error;
@@ -270,19 +270,19 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
 
   // My Car parameters:
   if (fscanf(wdescF, "MY_CAR GOAL SPEED %f\n", &(car_goal_speed))) {
-    DEBUG(printf("MY_CAR GOAL SPEED %.1f\n", car_goal_speed));
+    printf("MY_CAR GOAL SPEED %.1f\n", car_goal_speed);
   } else {
     printf("Error: unable to read MY_CAR GOAL SPEED from %s\n", wdesc_fn);
     return error;
   }
   if (fscanf(wdescF, "MY_CAR ACCEL RATE %f\n", &(car_accel_rate))) {
-    DEBUG(printf("MY_CAR ACCEL RATE %.1f\n", car_accel_rate));
+    printf("MY_CAR ACCEL RATE %.1f\n", car_accel_rate);
   } else {
     printf("Error: unable to read MY_CAR ACCEL RATE from %s\n", wdesc_fn);
     return error;
   }
   if (fscanf(wdescF, "MY_CAR DECEL RATE %f\n", &(car_decel_rate))) {
-    DEBUG(printf("MY_CAR DECEL RATE %.1f\n", car_decel_rate));
+    printf("MY_CAR DECEL RATE %.1f\n", car_decel_rate);
   } else {
     printf("Error: unable to read MY_CAR DECEL RATE from %s\n", wdesc_fn);
     return error;
@@ -290,14 +290,15 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
 
   // Starting conditions for My-Car
   if (fscanf(wdescF, "MY_CAR LANE %u SPEED %f\n", &(my_car.lane), &(my_car.speed))) {
-    DEBUG(printf("MY_CAR LANE %u SPEED %.1f\n", my_car.lane, my_car.speed));
+    printf("MY_CAR LANE %u SPEED %.1f\n", my_car.lane, my_car.speed);
     vehicle_state->lane  = my_car.lane;
     vehicle_state->speed = my_car.speed;    
   } else {
     printf("Error: unable to read MY_CAR LANE and SPEED from %s\n", wdesc_fn);
     return error;
   }
-
+  printf("\n");
+  
   // Initialize everything else...
   for (int i = 0; i < 5; i++) {
     the_objects[i] = NULL;
