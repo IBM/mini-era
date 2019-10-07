@@ -25,15 +25,13 @@
 #endif
 
 /* Types definitions */
-#define MAX_OBJECT_SIZE   50.0  // Max size of an object
-#define MIN_OBJECT_DIST   MAX_OBJECT_SIZE
 
 /* Object state; includes lane, type of object, and speed (0, 1, 2, ...) */
 typedef struct obj_struct {
   unsigned    obj_id;
   label_t     object;
   lane_t      lane;
-  unsigned    speed;
+  float       speed;
   distance_t  distance;
   distance_t  size; // Size of object in distance_t units
   
@@ -58,15 +56,24 @@ typedef struct obj_struct {
  *    0    |         |         |         |         |         |
  */
 
-// Function/interface declarations
-void     print_object(object_state_t* st);
-status_t init_sim_environs(char* wdecsc_fn);
-bool_t   iterate_sim_environs(vehicle_state_t vehicle_state);
-void     visualize_world();
+// External variables
+extern float MAX_OBJECT_SIZE; // Max size of an object
+extern float MIN_OBJECT_DIST;
 
 extern unsigned max_time_steps; // The max stime steps to simulate
 
 extern bool_t all_obstacle_lanes_mode;
+
+extern float car_goal_speed;  // The speed My Car wants to maintain (if possible)
+extern float car_accel_rate;  // The rate of acceleration toward goal_speed
+extern float car_decel_rate;  // The rate of deceleration toward goal_speed
+
+// Function/interface declarations
+void     print_object(object_state_t* st);
+status_t init_sim_environs(char* wdecsc_fn, vehicle_state_t* vehicle_state);
+bool_t   iterate_sim_environs(vehicle_state_t vehicle_state);
+void     visualize_world();
+
 
 #endif
 

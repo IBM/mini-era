@@ -30,6 +30,7 @@ char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
+unsigned time_step;
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
@@ -166,19 +167,22 @@ int main(int argc, char *argv[])
     return 1;
   }
 
-#ifdef USE_SIM_ENVIRON
-  init_sim_environs(world_desc_file_name);
-#endif
-  
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
    *  - Speed: 50 mph
    */
-  vehicle_state.lane  = center;
-  vehicle_state.speed = 50;
-  DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
-  /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
-  unsigned time_step = 0;
+  vehicle_state.active  = true;
+  vehicle_state.lane    = center;
+  vehicle_state.speed   = 50;
+  DEBUG(printf("Vehicle starts with the following state: active: %u lane %u speed %.1f\n", vehicle_state.active, vehicle_state.lane, vehicle_state.speed));
+
+  #ifdef USE_SIM_ENVIRON
+  // In simulation mode, we could start the main car is a different state (lane, speed)
+  init_sim_environs(world_desc_file_name, &vehicle_state);
+  #endif
+  
+/*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
+  time_step = 0;
   #ifdef TIME
   struct timeval stop, start;
   #endif

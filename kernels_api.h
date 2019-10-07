@@ -96,6 +96,7 @@ typedef enum {
 /* These are some global type defines, etc. */
 typedef struct
 {
+  bool_t active;
   lane_t lane;
   float speed;
 } vehicle_state_t;

@@ -28,6 +28,7 @@
  #include "read_trace.h"
 #endif
 
+extern unsigned time_step;
 
 char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
@@ -52,6 +53,7 @@ unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 unsigned rand_seed = 0; // Only used if -r <N> option set
 
+float IMPACT_DISTANCE = 50.0; // Minimum distance at which an obstacle "impacts" MyCar (collision case)
 
 
 /* These are types, functions, etc. required for VITERBI */
@@ -658,8 +660,19 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
   DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
 	       label, object_names[label], distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, message));
   vehicle_state_t new_vehicle_state = vehicle_state;
+  if (!vehicle_state.active) {
+    // Our car is broken and burning, no plan-and-control possible.
+    return vehicle_state;
+  }
   
   if ((label != no_label) && (distance <= THRESHOLD_1)) {
+    if (distance <= IMPACT_DISTANCE) {
+      printf("WHOOPS: We've suffered a collision on time_step %u!\n", time_step);
+      new_vehicle_state.speed = 0.0;
+      new_vehicle_state.active = false; // We should add visualizer stuff for this!
+      return new_vehicle_state;
+    }
+    
     // Some object ahead of us that needs to be avoided.
     DEBUG(printf("  In lane %s with %c (%u) at %.1f (trace: %.1f)\n", lane_names[vehicle_state.lane], nearest_obj[vehicle_state.lane], label, distance, nearest_dist[vehicle_state.lane]));
     switch (message) {
@@ -683,8 +696,8 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 	break;
       case unsafe_to_move_left_or_right :
 	#ifdef USE_SIM_ENVIRON
-	if (vehicle_state.speed > 15.0) {
-	  new_vehicle_state.speed = vehicle_state.speed / 2.0;
+	if (vehicle_state.speed > car_decel_rate) {
+	  new_vehicle_state.speed = vehicle_state.speed - car_decel_rate; // was / 2.0;
 	  DEBUG(printf("   In %s with No_Safe_Move -- SLOWING DOWN from %.2f to %.2f\n", lane_names[vehicle_state.lane], vehicle_state.speed, new_vehicle_state.speed));
 	} else {
 	  DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
@@ -722,14 +735,18 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
       }
       break;
     }
-    if (vehicle_state.speed < 50.0) {
-      if (vehicle_state.speed <= 35.0) {
+    #ifdef USE_SIM_ENVIRON
+    if ((vehicle_state.speed < car_goal_speed) &&  // We are going slower than we want to, and
+	//((label == no_label) ||      // There is no object ahead of us -- don't need; NOTHING is at INF_DISTANCE
+	(distance >= THRESHOLD_2)) { // Any object is far enough away 
+      if (vehicle_state.speed <= (car_goal_speed - car_accel_rate)) {
 	new_vehicle_state.speed += 15.0;
       } else {
-	new_vehicle_state.speed = 50.0;
+	new_vehicle_state.speed = car_goal_speed;
       }
       DEBUG(printf("  Going %.2f : slower than target speed %.2f : Speeding up to %.2f\n", vehicle_state.speed, 50.0, new_vehicle_state.speed));
     }
+    #endif
   } // else clause
 
 
