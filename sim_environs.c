@@ -268,6 +268,26 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   my_car.previous = NULL;	// not used for my_car
   my_car.next = NULL;		// not used for my_car
 
+  // My Car parameters:
+  if (fscanf(wdescF, "MY_CAR GOAL SPEED %f\n", &(car_goal_speed))) {
+    DEBUG(printf("MY_CAR GOAL SPEED %.1f\n", car_goal_speed));
+  } else {
+    printf("Error: unable to read MY_CAR GOAL SPEED from %s\n", wdesc_fn);
+    return error;
+  }
+  if (fscanf(wdescF, "MY_CAR ACCEL RATE %f\n", &(car_accel_rate))) {
+    DEBUG(printf("MY_CAR ACCEL RATE %.1f\n", car_accel_rate));
+  } else {
+    printf("Error: unable to read MY_CAR ACCEL RATE from %s\n", wdesc_fn);
+    return error;
+  }
+  if (fscanf(wdescF, "MY_CAR DECEL RATE %f\n", &(car_decel_rate))) {
+    DEBUG(printf("MY_CAR DECEL RATE %.1f\n", car_decel_rate));
+  } else {
+    printf("Error: unable to read MY_CAR DECEL RATE from %s\n", wdesc_fn);
+    return error;
+  }
+
   // Starting conditions for My-Car
   if (fscanf(wdescF, "MY_CAR LANE %u SPEED %f\n", &(my_car.lane), &(my_car.speed))) {
     DEBUG(printf("MY_CAR LANE %u SPEED %.1f\n", my_car.lane, my_car.speed));

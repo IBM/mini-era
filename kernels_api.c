@@ -665,7 +665,12 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
     return vehicle_state;
   }
   
-  if ((label != no_label) && (distance <= THRESHOLD_1)) {
+  if ((label != no_label) &&
+      ((distance <= THRESHOLD_1)
+       #ifdef USE_SIM_ENVIRON
+       || ((vehicle_state.speed < car_goal_speed) && (distance <= THRESHOLD_2))
+       #endif
+       )) {
     if (distance <= IMPACT_DISTANCE) {
       printf("WHOOPS: We've suffered a collision on time_step %u!\n", time_step);
       //fprintf(stderr, "WHOOPS: We've suffered a collision on time_step %u!\n", time_step);
