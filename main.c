@@ -41,8 +41,9 @@ void print_usage(char * pname) {
   printf("    -s <N>     : Sets the max number of time steps to simulate\n");
   printf("    -r <N>     : Sets the rand random number seed to N\n");
   printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
+  printf("    -W <wfile> : defines the world environment parameters description file <wfile> to use\n");
 #else
-  printf("    -t <trace> : defines the input trace file to use\n");
+  printf("    -t <trace> : defines the input trace file <trace> to use\n");
 #endif
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");

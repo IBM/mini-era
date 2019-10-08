@@ -98,7 +98,7 @@ Usage: ./cmain.exe <OPTIONS>
  OPTIONS:
     -h         : print this helpfule usage info
     -o         : print the Visualizer output traace information during the run
-    -t <trace> : defines the input trace file to use
+    -t <trace> : defines the input trace file <trace> to use
     -v <N>     : defines Viterbi messaging behavior:
                :      0 = One short message per time step
                :      1 = One long  message per time step
@@ -128,6 +128,7 @@ Usage: ./csim_main.exe <OPTIONS>
     -s <N>     : Sets the max number of time steps to simulate
     -r <N>     : Sets the rand random number seed to N
     -A         : Allow obstacle vehicles in All lanes (otherwise not in left or right hazard lanes)
+    -W <wfile> : defines the world environment parameters description file <wfile> to use
     -v <N>     : defines Viterbi messaging behavior:
                :      0 = One short message per time step
                :      1 = One long  message per time step
@@ -137,10 +138,75 @@ Usage: ./csim_main.exe <OPTIONS>
                :      5 = One long  msg per obstacle + 1 per time step
 ```
 
-Note that in simulation mode, there is no option to specify a trace (the '-t' of trace-mode) as there is no need for or use of a trace.  There are two additional options in simulation-mode: the '-s' which indicates the number of time steps to simulate (which is analogous to the trace length) and '-r' which sets the seed value (and unsigned int) for the C ```rand()``` function used in the simulation.  Both modes support the '-v' and '-o' options.
+Note that in simulation mode, there is no option to specify a trace (the '-t' of trace-mode) as there is no need for or use of a trace.  There are four additional options in simulation-mode: the '-s' which indicates the number of time steps to simulate (which is analogous to the trace length) and '-r' which sets the seed value (and unsigned int) for the C ```rand()``` function used in the simulation.  Both modes support the '-v' and '-o' options.  
 
 In the Simulation mode there is also a `-A` option, which allows the simulation to add obstacle vehicles to all five lanes of the highway.  This is allowable in the simulation mode because the autonomous vehicle ("red car") is allowed to alter speed, etc. in order to avoid collisions, which otherwise tend to require a clear lane in the trace mode.  It is possible, however, to run simulation mode in either the default 3-lanes of obstacle traffic (leaving the left-most and right-most free of obstacles) or in a five-lane obstacles mode by specifying the '-A' for "All lanes can contain obstacle vehicles."
 
+Finally, there is the '-W' options which allows one to specify a "World Description File" which is used to define various parameters of the simulation used to decide elements like the probability of new obstacle vehicle arriving, their speeds, etc.
+
+### Simulation Mode World Description File
+
+The world description file is similar to a dictionary file in that it defines aspects of the world (or environment) of the simulation mode run.  The general format is an ASCII file with keywords and values; a default_world.desc file is provided:
+```
+MAX_OBJECT_SIZE 50.0
+MIN_OBJECT_DIST 50.0
+IMPACT_DISTANCE 50.0
+NEW_OBJ_THRESHOLD 97
+NEW_OBJ: CAR 45 TRUCK 70 BIKE 95
+NUM_CAR_SPEEDS 5
+ CAR SPEED 45 PROB 15
+ CAR SPEED 40 PROB 75
+ CAR SPEED 35 PROB 90
+ CAR SPEED 30 PROB 95
+ CAR SPEED 25 PROB 100
+NUM_TRUCK_SPEEDS 4
+ TRUCK SPEED 40 PROB 50
+ TRUCK SPEED 35 PROB 85
+ TRUCK SPEED 30 PROB 95
+ TRUCK SPEED 25 PROB 100
+NUM_BIKE_SPEEDS 3
+ BIKE SPEED 35 PROB 70
+ BIKE SPEED 30 PROB 95
+ BIKE SPEED 20 PROB 100
+NUM_PERSON_SPEEDS 2
+ PERSON SPEED 15 PROB 50
+ PERSON SPEED 10 PROB 100
+MY_CAR GOAL SPEED 50.0
+MY_CAR ACCEL RATE 15.0
+MY_CAR DECEL RATE 15.0
+MY_CAR LANE 2 SPEED 50
+```
+
+Each of these lines defines some aspects of the world and simulation environment:
+ - ```MAX_OBJECT_SIZE 50.0``` : This defines the maximum size of obstacle vehicles, etc.  This is used in checking for collisions, etc.
+ - ```MIN_OBJECT_DIST 50.0``` : This defines the minimum distance between obstacle vehiclkes, etc. (should be >= MAX_OBJECT_SIZE)
+ - ```IMPACT_DISTANCE 50.0``` : This defines the distance at which an impact (between my_car and an obstacle) is flagged in the run
+ - ```NEW_OBJ_THRESHOLD 97``` : This defines the probability at which a new obstacle vehicle enters a lane; this is always a number to be exceede using a rand integer in [0, 99]
+ - ```NEW_OBJ: CAR 45 TRUCK 70 BIKE 95``` : This defines the probability that a new object is a CAR, TRUCK, BIKE, or PERSON (i.e. rand in [0,99] > CAR makes it a car, else > TRUCK makes it a track, else > BIKE makes it a bike, else it is a person)
+ - ```NUM_CAR_SPEEDS 5``` : This defines the number of possible speeds an obstacle car can have (when it is created at the top of a lane)
+   - ```CAR SPEED 45 PROB 15``` : This defines the first car speed -- if rand in [0,99] < PROB then speed will be SPEED, i.e. 15% of cars will have speed 45
+   - ```CAR SPEED 40 PROB 75``` : This defines the second car speed -- else if rand < PROB then speed will be SPEED, i.e. (75 - 15) = 60% of cars will have speed 40
+   - ```CAR SPEED 35 PROB 90``` : This defines the third car speed -- else if rand < PROB then speed will be SPEED, i.e. (90 - 75) = 15% of cars will have speed 35
+   - ```CAR SPEED 30 PROB 95``` : This defines the fourth car speed -- else if rand < PROB then speed will be SPEED, i.e. (95 - 90) = 5% of cars will have speed 30
+   - ```CAR SPEED 25 PROB 100``` : This defines the fifth car speed -- else if rand < PROB then speed will be SPEED, i.e. (100 - 95) = 5% of cars will have speed 25
+ - ```NUM_TRUCK_SPEEDS 4``` : This defines the number of possible speeds an obstacle truck can have (when it is created at the top of a lane)
+   - ```TRUCK SPEED 40 PROB 50``` : This defines the first truck speed -- if rand in [0,99] < PROB then speed will be SPEED, i.e. 50% of trucks will have speed 40
+   - ```TRUCK SPEED 35 PROB 85``` : This defines the second truck speed -- else if rand < PROB then speed will be SPEED, i.e. (85 - 50) = 35% of trucks will have speed 35
+   - ```TRUCK SPEED 30 PROB 95``` : This defines the third truck speed -- else if rand < PROB then speed will be SPEED, i.e. (95 - 85) = 10% of trucks will have speed 30
+   - ```TRUCK SPEED 25 PROB 100``` : This defines the fourth truck speed -- else if rand < PROB then speed will be SPEED, i.e. (100 - 95) = 5% of trucks will have speed 25
+ - ```NUM_BIKE_SPEEDS 3``` : This defines the number of possible speeds an obstacle bike can have (when it is created at the top of a lane)
+   - ```BIKE SPEED 35 PROB 70``` : This defines the first bike speed -- if rand in [0,99] < PROB then speed will be SPEED, i.e. 70% of bikes will have speed 35
+   - ```BIKE SPEED 30 PROB 95``` : This defines the second bike speed -- else if rand < PROB then speed will be SPEED, i.e. (95 - 70) = 25% of bikes will have speed 35
+   - ```BIKE SPEED 20 PROB 100``` : This defines the third bike speed -- else if rand < PROB then speed will be SPEED, i.e. (100 - 95) = 5% of bikes will have speed 20
+ - ```NUM_PERSON_SPEEDS 2``` : This defines the number of possible speeds an obstacle person can have (when it is created at the top of a lane)
+   - ```PERSON SPEED 15 PROB 50``` : This defines the first person speed -- if rand in [0,99] < PROB then speed will be SPEED, i.e. 50% of people will have speed 15
+   - ```PERSON SPEED 10 PROB 100``` : This defines the second person speed -- else if rand < PROB then speed will be SPEED, i.e. (100 - 50) = 50% of people will have speed 10
+ - ```MY_CAR GOAL SPEED 50.0``` : This defines the goal speed for the red car (the autonomous vehicle); this is the speed that the car will try to maintain; shoudl it slow down (to avoid collisions) it will try to speed up to this goal speed again (when it is deemed safe to do so)
+ - ```MY_CAR ACCEL RATE 15.0``` : This defines the rate (delta-speed) at which the red car can accelerate (speed up) to regain the goal speed
+ - ```MY_CAR DECEL RATE 15.0``` : This defines the rate (delta-speed) at which the red car can brake (or slow down) to avoid collisions
+ - ```MY_CAR LANE 2 SPEED 50``` : This defines the initial state of the red car; alterations should not matter much as the car will tend to move to the goal speed and center lane at all times anyway.
+
+When one runs Mini-ERA in simulation-mode, the beginning of the run will output the World Description File contents (as per the example ```default_world.desc``` above) into the output of the run (as part of the header information).  This can then be used to track which options were used to produce the simulation run. 
 
 ## Status
 
