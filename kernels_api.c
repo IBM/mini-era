@@ -665,7 +665,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
     return vehicle_state;
   }
   
-  if ((label != no_label) &&
+  if (//(label != no_label) && // For safety, assume every return is from SOMETHING we should not hit!
       ((distance <= THRESHOLD_1)
        #ifdef USE_SIM_ENVIRON
        || ((vehicle_state.speed < car_goal_speed) && (distance <= THRESHOLD_2))
