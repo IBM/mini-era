@@ -73,7 +73,7 @@ char *python_func_load = "loadmodel";
 
 
 /* These are some top-level defines needed for CV kernel */
-#define IMAGE_SIZE  32  // What size are these?
+/* #define IMAGE_SIZE  32  // What size are these? */
 /* typedef struct { */
 /*   unsigned int image_id; */
 /*   label_t  object; */
