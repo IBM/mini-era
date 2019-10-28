@@ -1481,7 +1481,8 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 	       *label, object_names[*label], *distance, THRESHOLD_1, THRESHOLD_2, THRESHOLD_3, *message));
   vehicle_state_t new_vehicle_state = *vehicle_state;
   
-  if ((*label != no_label) && (*distance <= THRESHOLD_1)) {
+  if ((*label != no_label) && // For safety, assume every return is from SOMETHING we should not hit!
+      (*distance <= THRESHOLD_1)) {
     switch (*message) {
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
