@@ -39,7 +39,6 @@ bool_t   one_obstacle_per_lane = false; // false = unlimited
 // These are to output the Visualizer trace
 char vis_obj_ids[NUM_OBJECTS] = {'N', 'C', 'T', 'P', 'B'};
 
-float MAX_OBJECT_SIZE; // Max size of an object
 float MIN_OBJECT_DIST; // Minimum distance between obstacle objects
 extern float IMPACT_DISTANCE; // Minimum distance at which an obstacle "impacts" MyCar (collision case)
 
@@ -476,7 +475,8 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
     if (obj != NULL) {
       while (obj != NULL) {
 	// Now add this to the lane_obj, etc.
-	lane_obj[in_lane][obj_in_lane[in_lane]] = obj->object;
+	lane_obj[in_lane][obj_in_lane[in_lane]] = vis_obj_ids[obj->object];
+	lane_dist[in_lane][obj_in_lane[in_lane]] = obj->distance;
 	nearest_obj[in_lane]  = vis_obj_ids[obj->object];
 	nearest_dist[in_lane] = obj->distance;
 	obj_in_lane[in_lane]++;
