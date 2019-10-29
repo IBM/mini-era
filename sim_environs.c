@@ -485,6 +485,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
 	  printf("%c:%u", vis_obj_ids[obj->object], (int)obj->distance);
 	  outputs_in_lane++;       
 	}
+	total_obj++;
 	obj = obj->next; // move to the next object
       }
     } else {

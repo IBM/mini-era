@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
     }
 
     iterate_mymap_kernel(vehicle_state, global_mymap_inputs); // This sets up my occupancy map inputs
-    iterate_cbmap_kernel(vehicle_state); // This sets up other occupancy map inputs
+    iterate_cbmap_kernel(vehicle_state);                      // This sets up other-vehicle's occupancy maps
 
     // EXECUTE the kernels using the now known inputs 
     label = execute_cv_kernel(cv_tr_label);
