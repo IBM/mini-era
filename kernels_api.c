@@ -34,6 +34,7 @@ char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" }
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
 char* object_names[NUM_OBJECTS] = {"Nothing", "Car", "Truck", "Person", "Bike" };
 
+float MAX_OBJECT_SIZE = 50.0; // Max size of an object
 
 #ifdef VERBOSE
 bool_t output_viz_trace = true;
@@ -693,25 +694,48 @@ void iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj)
   int lmax = (vs.lane == rhazard) ? 5 : (vs.lane + 1);
   for (int li = lmin; li < lmax; li++) {
     uint8_t obj  = nearest_obj[li];
-    uint8_t dist = nearest_dist[li];
-    if (dist > (uint8_t)MAX_DISTANCE) { dist = (uint8_t)MAX_DISTANCE; }
-    
-    map_near_obj[li].obj  = obj;
-    map_near_obj[li].dist = dist;
+    //printf("Lane %u Nearest Object %c\n", li, obj);
+    unsigned dist = nearest_dist[li];
+    if (obj != 'N') {
+      if (dist > (unsigned)MAX_DISTANCE) { dist = (uint8_t)MAX_DISTANCE; }
+      label_t obj_label = no_label;
+      //printf("NOTE: Adding Lane %d nearest object '%c'\n", li, obj);
+      switch(obj) {
+        case 'B' : obj_label = bicycle; break;
+        case 'C' : obj_label = car; break;
+        case 'P' : obj_label = pedestrian; break;
+        case 'T' : obj_label = truck; break;
+        default: printf("ERROR : Unexpected nearest object: '%c'\n", nearest_obj[li]); exit(-3);
+      }
+      map_near_obj[li].obj  = (uint8_t)obj_label;
+      map_near_obj[li].dist = dist;
+    }
   }
 }
 
 void execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap)
 {
+  unsigned max_dist = (unsigned)MAX_DISTANCE;
+  unsigned max_size = (unsigned)MAX_OBJECT_SIZE;
   // Set up my occupancy map from MY data
   int lmin = (vs.lane == lhazard) ? 0 : (vs.lane - 1);
   int lmax = (vs.lane == rhazard) ? 5 : (vs.lane + 1);
   global_occupancy_map.my_lane     = vs.lane;
   global_occupancy_map.my_distance = 0;
   for (int li = lmin; li < lmax; li++) {
-    uint8_t obj  = map_near_obj[li].obj;
-    uint8_t dist = map_near_obj[li].dist;
-    global_occupancy_map.map[dist][li] = obj; // This is prob = 1 and value = label
+    label_t  obj  = map_near_obj[li].obj;
+    unsigned dist = map_near_obj[li].dist;
+    if (obj != no_label) {
+      // Mark all map locations for "size" with the object label...
+      //printf(" Lane %u %s Object %d %s at Dist %u (size %u)\n", li, lane_names[li], obj, object_names[obj], dist, max_size);
+      for (int os = 0; os < max_size; os++) {
+	int didx = dist+os;
+	if (didx < max_dist) {
+	  global_occupancy_map.map[didx][li] = obj; // This is prob = 1 and value = label
+	  //printf("MAP[%3u][%u] = %u\n", didx, li, obj);
+	}
+      }
+    }
   }
 }
 
@@ -729,17 +753,23 @@ void iterate_cbmap_kernel(vehicle_state_t vs)
   num_other_maps = 0; // reset the number of other maps this time step
   DEBUG(printf("In iterate_cbmap_kernel\b"));
   for (int li = 0; li < NUM_LANES; li++) {
+    //printf("Checking Lane %u with %u objects:\n", li, obj_in_lane[li]);
     if (obj_in_lane[li] > 0) {
       // Spin through the obstacles in the lane and get an input map from each one.
       for (int oi = 0; oi < obj_in_lane[li]; oi++) {
+	//printf("   Lane %u Object %u is %c at %u Dist\n", li, oi, lane_obj[li][oi], lane_dist[li][oi]);
 	switch (lane_obj[li][oi]) {
-	case car   : // Cars can generate input occupancy maps
-	case truck : // Trucks can generate input occupancy maps
+	case 'C'   : // Cars can generate input occupancy maps
+	case 'T' : // Trucks can generate input occupancy maps
 	  // Determine an occupancy map from this object's perspective
 	  global_other_maps[num_other_maps].my_lane     = li;
 	  global_other_maps[num_other_maps].my_distance = lane_dist[li][oi];
 	  // Now generate a map from this object's point of view (from global distance data)
-	  
+	  //printf("OTHER: Lane %u Dist %u : \n", li, lane_dist[li][oi]);
+	  //for (int i = 0; i < obj_in_lane[li]; i++) {
+	  //  printf("   obj %u of %u : Obj %u at Dist %u\n", i, obj_in_lane[li], lane_obj[li][i], lane_dist[li][i]);
+	  //}
+	 
 	  break;
 	default:     // Everything else does NOT generate occupancy maps
 	  break;
