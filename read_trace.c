@@ -172,7 +172,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
       }
       printf("\n");
     } else {
-      printf("%c:%u\n", 'N', INF_DISTANCE);
+      printf("%c:%u\n", 'N', (unsigned)INF_DISTANCE);
     }
   }
 #endif
