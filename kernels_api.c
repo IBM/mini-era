@@ -622,7 +622,6 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
   for (int mi = 0; mi < num_msgs; mi++) {
     DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
     result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
-    total_msgs++;
     // descramble the output - put it in result
     int psdusize = trace_msg->frame_p.psdu_size;
     DEBUG(printf("  Calling the viterbi descrambler routine\n"));

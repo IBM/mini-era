@@ -476,7 +476,8 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
     if (obj != NULL) {
       while (obj != NULL) {
 	// Now add this to the lane_obj, etc.
-	lane_obj[in_lane][obj_in_lane[in_lane]] = obj->object;
+	lane_obj[in_lane][obj_in_lane[in_lane]] = vis_obj_ids[obj->object];
+	lane_dist[in_lane][obj_in_lane[in_lane]] = obj->distance;
 	nearest_obj[in_lane]  = vis_obj_ids[obj->object];
 	nearest_dist[in_lane] = obj->distance;
 	obj_in_lane[in_lane]++;
@@ -485,6 +486,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
 	  printf("%c:%u", vis_obj_ids[obj->object], (int)obj->distance);
 	  outputs_in_lane++;       
 	}
+	total_obj++;
 	obj = obj->next; // move to the next object
       }
     } else {
