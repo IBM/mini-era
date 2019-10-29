@@ -25,9 +25,11 @@
 #include "sim_environs.h"
 
 #define TIME
-char * cv_dict  = "traces/objects_dictionary.dfn";
-char * rad_dict = "traces/radar_dictionary.dfn";
-char * vit_dict = "traces/vit_dictionary.dfn";
+char * cv_dict   = "traces/objects_dictionary.dfn";
+char * rad_dict  = "traces/radar_dictionary.dfn";
+char * vit_dict  = "traces/vit_dictionary.dfn";
+char * mymap_dict = "traces/mymap_dictionary.dfn";
+char * cbmap_dict = "traces/cbmap_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
@@ -173,6 +175,16 @@ int main(int argc, char *argv[])
     printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
     return 1;
   }
+  if (!init_mymap_kernel(mymap_dict))
+  {
+    printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
+    return 1;
+  }
+  if (!init_cbmap_kernel(cbmap_dict))
+  {
+    printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
+    return 1;
+  }
 
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
@@ -240,11 +252,16 @@ int main(int argc, char *argv[])
     case 5: num_vit_msgs = total_obj + 1; break;
     }
 
+    iterate_mymap_kernel(vehicle_state, global_mymap_inputs); // This sets up my occupancy map inputs
+    iterate_cbmap_kernel(vehicle_state); // This sets up other occupancy map inputs
 
     // EXECUTE the kernels using the now known inputs 
     label = execute_cv_kernel(cv_tr_label);
     distance = execute_rad_kernel(radar_inputs);
     message = execute_vit_kernel(vdentry_p, num_vit_msgs);
+
+    execute_mymap_kernel(vehicle_state, global_mymap_inputs, &global_occupancy_map); // This builds the_occupany_map from my inputs and mmap inputs
+    execute_cbmap_kernel(vehicle_state, &global_occupancy_map, global_other_maps, num_other_maps); // This builds on the_occupany_map using other maps
 
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
@@ -252,6 +269,8 @@ int main(int argc, char *argv[])
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }
+    post_execute_mymap_kernel();
+    post_execute_cbmap_kernel();
     
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new
@@ -280,6 +299,8 @@ int main(int argc, char *argv[])
   closeout_cv_kernel();
   closeout_rad_kernel();
   closeout_vit_kernel();
+  closeout_mymap_kernel();
+  closeout_cbmap_kernel();
 
   #ifdef TIME
   printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);

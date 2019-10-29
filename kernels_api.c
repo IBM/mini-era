@@ -127,6 +127,12 @@ unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
 
 
+mymap_input_t     global_mymap_inputs[NUM_LANES];
+occupancy_map_t   global_occupancy_map;
+occupancy_map_t   global_other_maps[MAX_OBJ_IN_LANE * NUM_LANES];
+unsigned          num_other_maps = 0;
+
+
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
 
@@ -331,6 +337,17 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
   return success;
 }
 
+status_t init_mymap_kernel(char* dict_fn)
+{
+  DEBUG(printf("In the init_mymap_kernel routine\n"));
+  return success;
+}
+
+status_t init_cbmap_kernel(char* dict_fn)
+{
+  DEBUG(printf("In the init_cbmap_kernel routine\n"));
+  return success;
+}
 
 
 
@@ -652,6 +669,98 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 }
 
 
+
+
+
+/* Each time-step, we form our occupancy map (anew) 
+ * from radar data taken from our lane, and one left and one right
+ */
+void iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj)
+{
+  DEBUG(printf("In iterate_mymap_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
+  for (int li = 0; li < NUM_LANES; li++) {
+    map_near_obj[li].obj  = no_label;
+    map_near_obj[li].dist = MAX_DISTANCE;
+  }    
+
+  for (int di = 0; di < (int)MAX_DISTANCE; di++) {
+    for (int li = 0; li < NUM_LANES; li++) {
+      global_occupancy_map.map[di][li] = 0;  // 0 = Not Occupied
+    }
+  }
+
+  int lmin = (vs.lane == lhazard) ? 0 : (vs.lane - 1);
+  int lmax = (vs.lane == rhazard) ? 5 : (vs.lane + 1);
+  for (int li = lmin; li < lmax; li++) {
+    uint8_t obj  = nearest_obj[li];
+    uint8_t dist = nearest_dist[li];
+    if (dist > (uint8_t)MAX_DISTANCE) { dist = (uint8_t)MAX_DISTANCE; }
+    
+    map_near_obj[li].obj  = obj;
+    map_near_obj[li].dist = dist;
+  }
+}
+
+void execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap)
+{
+  // Set up my occupancy map from MY data
+  int lmin = (vs.lane == lhazard) ? 0 : (vs.lane - 1);
+  int lmax = (vs.lane == rhazard) ? 5 : (vs.lane + 1);
+  global_occupancy_map.my_lane     = vs.lane;
+  global_occupancy_map.my_distance = 0;
+  for (int li = lmin; li < lmax; li++) {
+    uint8_t obj  = map_near_obj[li].obj;
+    uint8_t dist = map_near_obj[li].dist;
+    global_occupancy_map.map[dist][li] = obj; // This is prob = 1 and value = label
+  }
+}
+
+void post_execute_mymap_kernel( )
+{
+
+}
+
+
+/* Each time-step, we form a consensus occupancy map using inputs
+ * from other (obstacle) vehicles.
+ */
+void iterate_cbmap_kernel(vehicle_state_t vs)
+{
+  num_other_maps = 0; // reset the number of other maps this time step
+  DEBUG(printf("In iterate_cbmap_kernel\b"));
+  for (int li = 0; li < NUM_LANES; li++) {
+    if (obj_in_lane[li] > 0) {
+      // Spin through the obstacles in the lane and get an input map from each one.
+      for (int oi = 0; oi < obj_in_lane[li]; oi++) {
+	switch (lane_obj[li][oi]) {
+	case car   : // Cars can generate input occupancy maps
+	case truck : // Trucks can generate input occupancy maps
+	  // Determine an occupancy map from this object's perspective
+	  global_other_maps[num_other_maps].my_lane     = li;
+	  global_other_maps[num_other_maps].my_distance = lane_dist[li][oi];
+	  // Now generate a map from this object's point of view (from global distance data)
+	  
+	  break;
+	default:     // Everything else does NOT generate occupancy maps
+	  break;
+	}
+      }
+    }
+  }
+}
+
+void execute_cbmap_kernel(vehicle_state_t vs, occupancy_map_t* the_occ_map, occupancy_map_t* cbmap_inputs, int num_inputs)
+{
+  // Combine the various occupancy maps to fill out our knowledge...
+  
+}
+
+void post_execute_cbmap_kernel( )
+{
+
+}
+
+
 /* #undef DEBUG */
 /* #define DEBUG(x) x */
 
@@ -804,8 +913,6 @@ void closeout_rad_kernel()
 
 void closeout_vit_kernel()
 {
-  // Nothing to do?
-
   printf("\nHistogram of Total Objects:\n");
   unsigned sum = 0;
   for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
@@ -822,4 +929,13 @@ void closeout_vit_kernel()
 }
 
 
+void closeout_mymap_kernel()
+{
+  // Nothing to do?
+}
+
+void closeout_cbmap_kernel()
+{
+  // Nothing to do?
+}
 

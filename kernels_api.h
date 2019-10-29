@@ -26,6 +26,9 @@
 
 #define TIME
 
+#include <stdio.h>
+#include <stdlib.h>
+
 /* Types definitions */
 typedef float distance_t;
 typedef enum {false, true} bool_t;
@@ -125,7 +128,7 @@ extern unsigned vit_msgs_behavior;
 extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
 extern unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
-char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
+extern char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
 
 extern char  nearest_obj[NUM_LANES];
 extern float nearest_dist[NUM_LANES];
@@ -133,6 +136,23 @@ extern float nearest_dist[NUM_LANES];
 extern unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 extern unsigned rand_seed;
+
+
+typedef struct occupancy_map_struct {
+  lane_t     my_lane;     // The lane and distance are a stand-in for map-observer's position
+  distance_t my_distance;
+  uint8_t    map[(int)MAX_DISTANCE][NUM_LANES];
+} occupancy_map_t;
+  
+typedef struct mymap_input_struct {
+  label_t obj;
+  distance_t dist;
+} mymap_input_t;
+
+extern mymap_input_t     global_mymap_inputs[NUM_LANES];
+extern occupancy_map_t   global_occupancy_map;
+extern occupancy_map_t   global_other_maps[MAX_OBJ_IN_LANE * NUM_LANES];
+extern unsigned          num_other_maps;
 
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);
@@ -144,6 +164,8 @@ void closeout_trace_reader(void);
 status_t init_cv_kernel(char* py_file, char* dict_fn);
 status_t init_rad_kernel(char* dict_fn);
 status_t init_vit_kernel(char* dict_fn);
+status_t init_mymap_kernel(char* dict_fn);
+status_t init_cbmap_kernel(char* dict_fn);
 
 
 label_t run_object_classification(unsigned tr_val);
@@ -159,6 +181,14 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
 message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
 void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
+void  iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj);
+void execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap);
+void  post_execute_mymap_kernel();
+
+void  iterate_cbmap_kernel(vehicle_state_t vs);
+void execute_cbmap_kernel(vehicle_state_t vs, occupancy_map_t* the_occ_map, occupancy_map_t* cbmap_inputs, int num_inputs);
+void  post_execute_cbmap_kernel();
+
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
@@ -166,5 +196,7 @@ vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t
 void closeout_cv_kernel(void);
 void closeout_rad_kernel(void);
 void closeout_vit_kernel(void);
+void closeout_mymap_kernel(void);
+void closeout_cbmap_kernel(void);
 
 #endif
