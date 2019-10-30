@@ -56,10 +56,10 @@ void print_usage(char * pname) {
   printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
   printf("               :      6 = (default) One short message plus one long per communicating obstacle per time step\n");
   printf("    -m <N>     : defines the occupancy map behavior to use:\n");
-  printf("               :      0 = Only My Car forms a local occupancy map\n");
-  printf("               :      1 = No occupancy map formation\n");
+  printf("               :      0 = No occupancy map formation\n");
+  printf("               :      1 = Only My Car forms a local occupancy map\n");
   printf("               :      2 = (default) My Car and Communicating Obstacles form a shared occupancy map\n");
-  printf("    -C <N>     : defines the communicating obstacle vehicles to use:\n");
+  printf("    -C <N>     : defines the communicating obstacle vehicles to use IF -m 2 mode\n");
   printf("               :      0 = (default) Other Cars and Trucks communicate (V2V)\n");
   printf("               :      1 = Other Cars, Trucks and Bikes communicate (V2V)\n");
   printf("               :      2 = All other vehicles communicate (V2V)\n");
@@ -259,14 +259,21 @@ int main(int argc, char *argv[])
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
     vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
-
+    vit_dict_entry_t* v2ventry_p = NULL;
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
     int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
+    int num_v2v_msgs = 0;   // the number of messages to send this time step (1 is default) 
     switch(vit_msgs_behavior) {
-    case 2: num_vit_msgs = total_obj; break;
-    case 3: num_vit_msgs = total_obj; break;
-    case 4: num_vit_msgs = total_obj + 1; break;
-    case 5: num_vit_msgs = total_obj + 1; break;
+     case 2: num_vit_msgs = total_obj; break;
+     case 3: num_vit_msgs = total_obj; break;
+     case 4: num_vit_msgs = total_obj + 1; break;
+     case 5: num_vit_msgs = total_obj + 1; break;
+     case 6:
+       if (occ_map_behavior > 1) {
+	 v2ventry_p = get_v2v_message();
+	 num_v2v_msgs = total_v2v_obj;
+       }
+       break;
     }
 
     iterate_mymap_kernel(vehicle_state, global_mymap_inputs); // This sets up my occupancy map inputs
@@ -275,7 +282,7 @@ int main(int argc, char *argv[])
     // EXECUTE the kernels using the now known inputs 
     label = execute_cv_kernel(cv_tr_label);
     distance = execute_rad_kernel(radar_inputs);
-    message = execute_vit_kernel(vdentry_p, num_vit_msgs);
+    message = execute_vit_kernel(vdentry_p, num_vit_msgs, v2ventry_p, num_v2v_msgs);
 
     execute_mymap_kernel(vehicle_state, global_mymap_inputs, &global_occupancy_map); // This builds the_occupany_map from my inputs and mmap inputs
     execute_cbmap_kernel(vehicle_state, &global_occupancy_map, global_other_maps, num_other_maps); // This builds on the_occupany_map using other maps

@@ -181,7 +181,8 @@ distance_t execute_rad_kernel(float * inputs);
 void       post_execute_rad_kernel(distance_t tr_dist, distance_t dist);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
+vit_dict_entry_t* get_v2v_message();
+message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs, vit_dict_entry_t* v2v_msg, int num_v2v_msgs);
 void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
 void  iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj);

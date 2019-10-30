@@ -560,7 +560,9 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_vit_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
   hist_total_objs[total_obj]++;
-  hist_total_v2v_objs[total_v2v_obj]++;
+  if (occ_map_behavior > 1) { // Only update when occ_map_behavior uses V2V communications
+    hist_total_v2v_objs[total_v2v_obj]++;
+  }
   unsigned tr_val = 0; // set a default to avoid compiler messages
   switch (vs.lane) {
   case lhazard:
@@ -658,12 +660,26 @@ vit_dict_entry_t* get_v2v_message()
   return trace_msg;
 }
 
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
+message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs, vit_dict_entry_t* v2v_msg, int num_v2v_msgs)
 {
+  DEBUG(printf("In execute_vit_kernel with %u msgs and %u v2v_msgs\n", num_msgs, num_v2v_msgs));
   // Send each message (here they are all the same) through the viterbi decoder
   message_t msg = num_message_t;
   uint8_t *result;
   char     msg_text[1600]; // Big enough to hold largest message (1500?)
+
+  // If there are v2v messages, send them here first
+  if (num_v2v_msgs > 0) {
+    for (int mi = 0; mi < num_msgs; mi++) {
+      DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", v2v_msg->msg_num, mi));
+      result = decode(&(v2v_msg->ofdm_p), &(v2v_msg->frame_p), &(v2v_msg->in_bits[0]));
+      // descramble the output - put it in result
+      int psdusize = v2v_msg->frame_p.psdu_size;
+      DEBUG(printf("  Calling the viterbi descrambler routine\n"));
+      descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
+    }
+  }
+  
   for (int mi = 0; mi < num_msgs; mi++) {
     DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
     result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
@@ -1130,6 +1146,7 @@ void closeout_vit_kernel()
   printf("There were %.3lf V2V Communicating obstacles per time step (average)\n", avg_v2v_objs);
   double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
+  printf("There were %.3lf V2V messages per time step (average)\n", avg_v2v_objs);
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
 }
 
