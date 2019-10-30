@@ -955,18 +955,20 @@ void execute_cbmap_kernel(vehicle_state_t vs, occupancy_map_t* the_occ_map, occu
 
 void post_execute_cbmap_kernel(occupancy_map_t* the_occ_map)
 {
-  unsigned max_dist = (unsigned)MAX_DISTANCE;
-  unsigned spaces = max_dist * NUM_LANES;
-  unsigned occupied_spaces = 0;
-  for (int di = 0; di < max_dist; di++) { // Span the set of my occupancy map entries represented there
-    for (int li = 0; li < NUM_LANES; li++) { // Span the set of map entries (lanes)
-      if (the_occ_map->map[di][li] != 0) {
-	occupied_spaces++;
+  if (occ_map_behavior > 0) {
+    unsigned max_dist = (unsigned)MAX_DISTANCE;
+    unsigned spaces = max_dist * NUM_LANES;
+    unsigned occupied_spaces = 0;
+    for (int di = 0; di < max_dist; di++) { // Span the set of my occupancy map entries represented there
+      for (int li = 0; li < NUM_LANES; li++) { // Span the set of map entries (lanes)
+	if (the_occ_map->map[di][li] != 0) {
+	  occupied_spaces++;
+	}
       }
     }
+    unsigned avg_occupied = (100 * occupied_spaces)/(spaces); // "percent" between 0 and 100
+    hist_occ_map_pct[avg_occupied]++;
   }
-  unsigned avg_occupied = (100 * occupied_spaces)/(spaces); // "percent" between 0 and 100
-  hist_occ_map_pct[avg_occupied]++;
 }
 
 
