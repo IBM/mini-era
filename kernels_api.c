@@ -856,9 +856,12 @@ void iterate_cbmap_kernel(vehicle_state_t vs)
 	// Spin through the obstacles in the lane and get an input map from each one.
 	for (int oi = 0; oi < obj_in_lane[li]; oi++) {
 	  DEBUG(printf("   Lane %u Object %u is %c at %u Dist\n", li, oi, lane_obj[li][oi], lane_dist[li][oi]));
-	  switch (lane_obj[li][oi]) {
-	  case 'C'   : // Cars can generate input occupancy maps
-	  case 'T' : // Trucks can generate input occupancy maps
+	  char objc = lane_obj[li][oi];
+	  int does_v2v = ((objc != 'N') // We have an obstacle object (not "Nothing")
+			  && ((v2v_msgs_senders > 1) // Every obstacle communicates V2V
+			      || ((v2v_msgs_senders > 0) && (objc != 'P')) // Every obstacle but a Pedestrian
+			      || ((objc == 'C') || objc == 'T')) ); // The obstacle is a Car or Truck
+	  if (does_v2v) {
 	    // Determine the inputs for this "other" car's occupancy map
 	    for (int li = 0; li < NUM_LANES; li++) {
 	      othermap_inputs[li].obj  = no_label;
@@ -887,11 +890,7 @@ void iterate_cbmap_kernel(vehicle_state_t vs)
 	      for (int i = 0; i < obj_in_lane[li]; i++) {
 	      printf("   obj %u of %u : Obj %u at Dist %u\n", i, obj_in_lane[li], lane_obj[li][i], lane_dist[li][i]);
 	      }*/
-	    
-	    break;
-	  default:     // Everything else does NOT generate occupancy maps
-	    break;
-	  } // switch(lane_obj)
+	  } // if (does_v2v)
 	} // for (oi loops through objects_in_lane)
       } // if (obj_in_lane[li] > 0)
     } // for (li loops through the lanes)
