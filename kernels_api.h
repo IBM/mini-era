@@ -118,6 +118,8 @@ typedef enum {
 
 
 extern bool_t output_viz_trace;
+extern bool_t all_obstacle_lanes_mode;
+extern bool_t three_lane_occ_view; 
 
 extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
@@ -196,7 +198,7 @@ void post_execute_cbmap_kernel(occupancy_map_t* the_occ_map);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
-// These routines are used for any finalk, end-of-run operations/output
+// These routines are used for any final, end-of-run operations/output
 void closeout_cv_kernel(void);
 void closeout_rad_kernel(void);
 void closeout_vit_kernel(void);

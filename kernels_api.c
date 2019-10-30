@@ -42,6 +42,9 @@ bool_t output_viz_trace = true;
 bool_t output_viz_trace = false;
 #endif
 
+bool_t all_obstacle_lanes_mode = false;
+bool_t three_lane_occ_view = false; 
+
 unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 unsigned total_v2v_obj; // Total non-'N' obstacle objects across all lanes this time step
 unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
@@ -719,9 +722,13 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 void generate_my_occ_map_inputs(lane_t lane, mymap_input_t* map_near_obj)
 {
   DEBUG(printf("In generate_my_occ_map_inputs Lane %u\n", lane));
-  int lmin = (lane == lhazard) ? 0 : (lane - 1);
-  int lmax = (lane == rhazard) ? 5 : (lane + 1);
-  for (int li = lmin; li < lmax; li++) {
+  int lmin = lane;
+  int lmax = lane;
+  if (three_lane_occ_view) {
+    lmin = (lane == lhazard) ? lhazard : (lane - 1);
+    lmax = (lane == rhazard) ? rhazard : (lane + 1);
+  }
+  for (int li = lmin; li <= lmax; li++) {
     char obj  = nearest_obj[li];
     DEBUG(printf("Lane %u Nearest Object %c\n", li, obj));
     unsigned dist = nearest_dist[li];
@@ -751,9 +758,13 @@ void generate_other_occ_map_inputs(lane_t lane, distance_t fdist, mymap_input_t*
   DEBUG(printf("In generate_other_occ_map_inputs Lane %u Dist %.1f %u\n", lane, fdist, udist));
     // Clear out the inputs (results)
 
-  int lmin = (lane == lhazard) ? 0 : (lane - 1);
-  int lmax = (lane == rhazard) ? 5 : (lane + 1);
-  for (int li = lmin; li < lmax; li++) {
+  int lmin = lane;
+  int lmax = lane;
+  if (three_lane_occ_view) {
+    lmin = (lane == lhazard) ? lhazard : (lane - 1);
+    lmax = (lane == rhazard) ? rhazard : (lane + 1);
+  }
+  for (int li = lmin; li <= lmax; li++) {
     if (obj_in_lane[li] > 0) {
       // Spin through the obstacles in the lane and get an input map from each one.
       // We go from farthest to nearest (to the original vehicle):
@@ -823,11 +834,15 @@ void build_occupancy_map_from_inputs(lane_t lane, unsigned dist, mymap_input_t* 
   unsigned max_dist = (unsigned)MAX_DISTANCE;
   unsigned max_size = (unsigned)MAX_OBJECT_SIZE;
   // Set up my occupancy map from MY data
-  int lmin = (lane == lhazard) ? 0 : (lane - 1);
-  int lmax = (lane == rhazard) ? 5 : (lane + 1);
+  int lmin = lane;
+  int lmax = lane;
+  if (three_lane_occ_view) {
+    lmin = (lane == lhazard) ? lhazard : (lane - 1);
+    lmax = (lane == rhazard) ? rhazard : (lane + 1);
+  }
   themap->my_lane     = lane;
   themap->my_distance = dist;	// My location is always distance 0 (zero)
-  for (int li = lmin; li < lmax; li++) {
+  for (int li = lmin; li <= lmax; li++) {
     label_t  obj  = map_near_obj[li].obj;
     unsigned dist = map_near_obj[li].dist;
     if (obj != no_label) {

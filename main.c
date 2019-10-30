@@ -31,7 +31,6 @@ char * vit_dict  = "traces/vit_dictionary.dfn";
 char * mymap_dict = "traces/mymap_dictionary.dfn";
 char * cbmap_dict = "traces/cbmap_dictionary.dfn";
 
-bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
 
 void print_usage(char * pname) {
@@ -63,6 +62,7 @@ void print_usage(char * pname) {
   printf("               :      0 = (default) Other Cars and Trucks communicate (V2V)\n");
   printf("               :      1 = Other Cars, Trucks and Bikes communicate (V2V)\n");
   printf("               :      2 = All other vehicles communicate (V2V)\n");
+  printf("    -T         : Uses Three-Lane view for Occupancy Map (default = One-Lane -- the one the car is in)\n");
 }
 
 
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:m:C:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hTAot:v:s:r:W:m:C:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
@@ -127,6 +127,10 @@ int main(int argc, char *argv[])
     case 'C':
       v2v_msgs_senders = atoi(optarg);
       printf("Using v2v_msgs_senders %u\n", v2v_msgs_senders);
+      break;
+    case 'T':
+      three_lane_occ_view = true;
+      printf("Using three_lane_occ_view\n");
       break;
     case ':':
       printf("option needs a value\n");
