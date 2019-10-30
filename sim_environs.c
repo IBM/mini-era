@@ -337,6 +337,7 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   }
   // Clear the global object-in-lane information state
   total_obj = 0;
+  total_v2v_obj = 0;
   for (int i = 0; i < NUM_LANES; i++) {
     obj_in_lane[i] = 0;
     nearest_obj[i]  = 'N';
@@ -486,6 +487,13 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
 	  outputs_in_lane++;       
 	}
 	total_obj++;
+	switch (obj->object) {
+	 case car        : total_v2v_obj++; break;
+	 case truck      : total_v2v_obj++; break;
+	 case bicycle    : if (v2v_msgs_senders > 0) {total_v2v_obj++; } break;
+	 case pedestrian : if (v2v_msgs_senders > 1) {total_v2v_obj++; } break;
+	default: printf("Unexpected object in sim_environs: %u\n", obj->object); exit(-5);
+	}
 	obj = obj->next; // move to the next object
       }
     } else {

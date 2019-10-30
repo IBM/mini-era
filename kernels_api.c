@@ -43,6 +43,7 @@ bool_t output_viz_trace = false;
 #endif
 
 unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
+unsigned total_v2v_obj; // Total non-'N' obstacle objects across all lanes this time step
 unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
 unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
 char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
@@ -51,6 +52,7 @@ char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
 float    nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
 
 unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
+unsigned hist_total_v2v_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 unsigned rand_seed = 0; // Only used if -r <N> option set
 
@@ -123,7 +125,10 @@ uint8_t actual_msg[1600];
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
-unsigned vit_msgs_behavior = 0; // 0 = default
+unsigned vit_msgs_behavior = 6; // 6 = default : 1 short global + 1 long per V2V Comm Vehicle 
+unsigned occ_map_behavior  = 2; // 2 = default : form a shared occupancy map
+unsigned v2v_msgs_senders  = 0; // 0 = default : V2V Vehiucles are only Cars and Trucks
+
 unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
 
@@ -132,6 +137,9 @@ mymap_input_t     global_mymap_inputs[NUM_LANES];
 occupancy_map_t   global_occupancy_map;
 occupancy_map_t   global_other_maps[MAX_OBJ_IN_LANE * NUM_LANES];
 unsigned          num_other_maps = 0;
+
+unsigned hist_occ_map_pct[101];
+
 
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
@@ -267,6 +275,7 @@ status_t init_vit_kernel(char* dict_fn)
 
   for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
     hist_total_objs[i] = 0;
+    hist_total_v2v_objs[i] = 0;
   }
 
   DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
@@ -347,6 +356,9 @@ status_t init_mymap_kernel(char* dict_fn)
 status_t init_cbmap_kernel(char* dict_fn)
 {
   DEBUG(printf("In the init_cbmap_kernel routine\n"));
+  for (int i = 0; i <= 100; i++) {
+    hist_occ_map_pct[i] = 0;
+  }
   return success;
 }
 
@@ -548,6 +560,7 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_vit_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
   hist_total_objs[total_obj]++;
+  hist_total_v2v_objs[total_v2v_obj]++;
   unsigned tr_val = 0; // set a default to avoid compiler messages
   switch (vs.lane) {
   case lhazard:
@@ -611,6 +624,8 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   case 3: msg_offset = 4; break;
   case 4: break;
   case 5: msg_offset = 4; break;
+  case 6: break;
+  default: printf("ERROR: Unrecognized vit_msgs_behavior value: %u\n", vit_msgs_behavior); exit(-5);
   }
 
   switch(tr_val) {
@@ -627,6 +642,18 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
     trace_msg = &(the_viterbi_trace_dict[3 + msg_offset]);
     break;
   }
+  DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
+  return trace_msg;
+}
+
+/* This routine determines a V2V message for communicating occupancy grid maps
+ * Currently, this just picks a default full-payload message (1500 bytes) */
+vit_dict_entry_t* get_v2v_message()
+{
+  DEBUG(printf("In get_v2v_message\n"));
+  unsigned tr_val = 4; // set a default to avoid compiler messages
+  vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
+  trace_msg = &(the_viterbi_trace_dict[tr_val]);
   DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
   return trace_msg;
 }
@@ -753,21 +780,23 @@ void generate_other_occ_map_inputs(lane_t lane, distance_t fdist, mymap_input_t*
  */
 void iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj)
 {
-  DEBUG(printf("In iterate_mymap_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
-  for (int di = 0; di < (int)MAX_DISTANCE; di++) {
-    for (int li = 0; li < NUM_LANES; li++) {
-      global_occupancy_map.map[di][li] = 0;  // 0 = Not Occupied
+  DEBUG(printf("In iterate_mymap_kernel with occ_map_behavior = %u and in lane %u = %s\n", occ_map_behavior, vs.lane, lane_names[vs.lane]));
+  if (occ_map_behavior > 0) {
+    for (int di = 0; di < (int)MAX_DISTANCE; di++) {
+      for (int li = 0; li < NUM_LANES; li++) {
+	global_occupancy_map.map[di][li] = 0;  // 0 = Not Occupied
+      }
     }
+    
+    // Clear the inputs (global memory space)
+    for (int li = 0; li < NUM_LANES; li++) {
+      map_near_obj[li].obj  = no_label;
+      map_near_obj[li].dist = MAX_DISTANCE;
+    }    
+    
+    // Note that my car's distance is always 0
+    generate_my_occ_map_inputs(vs.lane, map_near_obj);
   }
-
-  // Clear the inputs (global memory space)
-  for (int li = 0; li < NUM_LANES; li++) {
-    map_near_obj[li].obj  = no_label;
-    map_near_obj[li].dist = MAX_DISTANCE;
-  }    
-
-  // Note that my car's distance is always 0
-  generate_my_occ_map_inputs(vs.lane, map_near_obj);
 }
 
 /* Utility function to build an occupancy map from occupancy map inputs.
@@ -801,12 +830,14 @@ void build_occupancy_map_from_inputs(lane_t lane, unsigned dist, mymap_input_t* 
 
 void execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap)
 {
-  build_occupancy_map_from_inputs(vs.lane, 0, map_near_obj, mymap);
+  if (occ_map_behavior > 0) {
+    build_occupancy_map_from_inputs(vs.lane, 0, map_near_obj, mymap);
+  }
 }
 
-void post_execute_mymap_kernel( )
+void post_execute_mymap_kernel()
 {
-
+  // Do nothing for now?
 }
 
 
@@ -815,54 +846,56 @@ void post_execute_mymap_kernel( )
  */
 void iterate_cbmap_kernel(vehicle_state_t vs)
 {
-  DEBUG(printf("In iterate_cbmap_kernel\n"));
-  num_other_maps = 0; // reset the number of other maps this time step
-  mymap_input_t othermap_inputs[NUM_LANES];
-  for (int li = 0; li < NUM_LANES; li++) {
-    DEBUG(printf("Checking Lane %u with %u objects:\n", li, obj_in_lane[li]));
-    if (obj_in_lane[li] > 0) {
-      // Spin through the obstacles in the lane and get an input map from each one.
-      for (int oi = 0; oi < obj_in_lane[li]; oi++) {
-	DEBUG(printf("   Lane %u Object %u is %c at %u Dist\n", li, oi, lane_obj[li][oi], lane_dist[li][oi]));
-	switch (lane_obj[li][oi]) {
-	case 'C'   : // Cars can generate input occupancy maps
-	case 'T' : // Trucks can generate input occupancy maps
-	  // Determine the inputs for this "other" car's occupancy map
-	  for (int li = 0; li < NUM_LANES; li++) {
-	    othermap_inputs[li].obj  = no_label;
-	    othermap_inputs[li].dist = MAX_DISTANCE;
-	  }    
-	  // Generate the inputs into othermap_inputs
-	  generate_other_occ_map_inputs(li, lane_dist[li][oi], othermap_inputs);
-
-	  // Now Generate an occupancy map from this object's perspective
-	  DEBUG(printf("Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, li, lane_dist[li][oi]));
-	  for (int di = 0; di < (int)MAX_DISTANCE; di++) {
+  DEBUG(printf("In iterate_cbmap_kernel with occ_map_behavior = %u\n", occ_map_behavior));
+  if (occ_map_behavior > 1) {
+    num_other_maps = 0; // reset the number of other maps this time step
+    mymap_input_t othermap_inputs[NUM_LANES];
+    for (int li = 0; li < NUM_LANES; li++) {
+      DEBUG(printf("Checking Lane %u with %u objects:\n", li, obj_in_lane[li]));
+      if (obj_in_lane[li] > 0) {
+	// Spin through the obstacles in the lane and get an input map from each one.
+	for (int oi = 0; oi < obj_in_lane[li]; oi++) {
+	  DEBUG(printf("   Lane %u Object %u is %c at %u Dist\n", li, oi, lane_obj[li][oi], lane_dist[li][oi]));
+	  switch (lane_obj[li][oi]) {
+	  case 'C'   : // Cars can generate input occupancy maps
+	  case 'T' : // Trucks can generate input occupancy maps
+	    // Determine the inputs for this "other" car's occupancy map
 	    for (int li = 0; li < NUM_LANES; li++) {
-	      global_other_maps[num_other_maps].map[di][li] = 0;  // 0 = Not Occupied
-	    }
-	  }
-	  global_other_maps[num_other_maps].my_lane     = li;
-	  global_other_maps[num_other_maps].my_distance = lane_dist[li][oi];
-	  //DEBUG(printf("2 Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, global_other_maps[num_other_maps].my_lane, global_other_maps[num_other_maps].my_distance));
+	      othermap_inputs[li].obj  = no_label;
+	      othermap_inputs[li].dist = MAX_DISTANCE;
+	    }    
+	    // Generate the inputs into othermap_inputs
+	    generate_other_occ_map_inputs(li, lane_dist[li][oi], othermap_inputs);
 
-	  // Now generate a map from this object's point of view (from global distance data)
-	  build_occupancy_map_from_inputs(li, lane_dist[li][oi], othermap_inputs, &global_other_maps[num_other_maps]);
-	  //DEBUG(printf("3 Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, global_other_maps[num_other_maps].my_lane, global_other_maps[num_other_maps].my_distance));
-	  num_other_maps++;
-	  // The objects are ordered (per lane) from farthest to nearest...
-	  /*printf("OTHER: Lane %u Dist %u : \n", li, lane_dist[li][oi]);
-	    for (int i = 0; i < obj_in_lane[li]; i++) {
-	    printf("   obj %u of %u : Obj %u at Dist %u\n", i, obj_in_lane[li], lane_obj[li][i], lane_dist[li][i]);
-	    }*/
+	    // Now Generate an occupancy map from this object's perspective
+	    DEBUG(printf("Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, li, lane_dist[li][oi]));
+	    for (int di = 0; di < (int)MAX_DISTANCE; di++) {
+	      for (int li = 0; li < NUM_LANES; li++) {
+		global_other_maps[num_other_maps].map[di][li] = 0;  // 0 = Not Occupied
+	      }
+	    }
+	    global_other_maps[num_other_maps].my_lane     = li;
+	    global_other_maps[num_other_maps].my_distance = lane_dist[li][oi];
+	    //DEBUG(printf("2 Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, global_other_maps[num_other_maps].my_lane, global_other_maps[num_other_maps].my_distance));
+
+	    // Now generate a map from this object's point of view (from global distance data)
+	    build_occupancy_map_from_inputs(li, lane_dist[li][oi], othermap_inputs, &global_other_maps[num_other_maps]);
+	    //DEBUG(printf("3 Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, global_other_maps[num_other_maps].my_lane, global_other_maps[num_other_maps].my_distance));
+	    num_other_maps++;
+	    // The objects are ordered (per lane) from farthest to nearest...
+	    /*printf("OTHER: Lane %u Dist %u : \n", li, lane_dist[li][oi]);
+	      for (int i = 0; i < obj_in_lane[li]; i++) {
+	      printf("   obj %u of %u : Obj %u at Dist %u\n", i, obj_in_lane[li], lane_obj[li][i], lane_dist[li][i]);
+	      }*/
 	    
-	  break;
-	default:     // Everything else does NOT generate occupancy maps
-	  break;
-	}
-      }
-    }
-  }
+	    break;
+	  default:     // Everything else does NOT generate occupancy maps
+	    break;
+	  } // switch(lane_obj)
+	} // for (oi loops through objects_in_lane)
+      } // if (obj_in_lane[li] > 0)
+    } // for (li loops through the lanes)
+  } // if (occ_map_behavior > 1) 
 }
 
 /* This routine takes my occupancy map and a set of other vehicle occupancy maps 
@@ -870,42 +903,55 @@ void iterate_cbmap_kernel(vehicle_state_t vs)
 
 void execute_cbmap_kernel(vehicle_state_t vs, occupancy_map_t* the_occ_map, occupancy_map_t* cbmap_inputs, int num_inputs)
 {
-  DEBUG(printf("In execute_cbmap_kernel with %u other-vehicle input occupancy maps\n", num_inputs));
-  // Combine the various occupancy maps to fill out our knowledge...
-  unsigned max_dist = (unsigned)MAX_DISTANCE;
-  //unsigned my_dist = the_occ_map->my_distance;
-  DEBUG(for (int mi = 0; mi < num_inputs; mi++) {  // Span the set of input maps
-    printf(" OTHER MAP %2u : Lane %u  Dist %u\n", mi, cbmap_inputs[mi].my_lane, cbmap_inputs[mi].my_distance);
-    });
-  for (int mi = 0; mi < num_inputs; mi++) {  // Span the set of input maps
-    //printf(" OTHER MAP %2u : Lane %u  Dist %.1f\n", mi, cbmap_inputs[mi].my_lane, cbmap_inputs[mi].my_distance);
-    unsigned other_dist = cbmap_inputs[mi].my_distance;
-    //DEBUG(printf(" other_dist = %u\n", other_dist));
-    for (int di = other_dist; di < max_dist; di++) { // Span the set of my occupancy map entries represented there
-      unsigned cb_dist = di - other_dist; // Back into the perspective of other-vehicle
-      for (int li = 0; li < NUM_LANES; li++) { // Span the set of map entries (lanes)
-	if (cbmap_inputs[mi].map[cb_dist][li] != 0) {
-	  // We have some obstacle in that map location
-	  if (the_occ_map->map[di][li] != 0) {
-	    // We already have an obstacle there in the main occupancy map	    
-	    if (the_occ_map->map[di][li] != cbmap_inputs[mi].map[cb_dist][li]) {
-	      // The occupancy maps don't agree on what obstacle is there...
-	      printf("HOLD : occupancy map confusion at occ_map[%u][%u] : Local %u and Other %u [%u]\n",
-		     di, li, the_occ_map->map[di][li], cbmap_inputs[mi].map[cb_dist][li], cb_dist);
+  DEBUG(printf("In execute_cbmap_kernel with occ_map_behavior %u and %u other-vehicle input occupancy maps\n", occ_map_behavior, num_inputs));
+  if (occ_map_behavior > 1) {
+    // Combine the various occupancy maps to fill out our knowledge...
+    unsigned max_dist = (unsigned)MAX_DISTANCE;
+    //unsigned my_dist = the_occ_map->my_distance;
+    DEBUG(for (int mi = 0; mi < num_inputs; mi++) {  // Span the set of input maps
+	printf(" OTHER MAP %2u : Lane %u  Dist %u\n", mi, cbmap_inputs[mi].my_lane, cbmap_inputs[mi].my_distance);
+      });
+    for (int mi = 0; mi < num_inputs; mi++) {  // Span the set of input maps
+      //printf(" OTHER MAP %2u : Lane %u  Dist %.1f\n", mi, cbmap_inputs[mi].my_lane, cbmap_inputs[mi].my_distance);
+      unsigned other_dist = cbmap_inputs[mi].my_distance;
+      //DEBUG(printf(" other_dist = %u\n", other_dist));
+      for (int di = other_dist; di < max_dist; di++) { // Span the set of my occupancy map entries represented there
+	unsigned cb_dist = di - other_dist; // Back into the perspective of other-vehicle
+	for (int li = 0; li < NUM_LANES; li++) { // Span the set of map entries (lanes)
+	  if (cbmap_inputs[mi].map[cb_dist][li] != 0) {
+	    // We have some obstacle in that map location
+	    if (the_occ_map->map[di][li] != 0) {
+	      // We already have an obstacle there in the main occupancy map	    
+	      if (the_occ_map->map[di][li] != cbmap_inputs[mi].map[cb_dist][li]) {
+		// The occupancy maps don't agree on what obstacle is there...
+		printf("HOLD : occupancy map confusion at occ_map[%u][%u] : Local %u and Other %u [%u]\n",
+		       di, li, the_occ_map->map[di][li], cbmap_inputs[mi].map[cb_dist][li], cb_dist);
+	      }
+	    } else {
+	      the_occ_map->map[di][li] = cbmap_inputs[mi].map[cb_dist][li];
+	      DEBUG(printf("  Adding %u into occ_map[%u][%u] from Other input %u at [%u][%u]\n", cbmap_inputs[mi].map[cb_dist][li], di, li, mi, cb_dist, li));
 	    }
-	  } else {
-	    the_occ_map->map[di][li] = cbmap_inputs[mi].map[cb_dist][li];
-	    DEBUG(printf("  Adding %u into occ_map[%u][%u] from Other input %u at [%u][%u]\n", cbmap_inputs[mi].map[cb_dist][li], di, li, mi, cb_dist, li));
-	  }
-	}
+	  } // if (other-map entry shows an object)
+	} // for (li loops over the lanes) 
+      } // for (di loops over distances in my map)
+    } // for (mi loops over other vehicle occupancy maps)
+  } // if (occ_map_behavior > 1)
+}
+
+void post_execute_cbmap_kernel(occupancy_map_t* the_occ_map)
+{
+  unsigned max_dist = (unsigned)MAX_DISTANCE;
+  unsigned spaces = max_dist * NUM_LANES;
+  unsigned occupied_spaces = 0;
+  for (int di = 0; di < max_dist; di++) { // Span the set of my occupancy map entries represented there
+    for (int li = 0; li < NUM_LANES; li++) { // Span the set of map entries (lanes)
+      if (the_occ_map->map[di][li] != 0) {
+	occupied_spaces++;
       }
     }
   }
-}
-
-void post_execute_cbmap_kernel( )
-{
-
+  unsigned avg_occupied = (100 * occupied_spaces)/(spaces); // "percent" between 0 and 100
+  hist_occ_map_pct[avg_occupied]++;
 }
 
 
@@ -1069,8 +1115,20 @@ void closeout_vit_kernel()
       sum += i*hist_total_objs[i];
     }
   }
+
+  printf("\nHistogram of Total V2V Communicating Objects:\n");
+  unsigned v2v_sum = 0;
+  for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
+    if (hist_total_v2v_objs[i] != 0) {
+      printf("%3u | %9u \n", i, hist_total_v2v_objs[i]);
+      v2v_sum += i*hist_total_v2v_objs[i];
+    }
+  }
+
   double avg_objs = (1.0 * sum)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
   printf("There were %.3lf obstacles per time step (average)\n", avg_objs);
+  double avg_v2v_objs = (1.0 * v2v_sum)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
+  printf("There were %.3lf V2V Communicating obstacles per time step (average)\n", avg_v2v_objs);
   double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
@@ -1085,5 +1143,12 @@ void closeout_mymap_kernel()
 void closeout_cbmap_kernel()
 {
   // Nothing to do?
+  printf("\nHistogram of Occupancy Map Percent Occupied Spaces:\n");
+  printf("%7s | %9s \n", "Percent", "Occurrences");
+  for (int i = 0; i <= 100; i++) {
+    if (hist_occ_map_pct[i] != 0) {
+      printf("%7u | %9u \n", i, hist_occ_map_pct[i]);
+    }
+  }
 }
 

@@ -40,8 +40,8 @@ void print_usage(char * pname) {
   printf("    -h         : print this helpfule usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
 #ifdef USE_SIM_ENVIRON
-  printf("    -s <N>     : Sets the max number of time steps to simulate\n");
-  printf("    -r <N>     : Sets the rand random number seed to N\n");
+  printf("    -s <N>     : Sets the max number of time steps to simulate (default = 5000)\n");
+  printf("    -r <N>     : Sets the rand random number seed to N (default = 0)\n");
   printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
   printf("    -W <wfile> : defines the world environment parameters description file <wfile> to use\n");
 #else
@@ -54,6 +54,15 @@ void print_usage(char * pname) {
   printf("               :      3 = One long  message per obstacle per time step\n");
   printf("               :      4 = One short msg per obstacle + 1 per time step\n");
   printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  printf("               :      6 = (default) One short message plus one long per communicating obstacle per time step\n");
+  printf("    -m <N>     : defines the occupancy map behavior to use:\n");
+  printf("               :      0 = Only My Car forms a local occupancy map\n");
+  printf("               :      1 = No occupancy map formation\n");
+  printf("               :      2 = (default) My Car and Communicating Obstacles form a shared occupancy map\n");
+  printf("    -C <N>     : defines the communicating obstacle vehicles to use:\n");
+  printf("               :      0 = (default) Other Cars and Trucks communicate (V2V)\n");
+  printf("               :      1 = Other Cars, Trucks and Bikes communicate (V2V)\n");
+  printf("               :      2 = All other vehicles communicate (V2V)\n");
 }
 
 
@@ -73,7 +82,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:m:C:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
@@ -110,6 +119,14 @@ int main(int argc, char *argv[])
       world_desc_file_name = optarg;
       printf("Using world description file: %s\n", world_desc_file_name);
 #endif
+      break;
+    case 'm':
+      occ_map_behavior = atoi(optarg);
+      printf("Using occ_map_behavior %u\n", occ_map_behavior);
+      break;
+    case 'C':
+      v2v_msgs_senders = atoi(optarg);
+      printf("Using v2v_msgs_senders %u\n", v2v_msgs_senders);
       break;
     case ':':
       printf("option needs a value\n");
@@ -270,7 +287,7 @@ int main(int argc, char *argv[])
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }
     post_execute_mymap_kernel();
-    post_execute_cbmap_kernel();
+    post_execute_cbmap_kernel(&global_occupancy_map);
     
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new

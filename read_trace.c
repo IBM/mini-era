@@ -57,8 +57,12 @@ get_object_token(char c)
     lane_obj[in_lane][obj_in_lane[in_lane]] = objc;
     //if (obj_in_lane[in_lane] == 0) { // LAST is nearest -- but should be safer than that!
     nearest_obj[in_lane] = objc;
-    if (objc != 'N') {
-      total_obj++;
+    switch (objc) {
+      case 'N': break;
+      case 'C': total_obj++; total_v2v_obj++; break;
+      case 'T': total_obj++; total_v2v_obj++; break;
+      case 'B': total_obj++; if (v2v_msgs_senders > 0) {total_v2v_obj++; } break;
+      case 'P': total_obj++; if (v2v_msgs_senders > 1) {total_v2v_obj++; } break;
     }
   } else { // a distance
     printf("ERROR : trace syntax is weird!\n");
@@ -99,6 +103,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   }
 
   total_obj = 0;
+  total_v2v_obj = 0;
   for (int i = 0; i < NUM_LANES; i++) {
     obj_in_lane[i] = 0;
     nearest_obj[i]  = 'N';

@@ -124,8 +124,11 @@ extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
 
 extern unsigned vit_msgs_behavior;
+extern unsigned v2v_msgs_senders;
+extern unsigned occ_map_behavior;
   
 extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
+extern unsigned total_v2v_obj; // Total non-'N' obstacle objects across all lanes this time step
 extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
 extern unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
 extern char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
@@ -134,9 +137,9 @@ extern char  nearest_obj[NUM_LANES];
 extern float nearest_dist[NUM_LANES];
 
 extern unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
+extern unsigned hist_total_v2v_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 extern unsigned rand_seed;
-
 
 typedef struct occupancy_map_struct {
   lane_t     my_lane;     // The lane and distance are a stand-in for map-observer's position
@@ -182,12 +185,12 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
 void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
 void  iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj);
-void execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap);
+void  execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap);
 void  post_execute_mymap_kernel();
 
 void  iterate_cbmap_kernel(vehicle_state_t vs);
 void execute_cbmap_kernel(vehicle_state_t vs, occupancy_map_t* the_occ_map, occupancy_map_t* cbmap_inputs, int num_inputs);
-void  post_execute_cbmap_kernel();
+void post_execute_cbmap_kernel(occupancy_map_t* the_occ_map);
 
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
