@@ -140,7 +140,7 @@ extern unsigned rand_seed;
 
 typedef struct occupancy_map_struct {
   lane_t     my_lane;     // The lane and distance are a stand-in for map-observer's position
-  distance_t my_distance;
+  unsigned   my_distance; // distance_t is float
   uint8_t    map[(int)MAX_DISTANCE][NUM_LANES];
 } occupancy_map_t;
   

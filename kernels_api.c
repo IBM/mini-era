@@ -707,10 +707,6 @@ void generate_other_occ_map_inputs(lane_t lane, distance_t fdist, mymap_input_t*
   unsigned udist = (unsigned)fdist;
   DEBUG(printf("In generate_other_occ_map_inputs Lane %u Dist %.1f %u\n", lane, fdist, udist));
     // Clear out the inputs (results)
-  for (int li = 0; li < NUM_LANES; li++) {
-    map_near_obj[li].obj  = no_label;
-    map_near_obj[li].dist = MAX_DISTANCE;
-  }    
 
   int lmin = (lane == lhazard) ? 0 : (lane - 1);
   int lmax = (lane == rhazard) ? 5 : (lane + 1);
@@ -777,7 +773,7 @@ void iterate_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj)
 /* Utility function to build an occupancy map from occupancy map inputs.
  * This map is from the perspective of the object itself... so it is at distance 0 */
 
-void build_occupancy_map_from_inputs(lane_t lane, mymap_input_t* map_near_obj, occupancy_map_t* themap)
+void build_occupancy_map_from_inputs(lane_t lane, unsigned dist, mymap_input_t* map_near_obj, occupancy_map_t* themap)
 {
   unsigned max_dist = (unsigned)MAX_DISTANCE;
   unsigned max_size = (unsigned)MAX_OBJECT_SIZE;
@@ -785,7 +781,7 @@ void build_occupancy_map_from_inputs(lane_t lane, mymap_input_t* map_near_obj, o
   int lmin = (lane == lhazard) ? 0 : (lane - 1);
   int lmax = (lane == rhazard) ? 5 : (lane + 1);
   themap->my_lane     = lane;
-  themap->my_distance = 0;	// My location is always distance 0 (zero)
+  themap->my_distance = dist;	// My location is always distance 0 (zero)
   for (int li = lmin; li < lmax; li++) {
     label_t  obj  = map_near_obj[li].obj;
     unsigned dist = map_near_obj[li].dist;
@@ -805,7 +801,7 @@ void build_occupancy_map_from_inputs(lane_t lane, mymap_input_t* map_near_obj, o
 
 void execute_mymap_kernel(vehicle_state_t vs, mymap_input_t* map_near_obj, occupancy_map_t* mymap)
 {
-  build_occupancy_map_from_inputs(vs.lane, map_near_obj, mymap);
+  build_occupancy_map_from_inputs(vs.lane, 0, map_near_obj, mymap);
 }
 
 void post_execute_mymap_kernel( )
@@ -831,18 +827,29 @@ void iterate_cbmap_kernel(vehicle_state_t vs)
 	switch (lane_obj[li][oi]) {
 	case 'C'   : // Cars can generate input occupancy maps
 	case 'T' : // Trucks can generate input occupancy maps
-	  // Determine an occupancy map from this object's perspective
-	  global_other_maps[num_other_maps].my_lane     = li;
-	  global_other_maps[num_other_maps].my_distance = lane_dist[li][oi];
+	  // Determine the inputs for this "other" car's occupancy map
+	  for (int li = 0; li < NUM_LANES; li++) {
+	    othermap_inputs[li].obj  = no_label;
+	    othermap_inputs[li].dist = MAX_DISTANCE;
+	  }    
+	  // Generate the inputs into othermap_inputs
+	  generate_other_occ_map_inputs(li, lane_dist[li][oi], othermap_inputs);
+
+	  // Now Generate an occupancy map from this object's perspective
+	  DEBUG(printf("Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, li, lane_dist[li][oi]));
 	  for (int di = 0; di < (int)MAX_DISTANCE; di++) {
 	    for (int li = 0; li < NUM_LANES; li++) {
 	      global_other_maps[num_other_maps].map[di][li] = 0;  // 0 = Not Occupied
 	    }
 	  }
-	  // Now determine the inputs for this "other" car's occupancy map
-	  generate_other_occ_map_inputs(li, lane_dist[li][oi], othermap_inputs);
+	  global_other_maps[num_other_maps].my_lane     = li;
+	  global_other_maps[num_other_maps].my_distance = lane_dist[li][oi];
+	  //DEBUG(printf("2 Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, global_other_maps[num_other_maps].my_lane, global_other_maps[num_other_maps].my_distance));
+
 	  // Now generate a map from this object's point of view (from global distance data)
-	  build_occupancy_map_from_inputs(li, othermap_inputs, &global_other_maps[num_other_maps]);
+	  build_occupancy_map_from_inputs(li, lane_dist[li][oi], othermap_inputs, &global_other_maps[num_other_maps]);
+	  //DEBUG(printf("3 Generating OtherMap %u from lane %u and Dist %u\n", num_other_maps, global_other_maps[num_other_maps].my_lane, global_other_maps[num_other_maps].my_distance));
+	  num_other_maps++;
 	  // The objects are ordered (per lane) from farthest to nearest...
 	  /*printf("OTHER: Lane %u Dist %u : \n", li, lane_dist[li][oi]);
 	    for (int i = 0; i < obj_in_lane[li]; i++) {
@@ -858,10 +865,42 @@ void iterate_cbmap_kernel(vehicle_state_t vs)
   }
 }
 
+/* This routine takes my occupancy map and a set of other vehicle occupancy maps 
+ * (from those vehicles' perspective) and combines to make a more complete map */
+
 void execute_cbmap_kernel(vehicle_state_t vs, occupancy_map_t* the_occ_map, occupancy_map_t* cbmap_inputs, int num_inputs)
 {
+  DEBUG(printf("In execute_cbmap_kernel with %u other-vehicle input occupancy maps\n", num_inputs));
   // Combine the various occupancy maps to fill out our knowledge...
-  
+  unsigned max_dist = (unsigned)MAX_DISTANCE;
+  //unsigned my_dist = the_occ_map->my_distance;
+  DEBUG(for (int mi = 0; mi < num_inputs; mi++) {  // Span the set of input maps
+    printf(" OTHER MAP %2u : Lane %u  Dist %u\n", mi, cbmap_inputs[mi].my_lane, cbmap_inputs[mi].my_distance);
+    });
+  for (int mi = 0; mi < num_inputs; mi++) {  // Span the set of input maps
+    //printf(" OTHER MAP %2u : Lane %u  Dist %.1f\n", mi, cbmap_inputs[mi].my_lane, cbmap_inputs[mi].my_distance);
+    unsigned other_dist = cbmap_inputs[mi].my_distance;
+    //DEBUG(printf(" other_dist = %u\n", other_dist));
+    for (int di = other_dist; di < max_dist; di++) { // Span the set of my occupancy map entries represented there
+      unsigned cb_dist = di - other_dist; // Back into the perspective of other-vehicle
+      for (int li = 0; li < NUM_LANES; li++) { // Span the set of map entries (lanes)
+	if (cbmap_inputs[mi].map[cb_dist][li] != 0) {
+	  // We have some obstacle in that map location
+	  if (the_occ_map->map[di][li] != 0) {
+	    // We already have an obstacle there in the main occupancy map	    
+	    if (the_occ_map->map[di][li] != cbmap_inputs[mi].map[cb_dist][li]) {
+	      // The occupancy maps don't agree on what obstacle is there...
+	      printf("HOLD : occupancy map confusion at occ_map[%u][%u] : Local %u and Other %u [%u]\n",
+		     di, li, the_occ_map->map[di][li], cbmap_inputs[mi].map[cb_dist][li], cb_dist);
+	    }
+	  } else {
+	    the_occ_map->map[di][li] = cbmap_inputs[mi].map[cb_dist][li];
+	    DEBUG(printf("  Adding %u into occ_map[%u][%u] from Other input %u at [%u][%u]\n", cbmap_inputs[mi].map[cb_dist][li], di, li, mi, cb_dist, li));
+	  }
+	}
+      }
+    }
+  }
 }
 
 void post_execute_cbmap_kernel( )
