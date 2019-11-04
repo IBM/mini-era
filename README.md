@@ -407,9 +407,9 @@ The invocation also requires an input trace file to be specifed:
 
 The visualizer can also be used to visualize the operation of the simulation.  The visualizer sits in the visualizer subdirectory, and currently requires its own version of the trace to operate. Please see the visualizer README.md file in the visualizer subdirectory.
 
-To drive the visualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself driven by a Mini-ERA input trace) is to run the verbose version of Mini-ERA and pull out the Visualizer trace data from that output stream.  This is easily done as follows:
+To drive the visualizer, one needs to produce a Visualizer trace.  The mini-era program can produce these traces.  Currently, the method to generate a Visualizer input trace from a Mini-ERA run (itself in this case driven by a Mini-ERA input trace) is to enable the "-o" output visualizer information option:
 ```
-  ./vmain.exe -t traces/test_trace1.new | grep VizTrace | sed 's/VizTrace: //' > visualizer/traces/viz_tet_trace1.new
+  ./main.exe -t traces/test_trace1.new -o > visualizer/traces/viz_tet_trace1.new
 ```
 
 ## Contacts and Current Maintainers
