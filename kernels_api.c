@@ -15,7 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef BYPASS_KERAS_CV_CODE
 #include <Python.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -62,6 +64,7 @@ float IMPACT_DISTANCE = 50.0; // Minimum distance at which an obstacle "impacts"
 //#include "radar/calc_fmcw_dist.h"
 
 
+#ifndef BYPASS_KERAS_CV_CODE
 PyObject *pName, *pModule, *pFunc, *pFunc_load;
 PyObject *pArgs, *pValue, *pretValue;
 #define PY_SSIZE_T_CLEAN
@@ -69,7 +72,7 @@ PyObject *pArgs, *pValue, *pretValue;
 char *python_module = "mio";
 char *python_func = "predict";	  
 char *python_func_load = "loadmodel";	  
-
+#endif
 
 
 /* These are some top-level defines needed for CV kernel */
