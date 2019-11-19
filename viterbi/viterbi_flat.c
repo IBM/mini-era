@@ -114,7 +114,7 @@ uint8_t* depuncture(uint8_t *in) {
 #ifdef USE_ESP_INTERFACE
 void do_decoding(unsigned char *inMemory)
 #else
-uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
+uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
 #endif
 {
   int in_count = 0;
@@ -129,7 +129,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture
   int  in_n_data_bits = inWords[  2]; // inMemory[    8]
   unsigned char* d_brtab27[2] = {      &(inMemory[   12]), 
                                        &(inMemory[   44]) };
-  int8_t*  in_depuncture_pattern     = &(inMemory[   76]);
+  unsigned char*  in_depuncture_pattern     = &(inMemory[   76]);
   uint8_t* depd_data                 = &(inMemory[   84]);
   uint8_t* l_decoded                 = &(inMemory[24864]);
 #else
