@@ -20,4 +20,4 @@ libfmcwdist.a:	$(L_OBJ)
 	cd ../fft/fft-1d && make
 
 clean:
-	-rm *.exe *.dat ../fft/fft-1d/fft.o *.o libfmcwdist.a 
+	-rm *.exe *.dat ../fft/fft-1d/*.o *.o libfmcwdist.a 
