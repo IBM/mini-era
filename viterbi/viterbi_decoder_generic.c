@@ -336,7 +336,7 @@ unsigned char viterbi_get_output_generic(unsigned char *mm0,
 //    frame  : INPUT/OUTPUT : Struct (see utils.h) [int, int, int, int]
 //    in     : INPUT/OUTPUT : Array [ MAX_ENCODED_BITS == 24780 ]
 
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
 
   d_ofdm = ofdm;
   d_frame = frame;
@@ -582,6 +582,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
   }
   printf("\n};\n");
 #endif
+  *n_dec_char = n_decoded;
   return d_decoded;
 }
 
