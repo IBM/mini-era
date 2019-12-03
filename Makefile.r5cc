@@ -1,0 +1,240 @@
+#CC = gcc
+CC = riscv64-unknown-linux-gnu-gcc
+MFILE = Makefile.r5cc 
+
+COPTF0 = -O0
+COPTF2 = -O2
+COPTF3 = -O3
+
+CFLAGS = -pedantic -Wall -g $(COPTF2)
+#CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
+#CFLAGS +=  -Xlinker -export-dynamic
+
+INCLUDES =  
+#PYTHONINCLUDES = $(shell /usr/bin/python-config --cflags)
+#PYTHONINCLUDES = -I/usr/include/python3.6m
+PYTHONINCLUDES = 
+LFLAGS = -Lviterbi -Lradar 
+#LFLAGS += 
+#LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
+LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
+#PYTHONLIBS = $(shell /usr/bin/python-config --ldflags)
+#PYTHONLIBS = -lpython3.6m
+PYTHONLIBS = 
+
+OBJDIR = obj
+C_OBJDIR = obj_c
+OBJ_V_DIR = obj_v
+C_OBJ_V_DIR = obj_cv
+
+S_OBJDIR = objs
+C_S_OBJDIR = objs_c
+S_OBJ_V_DIR = objs_v
+C_S_OBJ_V_DIR = objs_cv
+
+
+# The full mini-era target, etc.
+TARGET = main
+SRC = kernels_api.c main.c
+T_SRC = $(SRC) read_trace.c
+OBJ = $(T_SRC:%.c=$(OBJDIR)/%.o)
+OBJ_V = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
+
+S_TARGET = sim_main
+S_SRC = $(SRC) sim_environs.c
+S_OBJ = $(S_SRC:%.c=$(S_OBJDIR)/%.o)
+S_OBJ_V = $(S_SRC:%.c=$(S_OBJ_V_DIR)/%.o)
+
+# The C-code only target (it bypasses KERAS Python code)
+C_TARGET = cmain
+C_OBJ = $(T_SRC:%.c=$(C_OBJDIR)/%.o)
+C_OBJ_V = $(T_SRC:%.c=$(C_OBJ_V_DIR)/%.o)
+
+C_S_TARGET = csim_main
+C_S_OBJ = $(S_SRC:%.c=$(C_S_OBJDIR)/%.o)
+C_S_OBJ_V = $(S_SRC:%.c=$(C_S_OBJ_V_DIR)/%.o)
+
+TRGN_SRC = sim_environs.c
+TRGN_OBJ = $(TRGN_SRC:%.c=obj/%.o)
+TRGN_OBJ_V = $(TRGN_SRC:%.c=obj_v/%.o)
+
+G_SRC 	= utils/gen_trace.c
+G_OBJ	= $(G_SRC:%.c=obj/%.o)
+
+$(TARGET): $(OBJDIR)  $(OBJ) libviterbi libfmcwdist
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+$(C_TARGET): $(C_OBJDIR) $(C_OBJ) libviterbi libfmcwdist
+	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) libviterbi libfmcwdist
+	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) libviterbi libfmcwdist
+	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+
+$(S_TARGET): $(S_OBJDIR)  $(S_OBJ) libviterbi libfmcwdist
+	$(CC) $(S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+$(C_S_TARGET): $(C_S_OBJDIR) $(C_S_OBJ) libviterbi libfmcwdist
+	$(CC) $(C_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(S_TARGET): $(S_OBJ_V_DIR) $(S_OBJ_V) libviterbi libfmcwdist
+	$(CC) $(S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(C_S_TARGET): $(C_S_OBJ_V_DIR) $(C_S_OBJ_V) libviterbi libfmcwdist
+	$(CC) $(C_S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+
+all: objdirs $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) $(S_TARGET) $(C_S_TARGET) v$(S_TARGET) v$(C_S_TARGET) util_prog
+
+
+objdirs: $(OBJDIR) $(C_OBJDIR) $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(S_OBJDIR) $(C_S_OBJDIR) $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR)
+
+
+util_prog:
+	cd utils; make -f $(MFILE) all
+
+test: 
+	cd utils; make -f $(MFILE) test
+
+vtest: 
+	cd utils; make -f $(MFILE) vtest
+
+tracegen: 
+	cd utils; make -f $(MFILE) tracegen
+
+libviterbi:
+	cd viterbi; make -f $(MFILE)
+
+libfmcwdist:
+	cd radar; make -f $(MFILE)
+
+$(OBJDIR):
+	mkdir $(OBJDIR)
+
+$(C_OBJDIR):
+	mkdir $(C_OBJDIR)
+
+$(OBJ_V_DIR):
+	mkdir $(OBJ_V_DIR)
+
+$(C_OBJ_V_DIR):
+	mkdir $(C_OBJ_V_DIR)
+
+$(S_OBJDIR):
+	mkdir $(S_OBJDIR)
+
+$(C_S_OBJDIR):
+	mkdir $(C_S_OBJDIR)
+
+$(S_OBJ_V_DIR):
+	mkdir $(S_OBJ_V_DIR)
+
+$(C_S_OBJ_V_DIR):
+	mkdir $(C_S_OBJ_V_DIR)
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
+
+$(OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
+
+$(S_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_S_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+clean:
+	$(RM) $(TARGET).exe $(OBJ)
+	$(RM) $(C_TARGET).exe $(C_OBJ)
+	$(RM) v$(TARGET).exe $(OBJ_V)
+	$(RM) v$(C_TARGET).exe $(C_OBJ_V)
+	$(RM) $(S_TARGET).exe $(S_OBJ)
+	$(RM) $(C_S_TARGET).exe $(C_S_OBJ)
+	$(RM) v$(S_TARGET).exe $(S_OBJ_V)
+	$(RM) v$(C_S_TARGET).exe $(C_S_OBJ_V)
+	$(RM) test  $(TRGN_OBJ)
+	$(RM) tracegen  $(G_OBJ)
+
+allclean: clean
+	$(RM) -rf $(OBJDIR)
+	$(RM) -rf $(OBJ_V_DIR)
+	$(RM) -rf $(C_OBJDIR)
+	$(RM) -rf $(C_OBJ_V_DIR)
+	$(RM) -rf $(S_OBJDIR)
+	$(RM) -rf $(S_OBJ_V_DIR)
+	$(RM) -rf $(C_S_OBJDIR)
+	$(RM) -rf $(C_S_OBJ_V_DIR)
+	cd utils; make -f $(MFILE) allclean
+	cd radar; make -f $(MFILE) clean
+	cd viterbi; make -f $(MFILE) clean
+
+
+$(OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
+$(OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+
+$(C_OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
+$(C_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+
+$(OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+
+$(C_OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(C_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+
+
+$(S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+
+$(C_S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(C_S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+
+$(S_OBJ_V_DIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(S_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(S_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(S_OBJ_V_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+
+$(C_S_OBJ_V_DIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(C_S_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_S_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_S_OBJ_V_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+
+obj/sim_environs.o: utils/sim_environs.h
+
+obj_v/sim_environs.o: utils/sim_environs.h
+
+#obj/sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
+
+obj/gen_trace.o: gen_trace.h
+
+
+depend:;	makedepend -fMakefile.r5cc -- $(CFLAGS) -- $(SRC) $(TRGN_SRC) $(G_SRC)
+# DO NOT DELETE THIS LINE -- make depend depends on it.
+
