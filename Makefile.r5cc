@@ -24,13 +24,16 @@ PYTHONLIBS =
 
 OBJDIR = obj
 C_OBJDIR = obj_c
+C_OBJDIR_HW = obj_cHW
 OBJ_V_DIR = obj_v
 C_OBJ_V_DIR = obj_cv
+C_OBJ_V_DIR_HW = obj_cvHW
 
 S_OBJDIR = objs
 C_S_OBJDIR = objs_c
+C_S_OBJDIR_HW = objs_c_HW
 S_OBJ_V_DIR = objs_v
-C_S_OBJ_V_DIR = objs_cv
+C_S_OBJ_V_DIR_HW = objs_cv_HW
 
 
 # The full mini-era target, etc.
@@ -49,10 +52,14 @@ S_OBJ_V = $(S_SRC:%.c=$(S_OBJ_V_DIR)/%.o)
 C_TARGET = cmain
 C_OBJ = $(T_SRC:%.c=$(C_OBJDIR)/%.o)
 C_OBJ_V = $(T_SRC:%.c=$(C_OBJ_V_DIR)/%.o)
+C_OBJ_HW = $(T_SRC:%.c=$(C_OBJDIR_HW)/%.o)
+C_OBJ_V_HW = $(T_SRC:%.c=$(C_OBJ_V_DIR_HW)/%.o)
 
 C_S_TARGET = csim_main
 C_S_OBJ = $(S_SRC:%.c=$(C_S_OBJDIR)/%.o)
 C_S_OBJ_V = $(S_SRC:%.c=$(C_S_OBJ_V_DIR)/%.o)
+C_S_OBJ_HW = $(S_SRC:%.c=$(C_S_OBJDIR_HW)/%.o)
+C_S_OBJ_V_HW = $(S_SRC:%.c=$(C_S_OBJ_V_DIR_HW)/%.o)
 
 TRGN_SRC = sim_environs.c
 TRGN_OBJ = $(TRGN_SRC:%.c=obj/%.o)
@@ -67,11 +74,17 @@ $(TARGET): $(OBJDIR)  $(OBJ) libviterbi libfmcwdist
 $(C_TARGET): $(C_OBJDIR) $(C_OBJ) libviterbi libfmcwdist
 	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
+$(C_TARGET)HW: $(C_OBJDIR_HW) $(C_OBJ_HW) libviterbi libfmcwdist
+	$(CC) $(C_OBJ_HW) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
 v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) libviterbi libfmcwdist
 	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(C_TARGET)HW: $(C_OBJ_V_DIR_HW) $(C_OBJ_V_HW) libviterbi libfmcwdist
+	$(CC) $(C_OBJ_V_HW) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 
 $(S_TARGET): $(S_OBJDIR)  $(S_OBJ) libviterbi libfmcwdist
@@ -80,17 +93,23 @@ $(S_TARGET): $(S_OBJDIR)  $(S_OBJ) libviterbi libfmcwdist
 $(C_S_TARGET): $(C_S_OBJDIR) $(C_S_OBJ) libviterbi libfmcwdist
 	$(CC) $(C_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
+$(C_S_TARGET)HW: $(C_S_OBJDIR_HW) $(C_S_OBJ_HW) libviterbi libfmcwdist
+	$(CC) $(C_S_OBJ_HW) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
 v$(S_TARGET): $(S_OBJ_V_DIR) $(S_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 v$(C_S_TARGET): $(C_S_OBJ_V_DIR) $(C_S_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
+v$(C_S_TARGET)HW: $(C_S_OBJ_V_DIR_HW) $(C_S_OBJ_V_HW) libviterbi libfmcwdist
+	$(CC) $(C_S_OBJ_V_HW) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
 
 all: objdirs $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) $(S_TARGET) $(C_S_TARGET) v$(S_TARGET) v$(C_S_TARGET) util_prog
 
 
-objdirs: $(OBJDIR) $(C_OBJDIR) $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(S_OBJDIR) $(C_S_OBJDIR) $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR)
+objdirs: $(OBJDIR) $(C_OBJDIR) $(C_OBJDIR_HW) $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(C_OBJ_V_DIR_HW) $(S_OBJDIR) $(C_S_OBJDIR) $(C_S_OBJDIR_HW) $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR) $(C_S_OBJ_V_DIR_HW)
 
 
 util_prog:
@@ -117,11 +136,17 @@ $(OBJDIR):
 $(C_OBJDIR):
 	mkdir $(C_OBJDIR)
 
+$(C_OBJDIR_HW):
+	mkdir $(C_OBJDIR_HW)
+
 $(OBJ_V_DIR):
 	mkdir $(OBJ_V_DIR)
 
 $(C_OBJ_V_DIR):
 	mkdir $(C_OBJ_V_DIR)
+
+$(C_OBJ_V_DIR_HW):
+	mkdir $(C_OBJ_V_DIR_HW)
 
 $(S_OBJDIR):
 	mkdir $(S_OBJDIR)
@@ -129,11 +154,17 @@ $(S_OBJDIR):
 $(C_S_OBJDIR):
 	mkdir $(C_S_OBJDIR)
 
+$(C_S_OBJDIR_HW):
+	mkdir $(C_S_OBJDIR_HW)
+
 $(S_OBJ_V_DIR):
 	mkdir $(S_OBJ_V_DIR)
 
 $(C_S_OBJ_V_DIR):
 	mkdir $(C_S_OBJ_V_DIR)
+
+$(C_S_OBJ_V_DIR_HW):
+	mkdir $(C_S_OBJ_V_DIR_HW)
 
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
@@ -144,8 +175,14 @@ $(OBJ_V_DIR)/%.o: %.c
 $(C_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
+$(C_OBJDIR_HW)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -DRUN_HW -o $@ $(PYTHONLIBS) -c $<
+
 $(C_OBJ_V_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_OBJ_V_DIR_HW)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -DRUN_HW -o $@ $(PYTHONLIBS) -c $<
 
 $(S_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
@@ -156,8 +193,14 @@ $(S_OBJ_V_DIR)/%.o: %.c
 $(C_S_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
+$(C_S_OBJDIR_HW)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -DRUN_HW -o $@ $(PYTHONLIBS) -c $<
+
 $(C_S_OBJ_V_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_S_OBJ_V_DIR_HW)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -DRUN_HW -o $@ $(PYTHONLIBS) -c $<
 
 clean:
 	$(RM) $(TARGET).exe $(OBJ)

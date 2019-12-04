@@ -22,6 +22,19 @@
 #include <stdlib.h>
 #include <math.h>
 
+#ifdef RUN_HW
+ #include <fcntl.h>
+ #include <pthread.h>
+ #include <sys/types.h>
+ #include <sys/mman.h>
+ #include <sys/stat.h>
+ #include <string.h>
+ #include <time.h>
+ #include <unistd.h>
+
+ #include "contig.h"
+#endif
+
 #include "kernels_api.h"
 
 #ifdef USE_SIM_ENVIRON
@@ -129,6 +142,15 @@ unsigned vit_msgs_behavior = 0; // 0 = default
 unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
 
+#ifdef RUN_HW
+#define DEVNAME	"/dev/vitbfly2.0"
+
+int fd;
+  contig_handle_t mem;
+  const size_t size = 6 * 64 * sizeof(unsigned char);
+  const size_t out_size = 4 * 64 * sizeof(unsigned char);
+  struct vitbfly2_access desc;
+#endif
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
@@ -272,6 +294,32 @@ status_t init_vit_kernel(char* dict_fn)
   for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
     hist_total_objs[i] = 0;
   }
+
+#ifdef RUN_HW
+  printf("Open device %s\n", DEVNAME);
+  fd = open(DEVNAME, O_RDWR, 0);
+  if(fd < 0) {
+	  fprintf(stderr, "Error: cannot open %s", DEVNAME);
+	  exit(EXIT_FAILURE);
+  }
+
+  printf("Allocate hardware buffer of size %zu\n", size);
+  if (contig_alloc(size, &mem) == NULL) {
+	  fprintf(stderr, "Error: cannot allocate %zu contig bytes", size);
+	  exit(EXIT_FAILURE);
+  }
+
+  desc.esp.run = true;
+  desc.esp.coherence = ACC_COH_NONE;
+  desc.esp.p2p_store = 0;
+  desc.esp.p2p_nsrcs = 0;
+  desc.esp.contig = contig_to_khandle(mem);
+
+  /* printf("\n================================================\n"); */
+  /* printf("Viterbi butterfly accelerator invocations: \r"); */
+  /* fflush(stdout); */
+
+#endif
 
   DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
   return success;
@@ -830,6 +878,14 @@ void closeout_vit_kernel()
   double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
+
+#ifdef RUN_HW
+  /* printf("Viterby butterfly accelerator invocations: %d", invocations); */
+  /* printf("\n================================================\n"); */
+  contig_free(mem);
+  close(fd);
+#endif
+
 }
 
 

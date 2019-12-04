@@ -8,17 +8,18 @@ AR      = riscv64-unknown-linux-gnu-ar rcs
 L_SRC = viterbi_standalone.c viterbi_decoder_generic.c descrambler_function.c
 L_OBJ = $(L_SRC:%.c=obj/%.o)
 L_OBJ_ESP = $(L_SRC:%.c=obj_esp/%.o)
+L_OBJ_ESPHW = $(L_SRC:%.c=obj_espHW/%.o)
 
 LF_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
 LF_OBJ = $(LF_SRC:%.c=obj_f/%.o)
-LF_OBJ_ESP = $(LF_SRC:%.c=obj_f_esp/%.o)
+LF_OBJ_ESPHW = $(LF_SRC:%.c=obj_f_espHW/%.o)
 
 LFV_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
 LFV_OBJ = $(LFV_SRC:%.c=obj_fv/%.o)
-LFV_OBJ_ESP = $(LFV_SRC:%.c=obj_fv_esp/%.o)
+LFV_OBJ_ESPHW = $(LFV_SRC:%.c=obj_fv_espHW/%.o)
 
 LCK_OBJ = $(L_SRC:%.c=obj_ck/%.o)
-LCK_OBJ_ESP = $(L_SRC:%.c=obj_ck_esp/%.o)
+LCK_OBJ_ESPHW = $(L_SRC:%.c=obj_ck_espHW/%.o)
 
 
 #A_SRC = api_test.c
@@ -44,7 +45,7 @@ FTV_OBJ_ESP = $(FTV_SRC:%.c=obj_fv_esp/%.o)
 all:	vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp 
 	echo Done building all
 
-lib:	libviterbi.a libviterbi_esp.a libviterbiCk.a libviterbiCk_esp.a libviterbiF.a libviterbiF_esp.a libviterbiFV.a libviterbiFV_esp.a
+lib:	libviterbi.a libviterbi_esp.a libviterbi_espHW.a libviterbiCk.a libviterbiCk_esp.a libviterbiCk_espHW.a libviterbiF.a libviterbiF_esp.a libviterbiFV.a libviterbiFV_esp.a
 	echo Built $@
 
 
@@ -71,6 +72,20 @@ libviterbiFV.a: $(LFV_OBJ)
 
 libviterbiFV_esp.a: $(LFV_OBJ_ESP)
 	$(AR) $@ $(LFV_OBJ_ESP)
+
+
+libviterbi_espHW.a: $(L_OBJ_ESPHW)
+	$(AR) $@ $(L_OBJ_ESPHW)
+
+libviterbiCk_espHW.a: $(LCK_OBJ_ESPHW)
+	$(AR) $@ $(LCK_OBJ_ESPHW)
+
+libviterbiF_espHW.a: $(LF_OBJ_ESPHW)
+	$(AR) $@ $(LF_OBJ_ESPHW)
+
+libviterbiFV_espHW.a: $(LFV_OBJ_ESPHW)
+	$(AR) $@ $(LFV_OBJ_ESPHW)
+
 
 
 
@@ -104,12 +119,16 @@ viterbi_fvtest_esp: $(FTV_OBJ_ESP) libviterbiFV_esp.a
 clean:
 	-rm libviterbi.a $(L_OBJ)
 	-rm libviterbi_esp.a $(L_OBJ_ESP)
+	-rm libviterbi_espHW.a $(L_OBJ_ESPHW)
 	-rm libviterbiCk.a $(LCK_OBJ)
 	-rm libviterbiCk_esp.a $(LCK_OBJ_ESP)
+	-rm libviterbiCk_espHW.a $(LCK_OBJ_ESPHW)
 	-rm libviterbiF.a $(LF_OBJ)
 	-rm libviterbiF_esp.a $(LF_OBJ_ESP)
+	-rm libviterbiF_espHW.a $(LF_OBJ_ESPHW)
 	-rm libviterbiFV.a $(LFV_OBJ)
 	-rm libviterbiFV_esp.a $(LFV_OBJ_ESP)
+	-rm libviterbiFV_espHW.a $(LFV_OBJ_ESPHW)
 	-rm api_test $(A_OBJ) 
 	-rm vtest $(T_OBJ) 
 	-rm vtest_esp $(T_OBJ_ESP)
@@ -127,11 +146,17 @@ obj/%.o: %.c
 obj_esp/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -DUSE_ESP_INTERFACE -c -o $@
 
+obj_espHW/%.o: %.c
+	$(CC) $*.c $(CFLAGS) -DUSE_ESP_INTERFACE -DRUN_HW-c -o $@
+
 obj_ck/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -DDO_RUN_TIME_CHECKING -c -o $@
 
 obj_ck_esp/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -DUSE_ESP_INTERFACE -c -o $@
+
+obj_ck_espHW/%.o: %.c
+	$(CC) $*.c $(CFLAGS) -DUSE_ESP_INTERFACE -DRUN_HW -c -o $@
 
 obj_f/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -c -o $@
@@ -139,11 +164,17 @@ obj_f/%.o: %.c
 obj_f_esp/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -DUSE_ESP_INTERFACE -c -o $@
 
+obj_f_espHW/%.o: %.c
+	$(CC) $*.c $(CFLAGS) -DUSE_ESP_INTERFACE -DRUN_HW -c -o $@
+
 obj_fv/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -DVERBOSE_OUTPUT -c -o $@
 
 obj_fv_esp/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -DVERBOSE_OUTPUT -DUSE_ESP_INTERFACE -c -o $@
+
+obj_fv_espHW/%.o: %.c
+	$(CC) $*.c $(CFLAGS) -DVERBOSE_OUTPUT -DUSE_ESP_INTERFACE -DRUN_HW -c -o $@
 
 
 obj/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
