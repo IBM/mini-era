@@ -178,7 +178,7 @@ allclean: clean
 	$(RM) -rf $(C_S_OBJ_V_DIR)
 	cd utils; make allclean
 	cd radar; make clean
-	cd viterbi; make clean
+	cd viterbi; make allclean
 
 
 $(OBJDIR)/kernels_api.o: kernels_api.h read_trace.h

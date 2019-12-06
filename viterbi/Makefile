@@ -3,20 +3,29 @@ CFLAGS = -g
 
 AR      = ar rcs
 
+OBJDIR = obj
+OBJDIR_E = obj_esp
+OBJDIR_F = obj_f
+OBJDIR_FE = obj_f_esp
+OBJDIR_FV = obj_fv
+OBJDIR_FVE = obj_fv_esp
+OBJDIR_CK = obj_ck
+OBJDIR_CKE = obj_ck_esp
+
 L_SRC = viterbi_standalone.c viterbi_decoder_generic.c descrambler_function.c
-L_OBJ = $(L_SRC:%.c=obj/%.o)
-L_OBJ_ESP = $(L_SRC:%.c=obj_esp/%.o)
+L_OBJ = $(L_SRC:%.c=$(OBJDIR)/%.o)
+L_OBJ_ESP = $(L_SRC:%.c=$(OBJDIR_E)/%.o)
 
 LF_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
-LF_OBJ = $(LF_SRC:%.c=obj_f/%.o)
-LF_OBJ_ESP = $(LF_SRC:%.c=obj_f_esp/%.o)
+LF_OBJ = $(LF_SRC:%.c=$(OBJDIR_F)/%.o)
+LF_OBJ_ESP = $(LF_SRC:%.c=$(OBJDIR_FE)/%.o)
 
 LFV_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
-LFV_OBJ = $(LFV_SRC:%.c=obj_fv/%.o)
-LFV_OBJ_ESP = $(LFV_SRC:%.c=obj_fv_esp/%.o)
+LFV_OBJ = $(LFV_SRC:%.c=$(OBJDIR_FV)/%.o)
+LFV_OBJ_ESP = $(LFV_SRC:%.c=$(OBJDIR_FVE)/%.o)
 
-LCK_OBJ = $(L_SRC:%.c=obj_ck/%.o)
-LCK_OBJ_ESP = $(L_SRC:%.c=obj_ck_esp/%.o)
+LCK_OBJ = $(L_SRC:%.c=$(OBJDIR_CK)/%.o)
+LCK_OBJ_ESP = $(L_SRC:%.c=$(OBJDIR_CKE)/%.o)
 
 
 #A_SRC = api_test.c
@@ -39,11 +48,13 @@ FTV_SRC = viterbi_test.c
 FTV_OBJ = $(FTV_SRC:%.c=obj_fv/%.o)
 FTV_OBJ_ESP = $(FTV_SRC:%.c=obj_fv_esp/%.o)
 
-all:	vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp 
+all:	objdirs vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp 
 	echo Done building all
 
-lib:	libviterbi.a libviterbi_esp.a libviterbiCk.a libviterbiCk_esp.a libviterbiF.a libviterbiF_esp.a libviterbiFV.a libviterbiFV_esp.a
+lib:	objdirs libviterbi.a libviterbi_esp.a libviterbiCk.a libviterbiCk_esp.a libviterbiF.a libviterbiF_esp.a libviterbiFV.a libviterbiFV_esp.a
 	echo Built $@
+
+objdirs: $(OBJDIR) $(OBJDIR_E) $(OBJDIR_F) $(OBJDIR_FE) $(OBJDIR_FV) $(OBJDIR_FVE) $(OBJDIR_CK) $(OBJDIR_CKE) 
 
 
 libviterbi.a: $(L_OBJ)
@@ -117,6 +128,42 @@ clean:
 	-rm viterbi_ftest_esp $(FT_OBJ_ESP)
 	-rm viterbi_fvtest $(FTV_OBJ) 
 	-rm viterbi_fvtest_esp $(FTV_OBJ_ESP)
+
+
+allclean: clean
+	$(RM) -rf $(OBJDIR)
+	$(RM) -rf $(OBJDIR_E)
+	$(RM) -rf $(OBJDIR_F)
+	$(RM) -rf $(OBJDIR_FE)
+	$(RM) -rf $(OBJDIR_FV)
+	$(RM) -rf $(OBJDIR_FVE)
+	$(RM) -rf $(OBJDIR_CK)
+	$(RM) -rf $(OBJDIR_CKE)
+
+$(OBJDIR):
+	mkdir $@
+
+$(OBJDIR_E):
+	mkdir $@
+
+$(OBJDIR_F):
+	mkdir $@
+
+$(OBJDIR_FE):
+	mkdir $@
+
+$(OBJDIR_FV):
+	mkdir $@
+
+$(OBJDIR_FVE):
+	mkdir $@
+
+$(OBJDIR_CK):
+	mkdir $@
+
+$(OBJDIR_CKE):
+	mkdir $@
+
 
 
 obj/%.o: %.c
