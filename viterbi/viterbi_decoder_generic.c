@@ -28,21 +28,6 @@
  */
 #include <stdio.h>
 #include <stdint.h>
-#ifdef RUN_HW
- #include <fcntl.h>
- #include <math.h>
- #include <pthread.h>
- #include <sys/types.h>
- #include <sys/mman.h>
- #include <sys/stat.h>
- #include <stdlib.h>
- #include <string.h>
- #include <time.h>
- #include <unistd.h>
-
- #include "contig.h"
-#endif
-
 #include "base.h"
 #include "viterbi_decoder_generic.h"
 #include "viterbi_standalone.h"
@@ -132,25 +117,6 @@ uint8_t* depuncture(uint8_t *in) {
 //    pp1     : INPUT/OUTPUT : Array [ 64 bytes ]
 // d_branchtab27_generic[1].c[] : INPUT : Array [2].c[32] {GLOBAL}
 //
-
-#ifdef RUN_HW
-/* #define DEVNAME	"/dev/vitbfly2.0" */
-
-static void viterbi_butterfly2_hw(unsigned char *inMemory, int *fd, contig_handle_t *mem, size_t size, size_t out_size, struct vitbfly2_access *desc)
-{
-
-
-	contig_copy_to(*mem, 0, inMemory, size);
-
-
-	if (ioctl(*fd, VITBFLY2_IOC_ACCESS, *desc)) {
-		perror("IOCTL:");
-		exit(EXIT_FAILURE);
-	}
-
-	contig_copy_from(inMemory, *mem, 0, out_size);
-}
-#endif
 
 #ifdef USE_ESP_INTERFACE
 void viterbi_butterfly2_generic(unsigned char *inMemory)
@@ -388,40 +354,6 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 
   int viterbi_butterfly_calls = 0;
 
-/* #ifdef RUN_HW */
-/*   int fd; */
-/*   contig_handle_t mem; */
-/*   const size_t size = 6 * 64 * sizeof(unsigned char); */
-/*   const size_t out_size = 4 * 64 * sizeof(unsigned char); */
-/*   struct vitbfly2_access desc; */
-/*   unsigned invocations = 0; */
-
-/*   printf("Open device %s\n", DEVNAME); */
-/*   fd = open(DEVNAME, O_RDWR, 0); */
-/*   if(fd < 0) { */
-/* 	  fprintf(stderr, "Error: cannot open %s", DEVNAME); */
-/* 	  exit(EXIT_FAILURE); */
-/*   } */
-
-/*   printf("Allocate hardware buffer of size %zu\n", size); */
-/*   if (contig_alloc(size, &mem) == NULL) { */
-/* 	  fprintf(stderr, "Error: cannot allocate %zu contig bytes", size); */
-/* 	  exit(EXIT_FAILURE); */
-/*   } */
-
-/*   desc.esp.run = true; */
-/*   desc.esp.coherence = ACC_COH_NONE; */
-/*   desc.esp.p2p_store = 0; */
-/*   desc.esp.p2p_nsrcs = 0; */
-/*   desc.esp.contig = contig_to_khandle(mem); */
-
-/*   /\* printf("\n================================================\n"); *\/ */
-/*   /\* printf("Viterbi butterfly accelerator invocations: \r"); *\/ */
-/*   /\* fflush(stdout); *\/ */
-
-/* #endif */
-
-
   while(n_decoded < d_frame->n_data_bits) {
     //printf("n_decoded = %d vs %d = d_frame->n_data_bits\n", n_decoded, d_frame->n_data_bits);
     if ((in_count % 4) == 0) { //0 or 3
@@ -489,17 +421,9 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
           inMemory[imi++] = t_symbols[ti];
         }
 
-#ifdef RUN_HW
-	/* invocations++; */
-	/* if (invocations % 100 == 1) { */
-	/* 	printf("Viterby butterfly accelerator invocations: %d\r", invocations); */
-	/* 	fflush(stdout); */
-	/* } */
-	viterbi_butterfly2_hw(inMemory, &fd, &mem, size, out_size, &desc);
-#else
 	// Call the viterbi_butterfly2_generic function using ESP interface
 	viterbi_butterfly2_generic(inMemory);
-#endif
+
 	// Copy the outputs back into the composite locations
 	imi = 0;
         for (int ti = 0; ti < 64; ti ++) {
@@ -650,13 +574,6 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     in_count++;
   }
   //printf("};\n");
-
-/* #ifdef RUN_HW */
-/*   printf("Viterby butterfly accelerator invocations: %d", invocations); */
-/*   printf("\n================================================\n"); */
-/*   contig_free(mem); */
-/*   close(fd); */
-/* #endif */
 
 #ifdef GENERATE_OUTPUT_VALUE
   printf("EXPECTED_OUTPUT[%d] = {\n  ", n_decoded);
