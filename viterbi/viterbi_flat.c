@@ -42,7 +42,7 @@ t_branchtab27 d_branchtab27_generic[2];
 //unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
 
 // Position in circular buffer where the current decoded byte is stored
-int d_store_pos = 0;
+// int d_store_pos = 0;
 // Metrics for each state
 unsigned char d_mmresult[64] __attribute__((aligned(16)));
 // Paths for each state
@@ -186,7 +186,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 
   // This is the "reset" portion:
   //  Do this before the real operation so local memories are "cleared to zero"
-  d_store_pos = 0;
+  // d_store_pos = 0;
   for (int i = 0; i < 64; i++) {
     l_metric0_generic[i] = 0;
     l_path0_generic[i] = 0;
@@ -600,6 +600,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
 
     // Call the do_decoding routine
     //void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
+    //printf("Calling do_decoding: data_bits %d  cbps %d ntraceback %d\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
     do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory);
     
     // Copy the outputs back into the composite locations
