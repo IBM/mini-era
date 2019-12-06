@@ -31,8 +31,8 @@
 #include "viterbi_standalone.h"
 
 
-//#undef  GENERATE_CHECK_VALUES
-#define  GENERATE_CHECK_VALUES
+#undef  GENERATE_CHECK_VALUES
+//#define  GENERATE_CHECK_VALUES
 
 // GLOBAL VARIABLES
 t_branchtab27 d_branchtab27_generic[2];
@@ -91,13 +91,13 @@ uint8_t* depuncture(uint8_t *in) {
  * from the decode call (above) and does the decoding, outputing the decoded result.
  */
 // INPUTSOUTPUTS:          :  I/O   : Offset : Size
-//    in_cbps               : INPUT  :     0  : int = 4 bytes
-//    in_ntraceback         : INPUT  :     4  : int = 4 bytes
-//    in_n_data_bits        : INPUT  :     8  : int = 4 bytes
-//    d_branchtab27_generic : INPUT  :    12  : uint8_t[2][32] = 64 bytes
-//    in_depuncture_pattern : INPUT  :    76  : uint8_t[8] (max is 6 bytes + 2 padding bytes)
-//    depd_data             : INPUT  :    84  : uint8_t[MAX_ENCODED_BITS == 24780] (depunctured data)
-//    <return_val>          : OUTPUT : 24864  : uint8_t[MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
+//    in_cbps               : INPUT  :     X  : int = 4 bytes (REGISTER)
+//    in_ntraceback         : INPUT  :     X  : int = 4 bytes (REGISTER)
+//    in_n_data_bits        : INPUT  :     X  : int = 4 bytes (REGISTER)
+//    d_branchtab27_generic : INPUT  :     0  : uint8_t[2][32] = 64 bytes
+//    in_depuncture_pattern : INPUT  :    64  : uint8_t[8] (max is 6 bytes + 2 padding bytes)
+//    depd_data             : INPUT  :    72  : uint8_t[MAX_ENCODED_BITS == 24780] (depunctured data)
+//    <return_val>          : OUTPUT : 24852  : uint8_t[MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
 /* THESE ARE JUST USED LOCALLY IN THIS FUNCTION NOW  */
 /*  BUT they must reset to zero on each invocation   */
@@ -112,7 +112,7 @@ uint8_t* depuncture(uint8_t *in) {
 
 
 #ifdef USE_ESP_INTERFACE
-void do_decoding(unsigned char *inMemory)
+void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
 #else
 uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
 #endif
@@ -124,14 +124,14 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 #ifdef USE_ESP_INTERFACE
   int* inWords = (int*)inMemory;
 
-  int  in_cbps        = inWords[  0]; // inMemory[    0]
-  int  in_ntraceback  = inWords[  1]; // inMemory[    4]
-  int  in_n_data_bits = inWords[  2]; // inMemory[    8]
-  unsigned char* d_brtab27[2] = {      &(inMemory[   12]), 
-                                       &(inMemory[   44]) };
-  unsigned char*  in_depuncture_pattern     = &(inMemory[   76]);
-  uint8_t* depd_data                 = &(inMemory[   84]);
-  uint8_t* l_decoded                 = &(inMemory[24864]);
+  /* int  in_cbps        = inWords[  0]; // inMemory[    0] */
+  /* int  in_ntraceback  = inWords[  1]; // inMemory[    4] */
+  /* int  in_n_data_bits = inWords[  2]; // inMemory[    8] */
+  unsigned char* d_brtab27[2] = {      &(inMemory[    0]), 
+                                       &(inMemory[   32]) };
+  unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
+  uint8_t* depd_data                 = &(inMemory[   72]);
+  uint8_t* l_decoded                 = &(inMemory[24852]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
@@ -561,28 +561,29 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
     uint8_t inMemory[43449]; // This is "minimally sized for max entries"
     int*    inWords = (int*)inMemory; // This is an "integer" view of inMemory
 
-    inWords[  0] = ofdm->n_cbps;
-    inWords[  1] = d_ntraceback; 
-    inWords[  2] = frame->n_data_bits;
+    // These are now "in REGISTERS"
+    /* inWords[  0] = ofdm->n_cbps; */
+    /* inWords[  1] = d_ntraceback;  */
+    /* inWords[  2] = frame->n_data_bits; */
 
-    int imi = 12;
+    int imi = 0;
     for (int ti = 0; ti < 2; ti ++) {
       for (int tj = 0; tj < 32; tj++) {
 	inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
       }
     }
-    if (imi != 76) { printf("ERROR : imi = %u and should be 76\n", imi); }
-    // imi = 76;
+    if (imi != 64) { printf("ERROR : imi = %u and should be 64\n", imi); }
+    // imi = 64;
     for (int ti = 0; ti < 6; ti ++) {
       inMemory[imi++] = d_depuncture_pattern[ti];
     }
-    if (imi != 82) { printf("ERROR : imi = %u and should be 82\n", imi); }
-    // imi = 82
+    if (imi != 70) { printf("ERROR : imi = %u and should be 70\n", imi); }
+    // imi = 70
     imi += 2; // Padding
     for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
       inMemory[imi++] = depunctured[ti];
     }
-    if (imi != 24864) { printf("ERROR : imi = %u and should be 24864\n", imi); }
+    if (imi != 24852) { printf("ERROR : imi = %u and should be 24852\n", imi); }
     // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
     // Reset the output space (for cleaner testing results)
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
@@ -598,10 +599,11 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
 #endif
 
     // Call the do_decoding routine
-    do_decoding(inMemory);
+    //void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
+    do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory);
     
     // Copy the outputs back into the composite locations
-    imi = 24864; // start of the outputs
+    imi = 24852; // start of the outputs
 #ifdef GENERATE_CHECK_VALUES
     printf("\n\nOUTPUTS-FROM-DO-DECODING:\n");
 #endif
