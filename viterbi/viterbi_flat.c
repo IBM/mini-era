@@ -122,7 +122,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   int n_decoded = 0;
 
 #ifdef USE_ESP_INTERFACE
-  int* inWords = (int*)inMemory;
+  /* int* inWords = (int*)inMemory; */
 
   /* int  in_cbps        = inWords[  0]; // inMemory[    0] */
   /* int  in_ntraceback  = inWords[  1]; // inMemory[    4] */
@@ -155,23 +155,56 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	printf("%02x", in_depuncture_pattern[ti]);
       }
       printf("]\n");
-
-      printf("\nVBS: depd_data = [\n");
-      for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
-	if (ti > 0) { printf(", "); }
-	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
-	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
-	printf("%02x", depd_data[ti]);
+      printf("\nVBS: depd_data : %p\n", depd_data);
+      {
+	int per_row = 0;
+	printf("%p : ", &depd_data[0]);
+	for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
+	  per_row++;
+	  if ((per_row % 8) == 0) {
+	    printf(" ");
+	  }
+	  printf("%u", depd_data[ti]);
+	  if (per_row == 39) {
+	    printf("\n");
+	    printf("%p : ", &depd_data[ti]);
+	    per_row = 0;
+	  }
+	}
+	printf("\n");
       }
+      /* for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) { */
+      /* 	if (ti > 0) { printf(", "); } */
+      /* 	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
+      /* 	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
+      /* 	printf("%02x", depd_data[ti]); */
+      /* } */
       printf("\n");
-
-      printf("\nVBS: l_decoded = [\n");
-      for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-	if (ti > 0) { printf(", "); }
-	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
-	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
-	printf("%02x", l_decoded[ti]);
-      }
+      /** This is always ZERO
+      printf("\nVBS: l_decoded : %p\n", l_decoded);
+      {
+	int per_row = 0;
+	printf("%p : ", &l_decoded[0]);
+	for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+	  per_row++;
+	  if ((per_row % 8) == 0) {
+	    printf(" ");
+	  }
+	  printf("%u", l_decoded[ti]);
+	  if (per_row == 39) {
+	    printf("\n");
+	    printf("%p : ", &l_decoded[ti]);
+	    per_row = 0;
+	  }
+	}
+	printf("\n");
+	}**/
+      /* for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
+      /* 	if (ti > 0) { printf(", "); } */
+      /* 	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
+      /* 	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
+      /* 	printf("%02x", l_decoded[ti]); */
+      /* } */
       printf("\n\n");
     });      
 
@@ -467,16 +500,35 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
     in_count++;
   }
 
-  VERBOSE({
-      printf("\nVBS: FINAL l_decoded = [\n");
-      for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-	///if (ti > 0) { printf(", "); }
-	//if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
-	//if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
-	printf("%5u : %3u : %p\n", ti, l_decoded[ti], &(l_decoded[ti]));
+  /* VERBOSE({ */
+  /*     printf("\nVBS: FINAL l_decoded = [\n"); */
+  /*     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
+  /* 	///if (ti > 0) { printf(", "); } */
+  /* 	//if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
+  /* 	//if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
+  /* 	printf("%5u : %3u : %p\n", ti, l_decoded[ti], &(l_decoded[ti])); */
+  /*     } */
+  /*     printf("]\n\n"); */
+  /*   });       */
+  {
+    printf("\nVBS: Final l_decoded : %p\n", l_decoded);
+    int per_row = 0;
+    printf("%p : ", &l_decoded[0]);
+    for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+      per_row++;
+      if ((per_row % 8) == 0) {
+	printf(" ");
       }
-      printf("]\n\n");
-    });      
+      printf("%u", l_decoded[ti]);
+      if (per_row == 39) {
+	printf("\n");
+	printf("%p : ", &l_decoded[ti]);
+	per_row = 0;
+      }
+    }
+    printf("\n");
+    printf("\n");
+  }
 
 #ifndef USE_ESP_INTERFACE
   return l_decoded;

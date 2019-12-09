@@ -44,11 +44,15 @@ FT_SRC = viterbi_test.c
 FT_OBJ = $(FT_SRC:%.c=obj_f/%.o)
 FT_OBJ_ESP = $(FT_SRC:%.c=obj_f_esp/%.o)
 
+VDA_SRC = vitdec_acc_test.c 
+#VDA_OBJ = $(VDA_SRC:%.c=obj_f/%.o)
+VDA_OBJ_ESP = $(VDA_SRC:%.c=obj_f_esp/%.o)
+
 FTV_SRC = viterbi_test.c 
 FTV_OBJ = $(FTV_SRC:%.c=obj_fv/%.o)
 FTV_OBJ_ESP = $(FTV_SRC:%.c=obj_fv_esp/%.o)
 
-all:	objdirs vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp 
+all:	objdirs vtest vtest_esp viterbi_test viterbi_test_esp viterbi_ftest viterbi_ftest_esp viterbi_fvtest viterbi_fvtest_esp vitdec_acc_test
 	echo Done building all
 
 lib:	objdirs libviterbi.a libviterbi_esp.a libviterbiCk.a libviterbiCk_esp.a libviterbiF.a libviterbiF_esp.a libviterbiFV.a libviterbiFV_esp.a
@@ -104,6 +108,9 @@ viterbi_ftest: $(FT_OBJ) libviterbiF.a
 viterbi_ftest_esp: $(FT_OBJ_ESP) libviterbiF_esp.a
 	$(CC) $(FT_OBJ_ESP) -L . -lviterbiF_esp -o $@
 
+vitdec_acc_test: $(VDA_OBJ_ESP) libviterbiFV_esp.a
+	$(CC) $(VDA_OBJ_ESP) -L . -lviterbiFV_esp -o $@
+
 viterbi_fvtest: $(FTV_OBJ) libviterbiFV.a
 	$(CC) $(FTV_OBJ) -L . -lviterbiFV -o $@
 
@@ -128,6 +135,7 @@ clean:
 	-rm viterbi_ftest_esp $(FT_OBJ_ESP)
 	-rm viterbi_fvtest $(FTV_OBJ) 
 	-rm viterbi_fvtest_esp $(FTV_OBJ_ESP)
+	-rm vitdec_acc_test $(VDA_OBJ_ESP) 
 
 
 allclean: clean
