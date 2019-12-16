@@ -15,18 +15,23 @@ LFLAGS = -Lviterbi -Lradar
 #LFLAGS += 
 #LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
 LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm 
+FLIBS = -lviterbiF -lfmcwdist -lpthread -ldl -lutil -lm 
 #PYTHONLIBS = $(shell /usr/bin/python-config --ldflags)
 PYTHONLIBS = -lpython3.6m
 
 OBJDIR = obj
 C_OBJDIR = obj_c
+FC_OBJDIR = obj_fc
 OBJ_V_DIR = obj_v
 C_OBJ_V_DIR = obj_cv
+FC_OBJ_V_DIR = obj_fcv
 
 S_OBJDIR = objs
 C_S_OBJDIR = objs_c
+FC_S_OBJDIR = objs_fc
 S_OBJ_V_DIR = objs_v
 C_S_OBJ_V_DIR = objs_cv
+FC_S_OBJ_V_DIR = objs_fcv
 
 
 # The full mini-era target, etc.
@@ -45,10 +50,14 @@ S_OBJ_V = $(S_SRC:%.c=$(S_OBJ_V_DIR)/%.o)
 C_TARGET = cmain
 C_OBJ = $(T_SRC:%.c=$(C_OBJDIR)/%.o)
 C_OBJ_V = $(T_SRC:%.c=$(C_OBJ_V_DIR)/%.o)
+FC_OBJ = $(T_SRC:%.c=$(FC_OBJDIR)/%.o)
+FC_OBJ_V = $(T_SRC:%.c=$(FC_OBJ_V_DIR)/%.o)
 
 C_S_TARGET = csim_main
 C_S_OBJ = $(S_SRC:%.c=$(C_S_OBJDIR)/%.o)
 C_S_OBJ_V = $(S_SRC:%.c=$(C_S_OBJ_V_DIR)/%.o)
+FC_S_OBJ = $(S_SRC:%.c=$(FC_S_OBJDIR)/%.o)
+FC_S_OBJ_V = $(S_SRC:%.c=$(FC_S_OBJ_V_DIR)/%.o)
 
 TRGN_SRC = sim_environs.c
 TRGN_OBJ = $(TRGN_SRC:%.c=obj/%.o)
@@ -63,11 +72,17 @@ $(TARGET): $(OBJDIR)  $(OBJ) libviterbi libfmcwdist
 $(C_TARGET): $(C_OBJDIR) $(C_OBJ) libviterbi libfmcwdist
 	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
+f$(C_TARGET): $(FC_OBJDIR) $(FC_OBJ) libviterbiF libfmcwdist
+	$(CC) $(FC_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
+
 v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) libviterbi libfmcwdist
 	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+vf$(C_TARGET): $(FC_OBJ_V_DIR) $(FC_OBJ_V) libviterbiF libfmcwdist
+	$(CC) $(FC_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
 
 
 $(S_TARGET): $(S_OBJDIR)  $(S_OBJ) libviterbi libfmcwdist
@@ -76,17 +91,23 @@ $(S_TARGET): $(S_OBJDIR)  $(S_OBJ) libviterbi libfmcwdist
 $(C_S_TARGET): $(C_S_OBJDIR) $(C_S_OBJ) libviterbi libfmcwdist
 	$(CC) $(C_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
+f$(C_S_TARGET): $(FC_S_OBJDIR) $(FC_S_OBJ) libviterbi libfmcwdist
+	$(CC) $(FC_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
+
 v$(S_TARGET): $(S_OBJ_V_DIR) $(S_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
 v$(C_S_TARGET): $(C_S_OBJ_V_DIR) $(C_S_OBJ_V) libviterbi libfmcwdist
 	$(CC) $(C_S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
+vf$(C_S_TARGET): $(FC_S_OBJ_V_DIR) $(FC_S_OBJ_V) libviterbi libfmcwdist
+	$(CC) $(FC_S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
 
-all: objdirs $(TARGET) $(C_TARGET) v$(TARGET) v$(C_TARGET) $(S_TARGET) $(C_S_TARGET) v$(S_TARGET) v$(C_S_TARGET) util_prog
+
+all: objdirs $(TARGET) $(C_TARGET) f$(C_TARGET) v$(TARGET) v$(C_TARGET) vf$(C_TARGET) $(S_TARGET) $(C_S_TARGET) f$(C_S_TARGET) v$(S_TARGET) v$(C_S_TARGET) vf$(C_S_TARGET) util_prog
 
 
-objdirs: $(OBJDIR) $(C_OBJDIR) $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(S_OBJDIR) $(C_S_OBJDIR) $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR)
+objdirs: $(OBJDIR) $(C_OBJDIR) $(FC_OBJDIR) $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR) $(S_OBJDIR) $(C_S_OBJDIR) $(FC_S_OBJDIR) $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR) $(FC_S_OBJ_V_DIR)
 
 
 util_prog:
@@ -104,6 +125,9 @@ tracegen:
 libviterbi:
 	cd viterbi; make
 
+libviterbiF:
+	cd viterbi; make
+
 libfmcwdist:
 	cd radar; make
 
@@ -113,11 +137,17 @@ $(OBJDIR):
 $(C_OBJDIR):
 	mkdir $(C_OBJDIR)
 
+$(FC_OBJDIR):
+	mkdir $(FC_OBJDIR)
+
 $(OBJ_V_DIR):
 	mkdir $(OBJ_V_DIR)
 
 $(C_OBJ_V_DIR):
 	mkdir $(C_OBJ_V_DIR)
+
+$(FC_OBJ_V_DIR):
+	mkdir $(FC_OBJ_V_DIR)
 
 $(S_OBJDIR):
 	mkdir $(S_OBJDIR)
@@ -125,11 +155,17 @@ $(S_OBJDIR):
 $(C_S_OBJDIR):
 	mkdir $(C_S_OBJDIR)
 
+$(FC_S_OBJDIR):
+	mkdir $(FC_S_OBJDIR)
+
 $(S_OBJ_V_DIR):
 	mkdir $(S_OBJ_V_DIR)
 
 $(C_S_OBJ_V_DIR):
 	mkdir $(C_S_OBJ_V_DIR)
+
+$(FC_S_OBJ_V_DIR):
+	mkdir $(FC_S_OBJ_V_DIR)
 
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
@@ -141,6 +177,12 @@ $(C_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 $(C_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_OBJ_V_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 $(S_OBJDIR)/%.o: %.c
@@ -155,15 +197,25 @@ $(C_S_OBJDIR)/%.o: %.c
 $(C_S_OBJ_V_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
+$(FC_S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_S_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
 clean:
 	$(RM) $(TARGET).exe $(OBJ)
 	$(RM) $(C_TARGET).exe $(C_OBJ)
+	$(RM) $(FC_TARGET).exe $(FC_OBJ)
 	$(RM) v$(TARGET).exe $(OBJ_V)
 	$(RM) v$(C_TARGET).exe $(C_OBJ_V)
+	$(RM) fv$(C_TARGET).exe $(FC_OBJ_V)
 	$(RM) $(S_TARGET).exe $(S_OBJ)
 	$(RM) $(C_S_TARGET).exe $(C_S_OBJ)
+	$(RM) $(FC_S_TARGET).exe $(FC_S_OBJ)
 	$(RM) v$(S_TARGET).exe $(S_OBJ_V)
 	$(RM) v$(C_S_TARGET).exe $(C_S_OBJ_V)
+	$(RM) fv$(C_S_TARGET).exe $(FC_S_OBJ_V)
 	$(RM) test  $(TRGN_OBJ)
 	$(RM) tracegen  $(G_OBJ)
 
@@ -191,6 +243,11 @@ $(C_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_OBJDIR)/read_trace.o: kernels_api.h read_trace.h
 
+$(FC_OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
+$(FC_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_flat.h
+$(FC_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(FC_OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+
 $(OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
 $(OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
@@ -200,6 +257,11 @@ $(C_OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
 $(C_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+
+$(FC_OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(FC_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_flat.h
+$(FC_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(FC_OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
 
 
 $(S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
@@ -212,6 +274,11 @@ $(C_S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
 
+$(FC_S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(FC_S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_flat.h
+$(FC_S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(FC_S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+
 $(S_OBJ_V_DIR)/kernels_api.o: kernels_api.h sim_environs.h
 $(S_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(S_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
@@ -221,6 +288,11 @@ $(C_S_OBJ_V_DIR)/kernels_api.o: kernels_api.h sim_environs.h
 $(C_S_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_S_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_S_OBJ_V_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+
+$(FC_S_OBJ_V_DIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(FC_S_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_flat.h
+$(FC_S_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(FC_S_OBJ_V_DIR)/sim_environs.o: kernels_api.h sim_environs.h
 
 obj/sim_environs.o: utils/sim_environs.h
 

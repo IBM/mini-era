@@ -137,6 +137,58 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   uint8_t*       l_decoded = d_decoded;
 #endif
 
+#if(0)
+  {
+    printf(" d_brtab27_0 = ");
+    for (int li = 0; li < 32; li++) {
+      printf("%u,", d_brtab27[0][li]);
+      if ((li % 8) == 7) { printf(" "); }
+    }
+    printf("\n");
+    printf(" d_brtab27_1 = ");
+    for (int li = 0; li < 32; li++) {
+      printf("%u,", d_brtab27[1][li]);
+      if ((li % 8) == 7) { printf(" "); }
+    }
+    printf("\n");
+
+    printf(" depunct_ptn = ");
+    for (int li = 0; li < 6; li++) {
+      printf("%u,", in_depuncture_pattern[li]);
+    }
+    printf("\n");
+
+    printf("\n dep_data    = ");
+    for (int li = 0; li < 32; li++) {
+      printf("%u,", depd_data[li]);
+    }
+    printf("\n");
+    printf("\n");
+
+#ifdef USE_ESP_INTERFACE
+    printf(" plm_in_ping = ");
+    int limi = 0;
+    for (int li = 0; li < 32; li++) {
+      printf("%u,", inMemory[limi++]);
+      if ((li % 8) == 7) { printf(" "); }
+    }
+    printf("\n               ");
+    for (int li = 0; li < 32; li++) {
+      printf("%u,", inMemory[limi++]);
+      if ((li % 8) == 7) { printf(" "); }
+    } printf("\n");
+    for (int li = 0; li < 8; li++) {
+      printf("%u,", inMemory[limi++]);
+    }
+    printf("\n               ");
+    for (int li = 0; li < 32; li++) {
+      printf("%u,", inMemory[limi++]);
+    }
+    printf("\n");
+#endif
+  }
+#endif
+  
   VERBOSE({
       printf("\nVBS: in_cbps        = %u\n", in_cbps);
       printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
@@ -429,9 +481,9 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	// CALL : viterbi_get_output_generic(l_metric0_generic, l_path0_generic, in_ntraceback, &c);
 	// unsigned char viterbi_get_output_generic(unsigned char *mm0, unsigned char *pp0, int ntraceback, unsigned char *outbuf) 
 	{
-	  unsigned char *mm0       = l_metric0_generic;
-	  unsigned char *pp0       = l_path0_generic;
-	  int ntraceback = in_ntraceback;
+	  unsigned char *mm0    = l_metric0_generic;
+	  unsigned char *pp0    = l_path0_generic;
+	  int ntraceback        = in_ntraceback;
 	  unsigned char *outbuf = &c;
 
 	  int i;
@@ -510,6 +562,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   /*     } */
   /*     printf("]\n\n"); */
   /*   });       */
+#if(0)
   {
     printf("\nVBS: Final l_decoded : %p\n", l_decoded);
     int per_row = 0;
@@ -529,7 +582,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
     printf("\n");
     printf("\n");
   }
-
+#endif
 #ifndef USE_ESP_INTERFACE
   return l_decoded;
 #endif
