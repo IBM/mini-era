@@ -27,9 +27,40 @@
  * Major modifications by adding SSE2 code by Bogdan Diaconescu
  */
 #include <stdio.h>
+
+#ifdef HW_VIT
+ #include <fcntl.h>
+ #include <math.h>
+ #include <pthread.h>
+ #include <sys/types.h>
+ #include <sys/mman.h>
+ #include <sys/stat.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <time.h>
+ #include <unistd.h>
+
+ #include "contig.h"
+#endif
+
+#include "base.h"
 #include "viterbi_flat.h"
 #include "viterbi_standalone.h"
 
+#ifdef HW_VIT
+extern int vitHW_fd;
+extern contig_handle_t vitHW_mem;
+extern uint8_t* vitHW_lmem;
+extern uint8_t* vitHW_li_mem;
+extern uint8_t* vitHW_lo_mem;
+extern const size_t vitHW_in_size;
+extern const size_t vitHW_out_size;
+extern const size_t vitHW_size;
+extern const size_t out_vitHW_size;
+extern struct vitdodec_access vitHW_desc;
+
+#include "mini-era.h"
+#endif
 
 #undef  GENERATE_CHECK_VALUES
 //#define  GENERATE_CHECK_VALUES
@@ -87,6 +118,16 @@ uint8_t* depuncture(uint8_t *in) {
 
 
 
+#ifdef HW_VIT
+static void do_decoding_hw(int *fd, struct vitdodec_access *desc)
+{
+  if (ioctl(*fd, VITDODEC_IOC_ACCESS, *desc)) {
+    perror("IOCTL:");
+    exit(EXIT_FAILURE);
+  }
+}
+#endif
+
 /* This is the main "do_decoding" function; takes the necessary inputs
  * from the decode call (above) and does the decoding, outputing the decoded result.
  */
@@ -112,7 +153,7 @@ uint8_t* depuncture(uint8_t *in) {
 
 
 #ifdef USE_ESP_INTERFACE
-void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
+void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory )
 #else
 uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
 #endif
@@ -587,10 +628,12 @@ void reset() {
 //    in     : INPUT  : uint8_t Array [ MAX_ENCODED_BITS == 24780 ]
 //  <return> : OUTPUT : uint8_t Array [ MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
 
   d_ofdm = ofdm;
   d_frame = frame;
+
+  *n_dec_char = 0; // We don't return this from do_decoding -- but we could?
 
   reset();
 
@@ -610,13 +653,13 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
 #ifdef USE_ESP_INTERFACE
   {
     // Copy inputs into the inMemory for esp-interface version
-    uint8_t inMemory[43449]; // This is "minimally sized for max entries"
-    int*    inWords = (int*)inMemory; // This is an "integer" view of inMemory
-
-    // These are now "in REGISTERS"
-    /* inWords[  0] = ofdm->n_cbps; */
-    /* inWords[  1] = d_ntraceback;  */
-    /* inWords[  2] = frame->n_data_bits; */
+    #ifdef HW_VIT
+    uint8_t* inMemory  = vitHW_li_mem;
+    uint8_t* outMemory = vitHW_lo_mem;
+    #else
+    uint8_t inMemory[24852];  // This is "minimally sized for max entries"
+    uint8_t outMemory[18585]; // This is "minimally sized for max entries"
+    #endif
 
     int imi = 0;
     for (int ti = 0; ti < 2; ti ++) {
@@ -653,23 +696,31 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
     // Call the do_decoding routine
     //void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
     //printf("Calling do_decoding: data_bits %d  cbps %d ntraceback %d\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
-    do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory);
-    
+#ifdef HW_VIT
+        vitHW_desc.cbps = ofdm->n_cbps;
+	vitHW_desc.ntraceback = d_ntraceback;
+        vitHW_desc.data_bits = frame->n_data_bits;
+	do_decoding_hw(&vitHW_fd, &vitHW_desc);
+#else
+	// Call the viterbi_butterfly2_generic function using ESP interface
+	do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
+#endif
+
     // Copy the outputs back into the composite locations
-    imi = 24852; // start of the outputs
+    imi = 0; // start of the outputs
 #ifdef GENERATE_CHECK_VALUES
     printf("\n\nOUTPUTS-FROM-DO-DECODING:\n");
 #endif
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
 #ifdef GENERATE_CHECK_VALUES
-      printf("%u\n", inMemory[imi]);
+      printf("%u\n", outMemory[imi]);
 #endif
-      d_decoded[ti] = inMemory[imi++];
+      d_decoded[ti] = outMemory[imi++];
     }
 
   }
 #ifdef GENERATE_CHECK_VALUES
-    printf("LAST-OUTPUT\n\n");
+  printf("LAST-OUTPUT\n\n");
 #endif
   return d_decoded;
 #else
