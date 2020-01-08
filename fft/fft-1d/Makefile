@@ -5,20 +5,40 @@ INPUT_SIZE = LARGE
 CC = gcc -O2
 
 CFLAGS = -pedantic -Wall -O0 -g -DINPUT_SIZE=INPUT_SIZE_$(INPUT_SIZE)
-INCLUDES =  
-LFLAGS = 
+INCLUDES =
+LFLAGS =
 LIBS = -lm
 
+OBJ_DIR = obj
+G_OBJ_DIR = obj_g
+
 TARGET = main
-OBJECTS = fft.o octave.o timer.o 
+SRC = fft.c octave.c timer.c
 
-all: $(TARGET)
+OBJECTS = $(SRC:%.c=$(OBJ_DIR)/%.o)
+G_OBJECTS = $(SRC:%.c=$(G_OBJ_DIR)/%.o)
 
-$(TARGET): $(OBJECTS)
+all: $(TARGET) $(TARGET)_gp
+
+$(TARGET): $(OBJ_DIR) $(OBJECTS)
 	$(CC) $(OBJECTS) $(CFLAGS) $(INCLUDES) -o $(TARGET).exe $(TARGET).c $(LFLAGS) $(LIBS)
 
-%.o: %.c
+$(TARGET)_gp: $(G_OBJ_DIR) $(G_OBJECTS)
+	$(CC) $(G_OBJECTS) $(CFLAGS) $(INCLUDES) -g -pg -o $(TARGET).exe $(TARGET).c $(LFLAGS) $(LIBS)
+
+$(OBJ_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(G_OBJ_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -g -pg -o $@ -c $<
+
+
+$(OBJ_DIR):
+	mkdir $@
+
+$(G_OBJ_DIR):
+	mkdir $@
+
 
 clean:
 	$(RM) $(TARGET).exe $(OBJECTS) *.mat

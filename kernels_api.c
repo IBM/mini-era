@@ -638,6 +638,13 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
     DEBUG(printf("  Calling the viterbi descrambler routine\n"));
     descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
 
+   #if(0)
+    printf(" PSDU %u : Msg : = `", psdusize);
+    for (int ci = 0; ci < (psdusize - 26); ci++) {
+      printf("%c", msg_text[ci]);
+    }
+    printf("'\n");
+   #endif
     // Here we look at the message string and select proper message_t
     switch(msg_text[3]) {
     case '0' : msg = safe_to_move_right_or_left; break;

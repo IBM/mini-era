@@ -16,7 +16,7 @@ LG_OBJ = $(L_SRC:%.c=$(LG_OBJ_DIR)/%.o) ../fft/fft-1d/obj_g/fft.o
 SRC = 	main.c
 OBJ =   $(SRC:%.c=%.o)
 
-all:	libfmcwdist.a $(OBJ) libfmcwdist_gp.a $(OBJ)
+all:	libfmcwdist.a libfmcwdist_gp.a $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -I ../fft/fft-1d -o test_calc_dist_from_fmcw.exe -L. -lfmcwdist -lm 
 #	$(CC) ../fft/fft-1d/fft.o $(CFLAGS) calculate_dist_from_fmcw.c -L /mnt/hgfs/WinDownloads/DSSOC/era/mini-era/fft/fft-1d/ -lm -I ../fft/fft-1d -o calculate_dist_from_fmcw.exe
 
@@ -36,7 +36,7 @@ $(LG_OBJ_DIR):
 	mkdir $@
 
 clean:
-	-rm *.exe *.dat ../fft/fft-1d/*.o *.o libfmcwdist.a 
+	-rm *.exe *.dat ../fft/fft-1d/obj/*.o ../fft/fft-1d/obj_g/*.o *.o libfmcwdist.a libfmcwdist_gp.a 
 	-rm -rf $(L_OBJ_DIR)
 	-rm -rf $(LG_OBJ_DIR)
 

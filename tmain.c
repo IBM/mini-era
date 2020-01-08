@@ -305,6 +305,8 @@ int main(int argc, char *argv[])
     distance = execute_rad_kernel(radar_inputs);
    #ifdef TIME
     gettimeofday(&stop_exec_rad, NULL);
+    //printf("exec_rad_sec : %llu += %llu - %llu\n", exec_rad_sec, (uint64_t)stop_exec_rad.tv_sec, (uint64_t)start_exec_rad.tv_sec);
+    //printf("exec_rad_usec: %llu += %llu - %llu\n", exec_rad_usec, (uint64_t)stop_exec_rad.tv_usec, (uint64_t)start_exec_rad.tv_usec);
     exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
     exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
 
@@ -353,7 +355,7 @@ int main(int argc, char *argv[])
   closeout_vit_kernel();
 
   #ifdef TIME
-  {
+  {/*
     double total_exec = (double) (stop.tv_sec - start.tv_sec) * 1000.0 + (double) (stop.tv_usec - start.tv_usec) / 1000.0;
     double iter_rad   = (double) (iter_rad_sec) * 1000.0 + (double) (iter_rad_usec) / 1000.0;
     double iter_vit   = (double) (iter_vit_sec) * 1000.0 + (double) (iter_vit_usec) / 1000.0;
@@ -368,7 +370,22 @@ int main(int argc, char *argv[])
     printf("  execute_rad_kernel run time    %f ms\n", exec_rad);
     printf("  execute_vit_kernel run time    %f ms\n", exec_vit);
     printf("  execute_cv_kernel run time     %f ms\n", exec_cv);
-  }
+   */
+    uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
+    uint64_t iter_rad   = (uint64_t) (iter_rad_sec) * 1000000 + (uint64_t) (iter_rad_usec);
+    uint64_t iter_vit   = (uint64_t) (iter_vit_sec) * 1000000 + (uint64_t) (iter_vit_usec);
+    uint64_t iter_cv    = (uint64_t) (iter_cv_sec)  * 1000000 + (uint64_t) (iter_cv_usec);
+    uint64_t exec_rad   = (uint64_t) (exec_rad_sec) * 1000000 + (uint64_t) (exec_rad_usec);
+    uint64_t exec_vit   = (uint64_t) (exec_vit_sec) * 1000000 + (uint64_t) (exec_vit_usec);
+    uint64_t exec_cv    = (uint64_t) (exec_cv_sec)  * 1000000 + (uint64_t) (exec_cv_usec);
+    printf("Program total execution time     %lu usec\n", total_exec);
+    printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
+    printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
+    printf("  iterate_cv_kernel run time     %lu usec\n", iter_cv);
+    printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
+    printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
+    printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
+}
   #endif 
   printf("\nDone.\n");
   return 0;

@@ -44,16 +44,16 @@ LCK_OBJ_G = $(L_SRC:%.c=$(OBJDIR_GCK)/%.o)
 
 
 #A_SRC = api_test.c
-#A_OBJ = $(A_SRC:%.c=obj/%.o)
+#A_OBJ = $(A_SRC:%.c=$(OBJDIR)/%.o)
 
 
 T_SRC = vtest.c
-T_OBJ = $(T_SRC:%.c=obj/%.o)
+T_OBJ = $(T_SRC:%.c=$(OBJDIR)/%.o)
 T_OBJ_E = $(T_SRC:%.c=$(OBJDIR_E)/%.o)
 T_OBJ_G = $(T_SRC:%.c=$(OBJDIR_G)/%.o)
 
 VT_SRC = viterbi_test.c 
-VT_OBJ = $(VT_SRC:%.c=obj/%.o)
+VT_OBJ = $(VT_SRC:%.c=$(OBJDIR)/%.o)
 VT_OBJ_E = $(VT_SRC:%.c=$(OBJDIR_E)/%.o)
 VT_OBJ_G = $(VT_SRC:%.c=$(OBJDIR_G)/%.o)
 
@@ -67,12 +67,13 @@ FTV_OBJ = $(FTV_SRC:%.c=$(OBJDIR_F)v/%.o)
 FTV_OBJ_E = $(FTV_SRC:%.c=$(OBJDIR_F)v_esp/%.o)
 FTV_OBJ_G = $(FTV_SRC:%.c=$(OBJDIR_F)v_gp/%.o)
 
-all:	lib vtest vtest_esp vtest_gp viterbi_test viterbi_test_esp viterbi_test_gp viterbi_ftest viterbi_ftest_esp viterbi_ftest_gp viterbi_fvtest viterbi_fvtest_esp viuterbi_fvtest_gp
+all:	 lib vtest vtest_esp vtest_gp viterbi_test viterbi_test_esp viterbi_test_gp viterbi_ftest viterbi_ftest_esp viterbi_ftest_gp viterbi_fvtest viterbi_fvtest_esp viuterbi_fvtest_gp
 	echo Done building all
 
 lib:	libviterbi.a libviterbi_esp.a libviterbi_gp.a libviterbiCk.a libviterbiCk_esp.a libviterbiCk_gp.a libviterbiF.a libviterbiF_esp.a libviterbiF_gp.a libviterbiFV.a libviterbiFV_esp.a libviterbiFV_gp.a
 	echo Built $@
 
+#objdirs: $(OBJDIR) $(OBJDIR_E) $(OBJDIR_E) $(OBJDIR_F) $(OBJDIR_FE) $(OBJDIR_FV) $(OBJDIR_FVE) $(OBJDIR_CK) $(OBJDIR_CKE) 
 
 libviterbi.a: $(OBJDIR) $(L_OBJ)
 	$(AR) $@ $(L_OBJ)
@@ -229,7 +230,7 @@ clean:
 	-rm viterbi_fvtest_esp $(FTV_OBJ_E)
 	-rm viterbi_fvtest_gp $(FTV_$BJ_G)
 
-obj/%.o: %.c
+$(OBJDIR)/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -c -o $@
 
 $(OBJDIR_E)/%.o: %.c
@@ -279,13 +280,13 @@ $(OBJDIR_FVEG)/%.o: %.c
 
 
 
-obj/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
-obj/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-obj/viterbi_decoder_generic.o: viterbi_standalone.h
-obj/vtest.o: viterbi_standalone.h utils.h
-obj/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR)/viterbi_decoder_generic.o: viterbi_standalone.h
+$(OBJDIR)/vtest.o: viterbi_standalone.h utils.h
+$(OBJDIR)/viterbi_test.o: viterbi_standalone.h utils.h
 
-obj/atest.o: viterbi_standalone.h utils.h
+$(OBJDIR)/atest.o: viterbi_standalone.h utils.h
 
 $(OBJDIR_CK)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_CK)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
