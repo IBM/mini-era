@@ -24,7 +24,7 @@ T_OBJECTS = $(SRC:%.c=$(T_OBJ_DIR)/%.o)
 all: $(TARGET) gp-$(TARGET) t-$(TARGET)
 
 $(TARGET): $(OBJ_DIR) $(OBJECTS)
-	$(CC) $(OBJECTS) $(CFLAGS) $(INCLUDES) -o $(TARGET).exe $(TARGET).c $(LFLAGS) $(LIBS)
+	$(CC) $(OBJECTS) $(CFLAGS) $(INCLUDES) -o $@.exe $(TARGET).c $(LFLAGS) $(LIBS)
 
 gp-$(TARGET): $(G_OBJ_DIR) $(G_OBJECTS)
 	$(CC) $(G_OBJECTS) $(CFLAGS) $(INCLUDES) -g -pg -o $@.exe $(TARGET).c $(LFLAGS) $(LIBS)

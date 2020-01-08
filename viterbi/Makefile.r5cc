@@ -297,6 +297,25 @@ clean:
 	-rm viterbi_fvtest_gp $(FTV_$BJ_G)
 	-rm viterbi_fvtest_t $(FTV_$BJ_T)
 
+allclean: clean
+	$(RM) -r $(OBJDIR)
+	$(RM) -r $(OBJDIR_E)
+	$(RM) -r $(OBJDIR_G)
+	$(RM) -r $(OBJDIR_CK)
+	$(RM) -r $(OBJDIR_ECK)
+	$(RM) -r $(OBJDIR_GCK)
+	$(RM) -r $(OBJDIR_EGCK)
+	$(RM) -r $(OBJDIR_F)
+	$(RM) -r $(OBJDIR_FE)
+	$(RM) -r $(OBJDIR_FG)
+	$(RM) -r $(OBJDIR_FV)
+	$(RM) -r $(OBJDIR_FVE)
+	$(RM) -r $(OBJDIR_FVG)
+	$(RM) -r $(OBJDIR_FVEG)
+	$(RM) -r $(OBJDIR_FEG)
+	$(RM) -r $(OBJDIR_FCK)
+
+
 obj/%.o: %.c
 	$(CC) $*.c $(CFLAGS) -c -o $@
 
@@ -371,13 +390,13 @@ $(OBJDIR_FVET)/%.o: %.c
 
 
 
-obj/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
-obj/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-obj/viterbi_decoder_generic.o: viterbi_standalone.h
-obj/vtest.o: viterbi_standalone.h utils.h
-obj/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR)/viterbi_decoder_generic.o: viterbi_standalone.h
+$(OBJDIR)/vtest.o: viterbi_standalone.h utils.h
+$(OBJDIR)/viterbi_test.o: viterbi_standalone.h utils.h
 
-obj/atest.o: viterbi_standalone.h utils.h
+$(OBJDIR)/atest.o: viterbi_standalone.h utils.h
 
 $(OBJDIR_CK)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_CK)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h

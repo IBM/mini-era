@@ -22,7 +22,7 @@ T_OBJECTS = $(SRC:%.c=$(T_OBJ_DIR)/%.o)
 
 all: $(TARGET) gp-$(TARGET) t-$(TARGET)
 
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJ_DIR) $(OBJECTS)
 	$(CC) $(OBJECTS) $(CFLAGS) $(INCLUDES) -o $@.exe $(TARGET).c $(LFLAGS) $(LIBS)
 
 gp-$(TARGET): $(G_OBJ_DIR) $(G_OBJECTS)
