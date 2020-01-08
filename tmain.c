@@ -25,6 +25,24 @@
 #include "sim_environs.h"
 
 #define TIME
+
+#ifdef INT_TIME
+extern uint64_t bitrev_sec;
+extern uint64_t bitrev_usec;
+
+extern uint64_t fft_sec;
+extern uint64_t fft_usec;
+
+extern uint64_t cdfmcw_sec;
+extern uint64_t cdfmcw_usec;
+
+extern uint64_t dodec_sec;
+extern uint64_t dodec_usec;
+
+extern uint64_t depunc_sec;
+extern uint64_t depunc_usec;
+#endif
+
 char * cv_dict  = "traces/objects_dictionary.dfn";
 char * rad_dict = "traces/radar_dictionary.dfn";
 char * vit_dict = "traces/vit_dictionary.dfn";
@@ -385,8 +403,26 @@ int main(int argc, char *argv[])
     printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
     printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
     printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
-}
-  #endif 
+  }
+  #endif
+  #ifdef INT_TIME
+  // These are timings taken from called routines...
+  printf("\n");
+  uint64_t bitrev    = (uint64_t) (bitrev_sec)  * 1000000 + (uint64_t) (bitrev_usec);
+  printf("  bit-reverse run time    %lu usec\n", bitrev);
+
+  uint64_t fft    = (uint64_t) (fft_sec)  * 1000000 + (uint64_t) (fft_usec);
+  printf("  fft-network run time    %lu usec\n", fft);
+
+  uint64_t cdfmcw    = (uint64_t) (cdfmcw_sec)  * 1000000 + (uint64_t) (cdfmcw_usec);
+  printf("  calc-dist   run time    %lu usec\n", cdfmcw);
+
+  uint64_t depunc    = (uint64_t) (depunc_sec)  * 1000000 + (uint64_t) (depunc_usec);
+  printf("  depuncture  run time    %lu usec\n", depunc);
+  uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
+  printf("  do-decoding run time    %lu usec\n", dodec);
+
+  #endif
   printf("\nDone.\n");
   return 0;
 }

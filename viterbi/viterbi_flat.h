@@ -57,4 +57,14 @@ unsigned char viterbi_get_output_generic(unsigned char *mm0,
 		unsigned char *pp0, int ntraceback, unsigned char *outbuf);
 
 
+
+#ifdef INT_TIME
+extern uint64_t dodec_sec;
+extern uint64_t dodec_usec;
+
+extern uint64_t depunc_sec;
+extern uint64_t depunc_usec;
+#endif
+
+
 #endif

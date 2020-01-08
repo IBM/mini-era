@@ -28,9 +28,21 @@
  */
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <sys/time.h>
 #include "base.h"
 #include "viterbi_decoder_generic.h"
 #include "viterbi_standalone.h"
+
+#ifdef INT_TIME
+struct timeval dodec_stop, dodec_start;
+uint64_t dodec_sec  = 0LL;
+uint64_t dodec_usec = 0LL;
+
+struct timeval depunc_stop, depunc_start;
+uint64_t depunc_sec  = 0LL;
+uint64_t depunc_usec = 0LL;
+#endif
 
 #undef  GENERATE_CHECK_VALUES
 //#define  DO_RUN_TIME_CHECKING  // Now set in the Make process.

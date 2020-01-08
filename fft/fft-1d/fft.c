@@ -67,20 +67,29 @@
  **EndCopyright*************************************************************/
 
 #include "fft-1d.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+
+#ifdef INT_TIME
+struct timeval bitrev_stop, bitrev_start;
+uint64_t bitrev_sec  = 0LL;
+uint64_t bitrev_usec = 0LL;
+#endif
 
 static unsigned int
 _rev (unsigned int v)
 {
-  unsigned int r = v; 
-  int s = sizeof(v) * CHAR_BIT - 1; 
+  unsigned int r = v;
+  int s = sizeof(v) * CHAR_BIT - 1;
 
   for (v >>= 1; v; v >>= 1)
-  {   
+  {
     r <<= 1;
     r |= v & 1;
     s--;
   }
-  r <<= s; 
+  r <<= s;
 
   return r;
 }
@@ -123,7 +132,15 @@ fft (float * data, unsigned int N, unsigned int logn, int sign)
   transform_length = 1;
 
   /* bit reversal */
+#ifdef INT_TIME
+  gettimeofday(&bitrev_start, NULL);
+#endif
   bit_reverse (data, N, logn);
+#ifdef INT_TIME
+  gettimeofday(&bitrev_stop, NULL);
+  bitrev_sec  += bitrev_stop.tv_sec  - bitrev_start.tv_sec;
+  bitrev_usec += bitrev_stop.tv_usec - bitrev_start.tv_usec;
+#endif
 
   /* calculation */
   for (bit = 0; bit < logn; bit++) {

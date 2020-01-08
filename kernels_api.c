@@ -478,7 +478,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 
   return &(the_radar_return_dict[tr_val]);
 }
-  
+
 
 distance_t execute_rad_kernel(float * inputs)
 {
@@ -503,7 +503,7 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
       radar_inf_errs++;
     } else {
       radar_inf_noerr++;
-    }      
+    }
   } else if (dist == 0.0) {
     if (dist != 0.0) {
       DEBUG(printf("%f vs %f => INF_PCT_ERR\n", tr_dist, dist));

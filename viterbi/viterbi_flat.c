@@ -27,6 +27,8 @@
  * Major modifications by adding SSE2 code by Bogdan Diaconescu
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
 
 #ifdef HW_VIT
  #include <fcntl.h>
@@ -35,7 +37,6 @@
  #include <sys/types.h>
  #include <sys/mman.h>
  #include <sys/stat.h>
- #include <stdlib.h>
  #include <string.h>
  #include <time.h>
  #include <unistd.h>
@@ -60,6 +61,16 @@ extern const size_t out_vitHW_size;
 extern struct vitdodec_access vitHW_desc;
 
 #include "mini-era.h"
+#endif
+
+#ifdef INT_TIME
+struct timeval dodec_stop, dodec_start;
+uint64_t dodec_sec  = 0LL;
+uint64_t dodec_usec = 0LL;
+
+struct timeval depunc_stop, depunc_start;
+uint64_t depunc_sec  = 0LL;
+uint64_t depunc_usec = 0LL;
 #endif
 
 #undef  GENERATE_CHECK_VALUES
@@ -690,7 +701,15 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 
   reset();
 
+#ifdef INT_TIME
+  gettimeofday(&depunc_start, NULL);
+#endif
   uint8_t *depunctured = depuncture(in);
+#ifdef INT_TIME
+  gettimeofday(&depunc_stop, NULL);
+  depunc_sec  += depunc_stop.tv_sec  - depunc_start.tv_sec;
+  depunc_usec += depunc_stop.tv_usec - depunc_start.tv_usec;
+#endif
 
   VERBOSE({
       printf("VBS: depunctured = [\n");
@@ -749,6 +768,9 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     // Call the do_decoding routine
     //void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
     //printf("Calling do_decoding: data_bits %d  cbps %d ntraceback %d\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
+#ifdef INT_TIME
+    gettimeofday(&dodec_start, NULL);
+#endif
 #ifdef HW_VIT
         vitHW_desc.cbps = ofdm->n_cbps;
 	vitHW_desc.ntraceback = d_ntraceback;
@@ -757,6 +779,11 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 #else
 	// Call the viterbi_butterfly2_generic function using ESP interface
 	do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
+#endif
+#ifdef INT_TIME
+    gettimeofday(&dodec_stop, NULL);
+    dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
+    dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
 
     // Copy the outputs back into the composite locations
@@ -777,7 +804,18 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 #endif
   return d_decoded;
 #else
-  return do_decoding(ofdm->n_cbps, d_ntraceback, d_depuncture_pattern, frame->n_data_bits, depunctured);
+  {
+#ifdef INT_TIME
+     gettimeofday(&dodec_start, NULL);
+#endif
+     uint8_t* tval = do_decoding(ofdm->n_cbps, d_ntraceback, d_depuncture_pattern, frame->n_data_bits, depunctured);
+#ifdef INT_TIME
+     gettimeofday(&dodec_stop, NULL);
+     dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
+     dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
+#endif
+     return tval;
+  }
 #endif
 }
 
