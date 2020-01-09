@@ -282,7 +282,11 @@ int main(int argc, char *argv[])
   closeout_vit_kernel();
 
   #ifdef TIME
-  printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+  {
+    uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
+    printf("Program total execution time     %lu usec\n", total_exec);
+}
+  // printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
   #endif 
   printf("\nDone.\n");
   return 0;
