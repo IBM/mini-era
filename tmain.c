@@ -408,15 +408,14 @@ int main(int argc, char *argv[])
   #ifdef INT_TIME
   // These are timings taken from called routines...
   printf("\n");
+  uint64_t fft    = (uint64_t) (fft_sec)  * 1000000 + (uint64_t) (fft_usec);
+  printf("  fft-total   run time    %lu usec\n", fft);
   uint64_t bitrev    = (uint64_t) (bitrev_sec)  * 1000000 + (uint64_t) (bitrev_usec);
   printf("  bit-reverse run time    %lu usec\n", bitrev);
-
-  uint64_t fft    = (uint64_t) (fft_sec)  * 1000000 + (uint64_t) (fft_usec);
-  printf("  fft-network run time    %lu usec\n", fft);
-
   uint64_t cdfmcw    = (uint64_t) (cdfmcw_sec)  * 1000000 + (uint64_t) (cdfmcw_usec);
   printf("  calc-dist   run time    %lu usec\n", cdfmcw);
 
+  printf("\n");
   uint64_t depunc    = (uint64_t) (depunc_sec)  * 1000000 + (uint64_t) (depunc_usec);
   printf("  depuncture  run time    %lu usec\n", depunc);
   uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
