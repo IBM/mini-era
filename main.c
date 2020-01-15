@@ -25,9 +25,12 @@
 #include "sim_environs.h"
 
 #define TIME
-char * cv_dict  = "traces/objects_dictionary.dfn";
-char * rad_dict = "traces/radar_dictionary.dfn";
-char * vit_dict = "traces/vit_dictionary.dfn";
+char cv_dict[256]; 
+char rad_dict[256];
+char vit_dict[256];
+//char * cv_dict  = "traces/objects_dictionary.dfn";
+//char * rad_dict = "traces/radar_dictionary.dfn";
+//char * vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
@@ -37,6 +40,9 @@ void print_usage(char * pname) {
   printf(" OPTIONS:\n");
   printf("    -h         : print this helpfule usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
+  printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
+  printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
+  printf("    -C <file>  : defines the input CV/CNN dictionary file <file> to use\n");
 #ifdef USE_SIM_ENVIRON
   printf("    -s <N>     : Sets the max number of time steps to simulate\n");
   printf("    -r <N>     : Sets the rand random number seed to N\n");
@@ -67,11 +73,15 @@ int main(int argc, char *argv[])
   char* trace_file; 
 #endif
   int opt; 
-      
+
+  rad_dict[0] = '\0';
+  vit_dict[0] = '\0';
+  cv_dict[0] = '\0';
+  
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
@@ -82,6 +92,16 @@ int main(int argc, char *argv[])
     case 'o':
       output_viz_trace = true;
       break;
+    case 'R':
+      snprintf(rad_dict, 255, "%s", optarg);
+      break;
+    case 'C':
+      snprintf(cv_dict, 255, "%s", optarg);
+      break;
+    case 'V':
+      snprintf(vit_dict, 255, "%s", optarg);
+      break;
+
     case 's':
 #ifdef USE_SIM_ENVIRON
       max_time_steps = atoi(optarg);
@@ -123,7 +143,17 @@ int main(int argc, char *argv[])
   for(; optind < argc; optind++){      
     printf("extra arguments: %s\n", argv[optind]);  
   } 
-  
+
+
+  if (rad_dict[0] == '\0') {
+    sprintf(rad_dict, "traces/radar_dictionary.dfn");
+  }
+  if (vit_dict[0] == '\0') {
+    sprintf(vit_dict, "traces/vit_dictionary.dfn");
+  }
+  if (cv_dict[0] == '\0') {
+    sprintf(cv_dict, "traces/objects_dictionary.dfn");
+  }
   
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
