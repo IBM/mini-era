@@ -108,7 +108,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   /* 1) Read the next entry (line, epoch) from the trace */
   void* fres = fgets(in_line_buf, MAX_TR_LINE_SZ, input_trace);
   if (fres == NULL) { // If fgets returns NULL then we hit EOF
-    printf(" FGETS returned NULL - feof = %u\n", feof(input_trace));
+    //printf(" FGETS returned NULL - feof = %u\n", feof(input_trace));
     return false; // Indicate we didn't read from the trace (EOF)
   }
   

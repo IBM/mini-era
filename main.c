@@ -154,7 +154,12 @@ int main(int argc, char *argv[])
   if (cv_dict[0] == '\0') {
     sprintf(cv_dict, "traces/objects_dictionary.dfn");
   }
-  
+
+  printf("\nDictionaries:\n");
+  printf("   CV/CNN : %s\n", cv_dict);
+  printf("   Radar  : %s\n", rad_dict);
+  printf("   Viterbi: %s\n", vit_dict);
+
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
    * are required to have the same base name, using the file extension to indicate
@@ -177,7 +182,7 @@ int main(int argc, char *argv[])
 #ifndef USE_SIM_ENVIRON
   /* Trace filename construction */
   /* char * trace_file = argv[1]; */
-  printf("Input trace file: %s\n", trace_file);
+  //printf("Input trace file: %s\n", trace_file);
 
   /* Trace Reader initialization */
   if (!init_trace_reader(trace_file))
