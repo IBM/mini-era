@@ -141,6 +141,15 @@ t-$(TARGET): $(OBJDIR)  $(T_OBJ) libviterbi libfmcwdist
 it-$(TARGET): $(IT_OBJDIR)  $(IT_OBJ) libviterbi_t libfmcwdist_t
 	$(CC) $(IT_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS_IT) $(PYTHONLIBS)
 
+f$(TARGET): $(OBJDIR)  $(OBJ) libviterbiF libfmcwdist
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
+
+t-f$(TARGET): $(OBJDIR)  $(T_OBJ) libviterbiF libfmcwdist
+	$(CC) $(T_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
+
+it-f$(TARGET): $(OBJDIR)  $(IT_OBJ) libviterbiF libfmcwdist
+	$(CC) $(IT_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
+
 $(C_TARGET): $(C_OBJDIR) $(C_OBJ) libviterbi libfmcwdist
 	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
 
@@ -158,9 +167,6 @@ t-f$(C_TARGET): $(FC_OBJDIR) $(TFC_OBJ) libviterbiF libfmcwdist
 
 it-f$(C_TARGET): $(ITFC_OBJDIR) $(ITFC_OBJ) libviterbiF_t libfmcwdist_t
 	$(CC) $(ITFC_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS_IT) $(PYTHONLIBS)
-
-t-f$(TARGET): $(FC_OBJDIR) $(TF_OBJ) libviterbiF libfmcwdist
-	$(CC) $(TF_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(FLIBS) $(PYTHONLIBS)
 
 v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) libviterbi libfmcwdist
 	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
