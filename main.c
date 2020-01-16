@@ -25,6 +25,24 @@
 #include "sim_environs.h"
 
 #define TIME
+
+#ifdef INT_TIME
+extern uint64_t bitrev_sec;
+extern uint64_t bitrev_usec;
+
+extern uint64_t fft_sec;
+extern uint64_t fft_usec;
+
+extern uint64_t cdfmcw_sec;
+extern uint64_t cdfmcw_usec;
+
+extern uint64_t dodec_sec;
+extern uint64_t dodec_usec;
+
+extern uint64_t depunc_sec;
+extern uint64_t depunc_usec;
+#endif
+
 char cv_dict[256]; 
 char rad_dict[256];
 char vit_dict[256];
@@ -225,9 +243,34 @@ int main(int argc, char *argv[])
   
 /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   time_step = 0;
-  #ifdef TIME
+ #ifdef TIME
   struct timeval stop, start;
-  #endif
+
+  struct timeval stop_iter_rad, start_iter_rad;
+  struct timeval stop_iter_vit, start_iter_vit;
+  struct timeval stop_iter_cv , start_iter_cv;
+
+  uint64_t iter_rad_sec = 0LL;
+  uint64_t iter_vit_sec = 0LL;
+  uint64_t iter_cv_sec  = 0LL;
+
+  uint64_t iter_rad_usec = 0LL;
+  uint64_t iter_vit_usec = 0LL;
+  uint64_t iter_cv_usec  = 0LL;
+
+  struct timeval stop_exec_rad, start_exec_rad;
+  struct timeval stop_exec_vit, start_exec_vit;
+  struct timeval stop_exec_cv , start_exec_cv;
+
+  uint64_t exec_rad_sec = 0LL;
+  uint64_t exec_vit_sec = 0LL;
+  uint64_t exec_cv_sec  = 0LL;
+
+  uint64_t exec_rad_usec = 0LL;
+  uint64_t exec_vit_usec = 0LL;
+  uint64_t exec_cv_usec  = 0LL;
+  //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+ #endif // TIME
 
   /* The input trace contains the per-epoch (time-step) input data */
 #ifdef USE_SIM_ENVIRON
@@ -244,12 +287,28 @@ int main(int argc, char *argv[])
      * next image, and returns the corresponding label. 
      * This process takes place locally (i.e. within this car).
      */
+   #ifdef TIME
+    gettimeofday(&start_iter_cv, NULL);
+   #endif
     label_t cv_tr_label = iterate_cv_kernel(vehicle_state);
+   #ifdef TIME
+    gettimeofday(&stop_iter_cv, NULL);
+    iter_cv_sec  += stop_iter_cv.tv_sec  - start_iter_cv.tv_sec;
+    iter_cv_usec += stop_iter_cv.tv_usec - start_iter_cv.tv_usec;
+   #endif
 
     /* The radar kernel performs distance estimation on the next radar
      * data, and returns the estimated distance to the object.
      */
+   #ifdef TIME
+    gettimeofday(&start_iter_rad, NULL);
+   #endif
     radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
+   #ifdef TIME
+    gettimeofday(&stop_iter_rad, NULL);
+    iter_rad_sec  += stop_iter_rad.tv_sec  - start_iter_rad.tv_sec;
+    iter_rad_usec += stop_iter_rad.tv_usec - start_iter_rad.tv_usec;
+   #endif
     distance_t rdict_dist = rdentry_p->distance;
     float * ref_in = rdentry_p->return_data;
     float radar_inputs[2*RADAR_N];
@@ -264,7 +323,15 @@ int main(int argc, char *argv[])
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
+   #ifdef TIME
+    gettimeofday(&start_iter_vit, NULL);
+   #endif
     vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
+   #ifdef TIME
+    gettimeofday(&stop_iter_vit, NULL);
+    iter_vit_sec  += stop_iter_vit.tv_sec  - start_iter_vit.tv_sec;
+    iter_vit_usec += stop_iter_vit.tv_usec - start_iter_vit.tv_usec;
+   #endif
 
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
     int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
@@ -277,9 +344,33 @@ int main(int argc, char *argv[])
 
 
     // EXECUTE the kernels using the now known inputs 
+   #ifdef TIME
+    gettimeofday(&start_exec_cv, NULL);
+   #endif
     label = execute_cv_kernel(cv_tr_label);
+   #ifdef TIME
+    gettimeofday(&stop_exec_cv, NULL);
+    exec_cv_sec  += stop_exec_cv.tv_sec  - start_exec_cv.tv_sec;
+    exec_cv_usec += stop_exec_cv.tv_usec - start_exec_cv.tv_usec;
+
+    gettimeofday(&start_exec_rad, NULL);
+   #endif
     distance = execute_rad_kernel(radar_inputs);
+   #ifdef TIME
+    gettimeofday(&stop_exec_rad, NULL);
+    //printf("exec_rad_sec : %llu += %llu - %llu\n", exec_rad_sec, (uint64_t)stop_exec_rad.tv_sec, (uint64_t)start_exec_rad.tv_sec);
+    //printf("exec_rad_usec: %llu += %llu - %llu\n", exec_rad_usec, (uint64_t)stop_exec_rad.tv_usec, (uint64_t)start_exec_rad.tv_usec);
+    exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
+    exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
+
+    gettimeofday(&start_exec_vit, NULL);
+   #endif
     message = execute_vit_kernel(vdentry_p, num_vit_msgs);
+   #ifdef TIME
+    gettimeofday(&stop_exec_vit, NULL);
+    exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
+    exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
+   #endif
 
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
@@ -287,7 +378,7 @@ int main(int argc, char *argv[])
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }
-    
+
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new
      * vehicle state.
@@ -295,12 +386,12 @@ int main(int argc, char *argv[])
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
-    #ifdef TIME  
+    #ifdef TIME
     time_step++;
-    if (time_step == 1) { 
+    if (time_step == 1) {
       gettimeofday(&start, NULL);
     }
-    #endif	  
+    #endif
 
     #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
@@ -309,7 +400,7 @@ int main(int argc, char *argv[])
 
   #ifdef TIME
   	gettimeofday(&stop, NULL);
-  #endif 
+  #endif
 
   /* All the traces have been fully consumed. Quitting... */
   closeout_cv_kernel();
@@ -319,10 +410,38 @@ int main(int argc, char *argv[])
   #ifdef TIME
   {
     uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
-    printf("Program total execution time     %lu usec\n", total_exec);
-}
-  // printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
-  #endif 
+    uint64_t iter_rad   = (uint64_t) (iter_rad_sec) * 1000000 + (uint64_t) (iter_rad_usec);
+    uint64_t iter_vit   = (uint64_t) (iter_vit_sec) * 1000000 + (uint64_t) (iter_vit_usec);
+    uint64_t iter_cv    = (uint64_t) (iter_cv_sec)  * 1000000 + (uint64_t) (iter_cv_usec);
+    uint64_t exec_rad   = (uint64_t) (exec_rad_sec) * 1000000 + (uint64_t) (exec_rad_usec);
+    uint64_t exec_vit   = (uint64_t) (exec_vit_sec) * 1000000 + (uint64_t) (exec_vit_usec);
+    uint64_t exec_cv    = (uint64_t) (exec_cv_sec)  * 1000000 + (uint64_t) (exec_cv_usec);
+    printf("\nProgram total execution time     %lu usec\n", total_exec);
+    printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
+    printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
+    printf("  iterate_cv_kernel run time     %lu usec\n", iter_cv);
+    printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
+    printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
+    printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
+  }
+ #endif // TIME
+ #ifdef INT_TIME
+  // These are timings taken from called routines...
+  printf("\n");
+  uint64_t fft    = (uint64_t) (fft_sec)  * 1000000 + (uint64_t) (fft_usec);
+  printf("  fft-total   run time    %lu usec\n", fft);
+  uint64_t bitrev    = (uint64_t) (bitrev_sec)  * 1000000 + (uint64_t) (bitrev_usec);
+  printf("  bit-reverse run time    %lu usec\n", bitrev);
+  uint64_t cdfmcw    = (uint64_t) (cdfmcw_sec)  * 1000000 + (uint64_t) (cdfmcw_usec);
+  printf("  calc-dist   run time    %lu usec\n", cdfmcw);
+
+  printf("\n");
+  uint64_t depunc    = (uint64_t) (depunc_sec)  * 1000000 + (uint64_t) (depunc_usec);
+  printf("  depuncture  run time    %lu usec\n", depunc);
+  uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
+  printf("  do-decoding run time    %lu usec\n", dodec);
+
+#endif // INT_TIME
   printf("\nDone.\n");
   return 0;
 }
