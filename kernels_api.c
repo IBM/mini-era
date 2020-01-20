@@ -177,7 +177,7 @@ status_t init_rad_kernel(char* dict_fn)
   }
   DEBUG(printf("  Read %u dict entries with %u values across them all\n", num_radar_dictionary_items, tot_dict_values));
   if (!feof(dictF)) {
-    printf("NOTE: Did not hit eof on the radar dictionary file %s\n", "radar_dictionary.dfn");
+    printf("NOTE: Did not hit eof on the radar dictionary file %s\n", dict_fn);
   }
   fclose(dictF);
 
@@ -201,7 +201,7 @@ status_t init_vit_kernel(char* dict_fn)
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
-    printf("Error: unable to open viterbi dictionary definitiond file %s\n", "vit_dictionary.dfn");
+    printf("Error: unable to open viterbi dictionary definition file %s\n", dict_fn);
     return error;
   }
 
