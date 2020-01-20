@@ -520,8 +520,8 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
     } else {
       error = (tr_dist - dist);
     }
-    DEBUG(float abs_err = fabs(error));
-    float pct_err = error/dist;
+    float abs_err = fabs(error);
+    float pct_err = abs_err/dist;
     DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
     if (pct_err == 0.0) {
       hist_pct_errs[0]++;
