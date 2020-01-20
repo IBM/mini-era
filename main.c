@@ -209,8 +209,8 @@ int main(int argc, char *argv[])
     return 1;
   }
 #endif
-  printf("Initializing the CV kernel...\n");
   /* Kernels initialization */
+  printf("Initializing the CV kernel...\n");
   if (!init_cv_kernel(cv_py_file, cv_dict))
   {
     printf("Error: the computer vision kernel couldn't be initialized properly.\n");
