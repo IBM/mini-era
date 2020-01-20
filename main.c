@@ -209,18 +209,20 @@ int main(int argc, char *argv[])
     return 1;
   }
 #endif
-  
+  printf("Initializing the CV kernel...\n");
   /* Kernels initialization */
   if (!init_cv_kernel(cv_py_file, cv_dict))
   {
     printf("Error: the computer vision kernel couldn't be initialized properly.\n");
     return 1;
   }
+  printf("Initializing the Radar kernel...\n");
   if (!init_rad_kernel(rad_dict))
   {
     printf("Error: the radar kernel couldn't be initialized properly.\n");
     return 1;
   }
+  printf("Initializing the Viterbi kernel...\n");
   if (!init_vit_kernel(vit_dict))
   {
     printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
@@ -272,6 +274,7 @@ int main(int argc, char *argv[])
   //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
  #endif // TIME
 
+  printf("Starting the main loop...\n");
   /* The input trace contains the per-epoch (time-step) input data */
 #ifdef USE_SIM_ENVIRON
   DEBUG(printf("\n\nTime Step %d\n", time_step));  
