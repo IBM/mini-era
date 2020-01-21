@@ -475,7 +475,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   DEBUG(printf("In iterate_rad_kernel\n"));
 
   unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
-
+  //printf("Returning the_radar_return_dict[%u]\n", tr_val);
   return &(the_radar_return_dict[tr_val]);
 }
 
@@ -521,7 +521,7 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
       error = (tr_dist - dist);
     }
     float abs_err = fabs(error);
-    float pct_err = abs_err/dist;
+    float pct_err = abs_err/tr_dist;
     DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
     if (pct_err == 0.0) {
       hist_pct_errs[0]++;
