@@ -212,13 +212,13 @@ libviterbiF_t:
 	cd viterbi; make -f $(MFILE) lib
 
 libfmcwdist:
-	cd radar; make -f $(MFILE)
+	cd radar; make -f $(MFILE) all
 
 libfmcwdist_gp:
-	cd radar; make -f $(MFILE)
+	cd radar; make -f $(MFILE) all
 
 libfmcwdist_t:
-	cd radar; make -f $(MFILE)
+	cd radar; make -f $(MFILE) all
 
 
 $(OBJDIR):
