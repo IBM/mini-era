@@ -18,6 +18,36 @@ uint64_t cdfmcw_sec  = 0LL;
 uint64_t cdfmcw_usec = 0LL;
 #endif
 
+unsigned RADAR_LOGN    = 0;   // Log2 of the number of samples
+unsigned RADAR_N       = 0;   // The number of samples (2^LOGN)
+float    RADAR_fs      = 0.0; // Sampling Frequency
+float    RADAR_alpha   = 0.0; // Chirp rate (saw-tooth)
+// CONSTANTS
+#define RADAR_c          300000000.0  // Speed of Light in Meters/Sec
+#define RADAR_threshold -100;
+
+void init_calculate_peak_dist(unsigned fft_logn_samples)
+{
+  switch (fft_logn_samples) {
+  case 10:
+    RADAR_LOGN  = 10;
+    RADAR_fs    = 204800.0;
+    RADAR_alpha = 30000000000.0;
+    break;
+  case 14:
+    RADAR_LOGN  = 14;
+    RADAR_fs    = 32768000.0;
+    RADAR_alpha = 4800000000000.0;
+    break;
+  default:
+    printf("ERROR : Unsupported Log-N FFT Samples Value: %u\n", fft_logn_samples);
+    exit(-1);
+  }
+  RADAR_N = (1 << RADAR_LOGN);
+}
+
+
+
 float calculate_peak_dist_from_fmcw(float* data)
 {
 #ifdef INT_TIME

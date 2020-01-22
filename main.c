@@ -69,6 +69,8 @@ void print_usage(char * pname) {
 #else
   printf("    -t <trace> : defines the input trace file <trace> to use\n");
 #endif
+  printf("    -f <N>     : defines Log2 number of FFT samples\n");
+  printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
@@ -99,7 +101,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the 
   // string so that program can  
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:")) != -1) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:")) != -1) {  
     switch(opt) {  
     case 'h':
       print_usage(argv[0]);
@@ -125,6 +127,15 @@ int main(int argc, char *argv[])
       max_time_steps = atoi(optarg);
       printf("Using %u maximum time steps (simulation)\n", max_time_steps);
 #endif
+      break;
+    case 'f':
+      fft_logn_samples = atoi(optarg);
+      if ((fft_logn_samples == 10) || (fft_logn_samples == 14)) {
+	printf("Using 2^%u = %u samples for the FFT\n", fft_logn_samples, (1<<fft_logn_samples));
+      } else {
+	printf("Cannot specify FFT logn samples value %u (Legal values are 10, 14)\n", fft_logn_samples);
+	exit(-1);
+      }
       break;
     case 'r':
 #ifdef USE_SIM_ENVIRON

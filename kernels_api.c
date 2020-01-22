@@ -42,6 +42,7 @@ bool_t output_viz_trace = true;
 #else
 bool_t output_viz_trace = false;
 #endif
+unsigned fft_logn_samples = 14; // Defaults to 16k samples
 
 unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
@@ -137,6 +138,9 @@ extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, 
 status_t init_rad_kernel(char* dict_fn)
 {
   DEBUG(printf("In init_rad_kernel...\n"));
+
+  init_calculate_peak_dist(fft_logn_samples);
+  
   // Read in the radar distances dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)

@@ -38,7 +38,7 @@ typedef enum {error, success} status_t;
 typedef struct {
   unsigned int return_id;
   float distance;
-  float return_data[2 * RADAR_N];
+  float return_data[2 * MAX_RADAR_N];
 } radar_dict_entry_t;
 
 #include "viterbi/utils.h"
@@ -114,7 +114,9 @@ typedef enum {
 } message_t;
 
 
-extern bool_t output_viz_trace;
+extern bool_t   output_viz_trace;
+
+extern unsigned fft_logn_samples;
 
 extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];

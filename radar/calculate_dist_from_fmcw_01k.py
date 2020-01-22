@@ -104,16 +104,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
    
     '''radar setting condition'''
-    B=2.4e9                 # Chirp bandwidth (2.4 GHz)
-    T=500.e-6               # Chirp period (400 uS)
-    duty_cycle=1          # Duty cycle   
+    B=0.15e9                # Chirp bandwidth (0.15 GHz)
+    T=5000.e-6               # Chirp period (400 uS)
+    duty_cycle=1            # Duty cycle   
     Td=T*duty_cycle         # Chirp duration 
     alpha=B/Td              # Chirp rate (saw-tooth) 
     # %
     '''ADC spec.'''
-    fs=30.e6                   # Approximate Sampling frequency (30 MHz)
-    Ts=1./fs                   # Sampling period (8 ns)
-    N=nextpow2(int(T/Ts)) # Number of samples per sweep period (50,000)
+    fs=0.2048e6             # Approximate Sampling frequency (0.2 MHz)
+    Ts=1./fs                # Sampling period (8 ns)
+    N=nextpow2(int(T/Ts))   # Number of samples per sweep period (50,000)
     Ts = T/N
     fs=int(1./Ts)
 
