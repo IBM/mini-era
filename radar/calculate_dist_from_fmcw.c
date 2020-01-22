@@ -35,7 +35,9 @@ float calculate_peak_dist_from_fmcw(float* data)
   unsigned int max_index;
   unsigned int i;
   float temp;
+  //printf("\nSCAN OF FFT OUTPUT DATA\n");
   for (i=0; i < RADAR_N; i++) {
+    //printf("CALC DATA %6u = %f %f\n", 2*i, data[2*i], data[2*i+1]);
     temp = (pow(data[2*i],2) + pow(data[2*i+1],2))/100.0;
     if (temp > max_psd) {
       max_psd = temp;
