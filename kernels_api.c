@@ -103,10 +103,6 @@ unsigned label_mismatch[NUM_OBJECTS][NUM_OBJECTS] = {{0, 0, 0, 0, 0}, {0, 0, 0, 
 unsigned int        num_radar_dictionary_items = 0;
 radar_dict_entry_t* the_radar_return_dict;
 
-/* unsigned radar_inf_errs = 0; */
-/* unsigned radar_inf_noerr = 0; */
-/* unsigned radar_zero_errs = 0; */
-/* unsigned radar_zero_noerr = 0; */
 unsigned radar_total_calc = 0;
 unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
@@ -140,7 +136,7 @@ status_t init_rad_kernel(char* dict_fn)
   DEBUG(printf("In init_rad_kernel...\n"));
 
   init_calculate_peak_dist(fft_logn_samples);
-  
+
   // Read in the radar distances dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
@@ -660,7 +656,7 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
   }
 
   DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
-  
+
   return msg;
 }
 
@@ -816,13 +812,6 @@ void closeout_rad_kernel()
   for (int i = 0; i < 5; i++) {
     printf("%7s | %9u \n", hist_pct_err_label[i], hist_pct_errs[i]);
   }
-  /*
-    printf("%7s | %9u \n", "Inf_Err", radar_inf_errs);
-    printf("%7s | %9u \n", "Inf_OK", radar_inf_noerr);
-    printf("%7s | %9u \n", "Inf_Err", radar_zero_errs);
-    printf("%7s | %9u \n", "ZeroOk", radar_zero_noerr);
-    printf("%7s | %9u \n", "Total", radar_total_calc);
-  */
 }
 
 void closeout_vit_kernel()

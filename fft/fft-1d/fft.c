@@ -66,10 +66,10 @@
  *
  **EndCopyright*************************************************************/
 
+#include "fft-1d.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-#include "fft-1d.h"
 
 #ifdef INT_TIME
 struct timeval bitrev_stop, bitrev_start;

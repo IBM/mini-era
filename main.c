@@ -90,19 +90,19 @@ int main(int argc, char *argv[])
 #ifdef USE_SIM_ENVIRON
   char* world_desc_file_name = "default_world.desc";
 #else
-  char* trace_file; 
+  char* trace_file;
 #endif
-  int opt; 
+  int opt;
 
   rad_dict[0] = '\0';
   vit_dict[0] = '\0';
   cv_dict[0] = '\0';
-  
-  // put ':' in the starting of the 
-  // string so that program can  
+
+  // put ':' in the starting of the
+  // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:")) != -1) {  
-    switch(opt) {  
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:")) != -1) {
+    switch(opt) {
     case 'h':
       print_usage(argv[0]);
       exit(0);
@@ -160,18 +160,18 @@ int main(int argc, char *argv[])
       break;
     case ':':
       printf("option needs a value\n");
-      break;  
+      break;
     case '?':
-      printf("unknown option: %c\n", optopt); 
+      printf("unknown option: %c\n", optopt);
     break;
-    }  
-  }  
-      
-  // optind is for the extra arguments 
-  // which are not parsed 
-  for(; optind < argc; optind++){      
-    printf("extra arguments: %s\n", argv[optind]);  
-  } 
+    }
+  }
+
+  // optind is for the extra arguments
+  // which are not parsed
+  for(; optind < argc; optind++){
+    printf("extra arguments: %s\n", argv[optind]);
+  }
 
 
   if (rad_dict[0] == '\0') {
@@ -208,6 +208,7 @@ int main(int argc, char *argv[])
 
   char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
+  printf("Doing initialization tasks...\n");
 #ifndef USE_SIM_ENVIRON
   /* Trace filename construction */
   /* char * trace_file = argv[1]; */
@@ -253,7 +254,7 @@ int main(int argc, char *argv[])
   // In simulation mode, we could start the main car is a different state (lane, speed)
   init_sim_environs(world_desc_file_name, &vehicle_state);
   #endif
-  
+
 /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   time_step = 0;
  #ifdef TIME
@@ -288,7 +289,7 @@ int main(int argc, char *argv[])
   printf("Starting the main loop...\n");
   /* The input trace contains the per-epoch (time-step) input data */
 #ifdef USE_SIM_ENVIRON
-  DEBUG(printf("\n\nTime Step %d\n", time_step));  
+  DEBUG(printf("\n\nTime Step %d\n", time_step));
   while (iterate_sim_environs(vehicle_state))
 #else //TRACE DRIVEN MODE
   read_next_trace_record(vehicle_state);
@@ -372,8 +373,6 @@ int main(int argc, char *argv[])
     distance = execute_rad_kernel(radar_inputs);
    #ifdef TIME
     gettimeofday(&stop_exec_rad, NULL);
-    //printf("exec_rad_sec : %llu += %llu - %llu\n", exec_rad_sec, (uint64_t)stop_exec_rad.tv_sec, (uint64_t)start_exec_rad.tv_sec);
-    //printf("exec_rad_usec: %llu += %llu - %llu\n", exec_rad_usec, (uint64_t)stop_exec_rad.tv_usec, (uint64_t)start_exec_rad.tv_usec);
     exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
     exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
 
@@ -454,8 +453,8 @@ int main(int argc, char *argv[])
   printf("  depuncture  run time    %lu usec\n", depunc);
   uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
   printf("  do-decoding run time    %lu usec\n", dodec);
+ #endif // INT_TIME
 
-#endif // INT_TIME
   printf("\nDone.\n");
   return 0;
 }
