@@ -26,6 +26,10 @@ float    RADAR_alpha   = 0.0; // Chirp rate (saw-tooth)
 #define RADAR_c          300000000.0  // Speed of Light in Meters/Sec
 #define RADAR_threshold -100;
 
+float   RADAR_psd_threshold = 1e-10*pow(8192,2);  // ~= 0.006711 and 450 ~= 0.163635 in 16K
+
+
+
 void init_calculate_peak_dist(unsigned fft_logn_samples)
 {
   switch (fft_logn_samples) {
@@ -33,11 +37,13 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
     RADAR_LOGN  = 10;
     RADAR_fs    = 204800.0;
     RADAR_alpha = 30000000000.0;
+    RADAR_psd_threshold = 0.000316; // 1e-10*pow(8192,2);  // 450m ~= 0.000638 so psd_thres ~= 0.000316 ?
     break;
   case 14:
     RADAR_LOGN  = 14;
     RADAR_fs    = 32768000.0;
     RADAR_alpha = 4800000000000.0;
+    RADAR_psd_threshold = 1e-10*pow(8192,2);
     break;
   default:
     printf("ERROR : Unsupported Log-N FFT Samples Value: %u\n", fft_logn_samples);
@@ -81,7 +87,8 @@ float calculate_peak_dist_from_fmcw(float* data)
   cdfmcw_sec  += cdfmcw_stop.tv_sec  - cdfmcw_start.tv_sec;
   cdfmcw_usec += cdfmcw_stop.tv_usec - cdfmcw_start.tv_usec;
 #endif
-  if (max_psd > 1e-10*pow(8192,2)) {
+  //printf("max_psd = %f  vs %f\n", max_psd, 1e-10*pow(8192,2));
+  if (max_psd > RADAR_psd_threshold) {
     return distance;
   } else {
     return INFINITY;

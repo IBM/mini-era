@@ -516,6 +516,7 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
   }
   
   DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
+  //printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err);
   if (pct_err == 0.0) {
     hist_pct_errs[0]++;
   } else if (pct_err < 0.01) {

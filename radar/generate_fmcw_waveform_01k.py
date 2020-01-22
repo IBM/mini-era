@@ -18,7 +18,7 @@ def calculate_fmcw_waveform(obj_dists=[100]):
     B=0.15e9                # Chirp bandwidth (2.4 GHz)
     f0=fc-B/2               # Chirp start frequency (10-2.4/2=8.8 GHz)
     T=5000.e-6              # Chirp period (400 uS)
-    duty_cycle=1          # Duty cycle   
+    duty_cycle=1            # Duty cycle   
     Td=T*duty_cycle         # Chirp duration 
     alpha=B/Td              # Chirp rate (saw-tooth) 
     
