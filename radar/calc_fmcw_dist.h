@@ -6,6 +6,7 @@
 
 /* Some global FFT Radar definitions */
 #define MAX_RADAR_N  (1<<14) // Max we allow is 16k samples
+
 extern unsigned RADAR_LOGN;  // Log2 of the number of samples
 extern unsigned RADAR_N;     // The number of samples (2^LOGN)
 extern float    RADAR_fs;    // Sampling Frequency
