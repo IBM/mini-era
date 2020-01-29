@@ -387,7 +387,7 @@ int main(int argc, char *argv[])
 
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
-    post_execute_rad_kernel(rdict_dist, distance);
+    post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }

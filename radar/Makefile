@@ -30,13 +30,13 @@ libfmcwdist_t.a:	$(LT_OBJ_DIR) $(LT_OBJ)
 	$(AR) $@ $(LT_OBJ)
 
 ../fft/fft-1d/obj/fft.o:
-	cd ../fft/fft-1d && make -f $(MFILE)
+	cd ../fft/fft-1d && make -f $(MFILE) all
 
 ../fft/fft-1d/obj_g/fft.o:
-	cd ../fft/fft-1d && make -f $(MFILE)
+	cd ../fft/fft-1d && make -f $(MFILE) all
 
 ../fft/fft-1d/obj_t/fft.o:
-	cd ../fft/fft-1d && make -f $(MFILE)
+	cd ../fft/fft-1d && make -f $(MFILE) all
 
 $(L_OBJ_DIR):
 	mkdir $@
