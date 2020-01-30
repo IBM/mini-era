@@ -36,6 +36,7 @@ typedef enum {error, success} status_t;
 #include "radar/calc_fmcw_dist.h"
 
 typedef struct {
+  unsigned int index;
   unsigned int return_id;
   float distance;
   float return_data[2 * MAX_RADAR_N];
@@ -155,7 +156,7 @@ void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
 distance_t execute_rad_kernel(float * inputs);
-void       post_execute_rad_kernel(distance_t tr_dist, distance_t dist);
+void       post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
 message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);

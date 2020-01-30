@@ -95,16 +95,19 @@ unsigned label_mismatch[NUM_OBJECTS][NUM_OBJECTS] = {{0, 0, 0, 0, 0}, {0, 0, 0, 
 
 /* These are some top-level defines needed for RADAR */
 /* typedef struct { */
+/*   unsigned int index; */
 /*   unsigned int return_id; */
 /*   float distance; */
 /*   float return_data[2 * RADAR_N]; */
 /* } radar_dict_entry_t; */
 
+#define MAX_RDICT_ENTRIES   12   // This should be updated eventually...
 unsigned int        num_radar_dictionary_items = 0;
 radar_dict_entry_t* the_radar_return_dict;
 
 unsigned radar_total_calc = 0;
-unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
+unsigned hist_pct_errs[MAX_RDICT_ENTRIES][5];// = {0, 0, 0, 0, 0}; // One per distance, plus global?
+unsigned hist_distances[MAX_RDICT_ENTRIES];
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 /* These are some top-level defines needed for VITERBI */
@@ -147,7 +150,12 @@ status_t init_rad_kernel(char* dict_fn)
   // Read the number of definitions
   if (fscanf(dictF, "%u\n", &num_radar_dictionary_items))
     ;
+  if (num_radar_dictionary_items > MAX_RDICT_ENTRIES) {
+    printf("ERROR : Dictionary contains %u entries, but %u is MAX_RDICT_ENTRIES\n", num_radar_dictionary_items, MAX_RDICT_ENTRIES);
+    exit(-2);
+  }
   DEBUG(printf("  There are %u dictionary entries\n", num_radar_dictionary_items));
+  
   the_radar_return_dict = (radar_dict_entry_t*)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
   if (the_radar_return_dict == NULL) 
   {
@@ -163,8 +171,10 @@ status_t init_rad_kernel(char* dict_fn)
     if (fscanf(dictF, "%u %f", &entry_id, &entry_dist))
       ;
     DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
+    the_radar_return_dict[di].index = di;
     the_radar_return_dict[di].return_id = entry_id;
     the_radar_return_dict[di].distance =  entry_dist;
+    DEBUG(printf("     Read rad dictionary entry %u : %u %f  : IDX %u\n", di, the_radar_return_dict[di].return_id, the_radar_return_dict[di].distance, the_radar_return_dict[di].index));
     for (int i = 0; i < 2*RADAR_N; i++) {
       float fin;
       if (fscanf(dictF, "%f", &fin))
@@ -180,6 +190,14 @@ status_t init_rad_kernel(char* dict_fn)
     printf("NOTE: Did not hit eof on the radar dictionary file %s\n", dict_fn);
   }
   fclose(dictF);
+
+  // Initialize hist_pct_errs values
+  for (int di = 0; di < num_radar_dictionary_items; di++) {
+    hist_distances[di] = 0;
+    for (int i = 0; i < 5; i++) {
+      hist_pct_errs[di][i] = 0;
+    }
+  }
 
   return success;
 }
@@ -493,11 +511,12 @@ distance_t execute_rad_kernel(float * inputs)
 }
 
 
-void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
+void post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist)
 {
   // Get an error estimate (Root-Squared?)
   float error;
   radar_total_calc++;
+  hist_distances[index]++;
   if ((tr_dist >= 500.0) && (dist > 10000.0)) {
     error = 0.0;
   } else {
@@ -512,21 +531,21 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
   }
   
   DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
-  //printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err);
+  printf("IDX: %u :: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", index, tr_dist, dist, error, abs_err, pct_err);
   if (pct_err == 0.0) {
-    hist_pct_errs[0]++;
+    hist_pct_errs[index][0]++;
   } else if (pct_err < 0.01) {
     //printf("RADAR_LT001_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[1]++;
+    hist_pct_errs[index][1]++;
   } else if (pct_err < 0.1) {
     //printf("RADAR_LT010_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[2]++;
+    hist_pct_errs[index][2]++;
   } else if (pct_err < 1.00) {
     //printf("RADAR_LT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[3]++;
+    hist_pct_errs[index][3]++;
   } else {
     //printf("RADAR_GT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[4]++;
+    hist_pct_errs[index][4]++;
   }
 }
 
@@ -808,9 +827,25 @@ void closeout_cv_kernel()
 
 void closeout_rad_kernel()
 {
+  printf("\nHistogram of Radar Distances:\n");
+  for (int di = 0; di < num_radar_dictionary_items; di++) {
+    printf("    %3u | %8.3f | %9u \n", di, the_radar_return_dict[di].distance, hist_distances[di]);
+  }
+
   printf("\nHistogram of Radar Distance ABS-PCT-ERROR:\n");
+  unsigned totals[] = {0, 0, 0, 0, 0};
+  
+  for (int di = 0; di < num_radar_dictionary_items; di++) {
+    printf("    Entry %u Id %u Distance %f Occurs %u Histogram:\n", di, the_radar_return_dict[di].index, the_radar_return_dict[di].distance, hist_distances[di]);
+    for (int i = 0; i < 5; i++) {
+      printf("    %7s | %9u \n", hist_pct_err_label[i], hist_pct_errs[di][i]);
+      totals[i] += hist_pct_errs[di][i];
+    }
+  }
+
+  printf("\n  TOTALS Histogram of Radar Distance ABS-PCT-ERROR:\n");
   for (int i = 0; i < 5; i++) {
-    printf("%7s | %9u \n", hist_pct_err_label[i], hist_pct_errs[i]);
+    printf("  %7s | %9u \n", hist_pct_err_label[i], totals[i]);
   }
 }
 
