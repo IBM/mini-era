@@ -21,6 +21,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <getopt.h>
+
 #include "kernels_api.h"
 #include "sim_environs.h"
 

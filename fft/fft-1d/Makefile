@@ -2,7 +2,7 @@
 #INPUT_SIZE = MEDIUM
 INPUT_SIZE = LARGE
 
-CC = gcc -O2
+CC = gcc -std=c99 -O2
 
 CFLAGS = -pedantic -Wall -O0 -g -DINPUT_SIZE=INPUT_SIZE_$(INPUT_SIZE)
 INCLUDES =

@@ -1,4 +1,4 @@
-CC     = gcc -O2
+CC     = gcc -std=c99 -O2
 CFLAGS = -g
 
 AR      = ar rcs

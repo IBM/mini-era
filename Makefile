@@ -1,4 +1,4 @@
-CC = gcc
+CC = gcc -std=c99
 MFILE = Makefile
 
 COPTF0 = -O0
