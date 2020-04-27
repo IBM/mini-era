@@ -24,5 +24,6 @@ FLIBS    = -lviterbiF -lfmcwdist -lpthread -ldl -lutil -lm
 FLIBS_IT = -lviterbiF_t -lfmcwdist_t -lpthread -ldl -lutil -lm
 #PYTHONLIBS = $(shell /usr/bin/python-config --ldflags)
 PYTHONLIBS = -lpython3.6m
+CPYTHONLIBS =
 
 include Makefile.targets
