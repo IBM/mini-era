@@ -398,6 +398,8 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
+    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distane %.1f\n", time_step, message, distance));
+
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
