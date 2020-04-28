@@ -69,7 +69,7 @@ OBJ_S = $(SRC_S:%.c=obj/%.o)
 
 VPATH = ./src
 
-TARGET=test-scheduler-riscv.exe
+TARGET=test-scheduler.exe
 
 all: obj $(TARGET)
 
