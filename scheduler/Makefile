@@ -65,15 +65,15 @@ endif
 
 SRC_S = $(foreach f, $(wildcard src/*.c), $(shell basename $(f)))
 HDR_S = $(wildcard include/*.h)
-OBJ_S = $(SRC_S:.c=.o)
+OBJ_S = $(SRC_S:%.c=obj/%.o)
 
 VPATH = ./src
 
-TARGET=test-scheduler.exe
+TARGET=test-scheduler-riscv.exe
 
-all: $(TARGET)
+all: obj $(TARGET)
 
-%.o: %.c
+obj/%.o: %.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_S): $(HDR_S)
@@ -88,5 +88,9 @@ endif
 
 clean:
 	$(RM) $(OBJ_S) $(TARGET)
+	$(RM) -r obj
+
+obj:
+	mkdir obj
 
 .PHONY: all clean
