@@ -396,7 +396,7 @@ void do_cpu_viterbi_function(int in_n_data_bits, int in_cbps, int in_ntraceback,
 void
 execute_cpu_viterbi_accelerator(int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem)
 {
-	DEBUG(printf("In execute_hwr_viterbi_accelerator\n"));
+	DEBUG(printf("In execute_cpu_viterbi_accelerator\n"));
 
 	uint8_t cpuInMem[24852];  // This is "minimally sized for max entries"
 	uint8_t cpuOutMem[18585]; // This is "minimally sized for max entries"

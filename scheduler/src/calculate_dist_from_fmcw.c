@@ -70,17 +70,29 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
 
 
 
+// This now illustrates the use of the "task metadata" to transfer information for an FFT operation.
+//  NOTE: we really should have a "pool" of these metadata entries, or dynamically allocate them
+//      and copy over the data (so it is distinct from the caller, adn wholly within the scheduler's control).
+//      This means treating the scheduler like an off-load accelerator, in many ways.
 
 float calculate_peak_dist_from_fmcw(float* data)
 {
- #ifdef INT_TIME
+  // Set up the task_metadata
+  task_metadata_t fft_metadata;
+  fft_metadata.job_type = fft_task;
+  fft_metadata.data_size = 2 * RADAR_N * sizeof(float);
+  fft_metadata.data = (uint8_t*)data;
+
+#ifdef INT_TIME
   gettimeofday(&calc_start, NULL);
  #endif
 
  #ifdef INT_TIME
   gettimeofday(&fft_start, NULL);
  #endif // INT_TIME
-  schedule_fft(data);
+  //  schedule_fft(data);
+  schedule_task(&fft_metadata);
+  
  #ifdef INT_TIME
   gettimeofday(&fft_stop, NULL);
   fft_sec  += fft_stop.tv_sec  - fft_start.tv_sec;
