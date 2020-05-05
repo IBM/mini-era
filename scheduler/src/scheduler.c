@@ -419,3 +419,37 @@ void shutdown_scheduler()
 }
 
 
+
+
+
+void
+schedule_task(task_metadata_t* task_metadata)
+{
+  switch(task_metadata->job_type) {
+  case fft_task:
+    {
+      float * data = (float*)task_metadata->data;
+      schedule_fft(data);
+    }
+    break;
+  case viterbi_task:
+    {
+      viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)task_metadata->data;
+      int32_t  in_ncbps = vdata->n_cbps;
+      int32_t  in_ntraceback = vdata->n_traceback;
+      int32_t  in_ndata_bits = vdata->n_data_bits;
+      int32_t  inMem_offset = 0;
+      int32_t  inData_offset = vdata->inMem_size;
+      int32_t  outMem_offset = inData_offset + vdata->inData_size;
+      uint8_t* in_Mem  = &(vdata->theData[inMem_offset]);
+      uint8_t* in_Data = &(vdata->theData[inData_offset]);
+      uint8_t* out_Mem = &(vdata->theData[outMem_offset]);
+      //extern void schedule_viterbi(int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inData, uint8_t* outMem);
+      schedule_viterbi(in_ncbps, in_ntraceback, in_ndata_bits, in_Mem, in_Data, out_Mem);
+    }
+    break;
+  default:
+    printf("ERROR : schedule_task called for unknown task type: %u\n", task_metadata->job_type);
+  }
+  
+}

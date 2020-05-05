@@ -24,9 +24,40 @@
 
 #include "base_types.h"
 
+typedef enum { fft_task = 0,
+	       viterbi_task } scheduler_jobs_t;
+
+// This is a metatdata structure; it is used to hold all information for any job
+//  to be invoked through the scheduler.  This includes a description of the
+//  job type, and all input/output data space for the task
+// The job types are defined above in the scheduler_jobs_t enumeration
+// The data (i.e. inputs, outputs, etc. ) are transferred here as a "bulk data"
+//  memory (of abstract uint8_t or bytes) and a size.  The interpretation of this
+//  block of data is task-dependent, and can have an over-laid structure, etc.
+
+typedef struct task_metadata_struct {
+  scheduler_jobs_t job_type;
+  uint32_t  data_size; // A count of data bytes in data
+  uint8_t * data;      // All the data (in/out, etc.)
+} task_metadata_t;
+
+
+typedef struct {
+  int32_t n_data_bits;
+  int32_t n_cbps;
+  int32_t n_traceback;
+  int32_t inMem_size;   // The first inMem_size bytes of theData are the inMem
+  int32_t inData_size;  // The next inData_size bytes of theData are the inData
+  int32_t outMem_size;  // The next outMem_size bytes of theData are the outMem
+  uint8_t* theData;
+}  viterbi_data_struct_t;
+
+
 extern unsigned fft_logn_samples;
 
 extern status_t initialize_scheduler();
+
+extern void schedule_task(task_metadata_t* task_metadata);
 
 extern void schedule_fft(float * data);
 
