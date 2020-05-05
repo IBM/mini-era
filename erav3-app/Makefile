@@ -37,6 +37,7 @@ RECV_SRC = recv_pipe.c\
 	   viterbi_flat.c \
 	   descrambler_function.c \
 	   simple_dft.c \
+	   fft-1d.c \
 	   top.c
 SRC    = main.c kernels_api.c $(XMIT_SRC) $(RECV_SRC)
 OBJ    = $(SRC:%.c=$(OBJDIR)/%.o)

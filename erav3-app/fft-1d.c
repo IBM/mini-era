@@ -99,8 +99,8 @@ _rev (unsigned int v)
 }
 
 
-static float *
-bit_reverse (float * w, unsigned int N, unsigned int bits)
+void
+bit_reverse (float * rw, float * iw, unsigned int N, unsigned int bits)
 {
   unsigned int i, s, shift;
   s = sizeof(i) * CHAR_BIT - 1;
@@ -113,16 +113,14 @@ bit_reverse (float * w, unsigned int N, unsigned int bits)
     r >>= shift;
 
     if (i < r) {
-      t_real = w[2 * i];
-      t_imag = w[2 * i + 1];
-      w[2 * i] = w[2 * r];
-      w[2 * i + 1] = w[2 * r + 1];
-      w[2 * r] = t_real;
-      w[2 * r + 1] = t_imag;
+      t_real = rw[i];
+      t_imag = iw[i];
+      rw[i] = rw[r];
+      iw[i] = iw[r];
+      rw[r] = t_real;
+      iw[r] = t_imag;
     }
   }
-
-  return w;
 }
 
 
@@ -137,7 +135,7 @@ fft (float * rdata, float * idata, int inverse, int shift, unsigned int N, unsig
   transform_length = 1;
 
   /* bit reversal */
-  bit_reverse (data, N, logn);
+  bit_reverse (rdata, idata, N, logn);
 
   /* calculation */
   for (bit = 0; bit < logn; bit++) {
@@ -162,8 +160,8 @@ fft (float * rdata, float * idata, int inverse, int shift, unsigned int N, unsig
 	t_imag = w_real * z_imag + w_imag * z_real;
 
 	/* write the result */
-	rdata[j]  = data[i] - t_real;
-	idata[j]  = data[i] - t_imag;
+	rdata[j]  = rdata[i] - t_real;
+	idata[j]  = idata[i] - t_imag;
 	rdata[i] += t_real;
 	idata[i] += t_imag;
       }
@@ -183,7 +181,7 @@ fft (float * rdata, float * idata, int inverse, int shift, unsigned int N, unsig
     float swap_r, swap_i;
     int M = (N/2);
     /* shift: */
-    for(unsigned i = 0; i < M i++) {
+    for(unsigned i = 0; i < M; i++) {
       swap_r = rdata[i];
       swap_i = idata[i];
       rdata[i] = rdata[M+i];
