@@ -45,6 +45,9 @@ endif
 ifdef CONFIG_VERBOSE
 CFLAGS += -DVERBOSE
 endif
+ifdef CONFIG_GDB
+CFLAGS += -g
+endif
 
 LDLIBS ?=
 ifdef COMPILE_TO_ESP
