@@ -35,12 +35,16 @@ typedef enum { fft_task = 0,
 //  memory (of abstract uint8_t or bytes) and a size.  The interpretation of this
 //  block of data is task-dependent, and can have an over-laid structure, etc.
 
-typedef struct task_metadata_struct {
-  scheduler_jobs_t job_type;
-  uint32_t  data_size; // A count of data bytes in data
-  uint8_t * data;      // All the data (in/out, etc.)
-} task_metadata_t;
-
+typedef union task_metadata_entry_union {
+  uint8_t rawBytes[128*1024 + 32];  // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
+  struct task_metadata_struct {
+    uint32_t  metadata_block_id;
+    scheduler_jobs_t job_type;
+    uint32_t  criticality_level;
+    uint32_t  data_size; // A count of data bytes in data (NOT USED/NOT NEEDED?)
+    uint8_t*  data;      // All the data (in/out, etc.)
+  } metadata;
+} task_metadata_block_t;
 
 typedef struct {
   int32_t n_data_bits;
@@ -57,7 +61,9 @@ extern unsigned fft_logn_samples;
 
 extern status_t initialize_scheduler();
 
-extern void schedule_task(task_metadata_t* task_metadata);
+extern task_metadata_block_t* get_task_metadata_block();
+
+extern void schedule_task(task_metadata_block_t* task_metadata);
 
 extern void schedule_fft(float * data);
 

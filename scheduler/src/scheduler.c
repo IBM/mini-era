@@ -38,7 +38,55 @@
 
 #include "scheduler.h"
 
+#define total_metadata_pool_blocks  32
+task_metadata_block_t master_metadata_pool[total_metadata_pool_blocks];
+int free_metadata_pool[total_metadata_pool_blocks];
+int free_metadata_blocks = total_metadata_pool_blocks;
 
+
+void print_metadata_block_contents(task_metadata_block_t* mb)
+{
+  printf("metadata_block_id = %i\n", mb->metadata.metadata_block_id);
+  printf("job_type = %i\n",  mb->metadata.job_type);
+  printf(" criticality_level = %i\n",  mb->metadata.criticality_level);
+  printf("data_size  = %i\n",  mb->metadata.data_size);
+}
+
+task_metadata_block_t* get_task_metadata_block()
+{
+  printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks);
+  if (free_metadata_blocks < 1) {
+    // Out of metadata blocks -- all in use, cannot enqueue new tasks!
+    return NULL;
+  }
+  int bi = free_metadata_pool[free_metadata_blocks - 1];
+  free_metadata_pool[free_metadata_blocks - 1] = -1;
+  free_metadata_blocks -= 1;
+  // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
+  master_metadata_pool[bi].metadata.job_type = -1;
+  master_metadata_pool[bi].metadata.criticality_level = 0;
+  master_metadata_pool[bi].metadata.data_size = 0;
+  return &(master_metadata_pool[bi]);
+}
+
+
+void free_task_metadata_block(task_metadata_block_t* mb)
+{
+  int bi = mb->metadata.metadata_block_id;
+  if (free_metadata_blocks < total_metadata_pool_blocks) {
+    free_metadata_pool[free_metadata_blocks] = bi;
+    free_metadata_blocks += 1;
+  } else {
+    printf("ERROR : We are freeing a metadata block when we already have max metadata blocks free...\n");
+    printf("   THE FREE Metadata Blocks list:\n");
+    for (int ii = 0; ii < free_metadata_blocks; ii++) {
+      printf("        free[%2u] = %u\n", ii, free_metadata_pool[ii]);
+    }
+    printf("    THE Being-Freed Metat-Data Block:\n");
+    print_metadata_block_contents(mb);
+    exit(-5);
+  }
+}
 
 
 extern void execute_cpu_fft_accelerator(float* data);
@@ -140,7 +188,10 @@ static void init_fft_parameters(unsigned n)
 status_t initialize_scheduler()
 {
 	DEBUG(printf("In initialize...\n"));
-
+	for (int i = 0; i < total_metadata_pool_blocks; i++) {
+	  free_metadata_pool[i] = i;
+	}
+	
 #ifdef HW_FFT
 	// This initializes the FFT Accelerator Pool
 	for (int fi = 0; fi < NUM_FFT_ACCEL; fi++) {
@@ -423,18 +474,18 @@ void shutdown_scheduler()
 
 
 void
-schedule_task(task_metadata_t* task_metadata)
+schedule_task(task_metadata_block_t* task_metadata_block)
 {
-  switch(task_metadata->job_type) {
+  switch(task_metadata_block->metadata.job_type) {
   case fft_task:
     {
-      float * data = (float*)task_metadata->data;
+      float * data = (float*)(task_metadata_block->metadata.data);
       schedule_fft(data);
     }
     break;
   case viterbi_task:
     {
-      viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)task_metadata->data;
+      viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
       int32_t  in_ncbps = vdata->n_cbps;
       int32_t  in_ntraceback = vdata->n_traceback;
       int32_t  in_ndata_bits = vdata->n_data_bits;
@@ -449,7 +500,11 @@ schedule_task(task_metadata_t* task_metadata)
     }
     break;
   default:
-    printf("ERROR : schedule_task called for unknown task type: %u\n", task_metadata->job_type);
+    printf("ERROR : schedule_task called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
   }
-  
+
+
+  // For now, since this is blocking, etc. we can return the MetaData Block here
+  //   In reality, this should happen when we detect a task has non-blockingly-finished...
+  free_task_metadata_block(task_metadata_block);
 }

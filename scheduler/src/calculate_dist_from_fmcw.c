@@ -78,10 +78,15 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
 float calculate_peak_dist_from_fmcw(float* data)
 {
   // Set up the task_metadata
-  task_metadata_t fft_metadata;
-  fft_metadata.job_type = fft_task;
-  fft_metadata.data_size = 2 * RADAR_N * sizeof(float);
-  fft_metadata.data = (uint8_t*)data;
+  task_metadata_block_t* fft_metadata_block = get_task_metadata_block();
+  if (fft_metadata_block == NULL) {
+    // We ran out of metadata blocks -- PANIC!
+    printf("Out of metadata blocks -- PANIC Quit the run (for now)\n");
+    exit (-4);
+  }
+  fft_metadata_block->metadata.job_type = fft_task;
+  fft_metadata_block->metadata.data_size = 2 * RADAR_N * sizeof(float);
+  fft_metadata_block->metadata.data = (uint8_t*)data;
 
 #ifdef INT_TIME
   gettimeofday(&calc_start, NULL);
@@ -91,7 +96,7 @@ float calculate_peak_dist_from_fmcw(float* data)
   gettimeofday(&fft_start, NULL);
  #endif // INT_TIME
   //  schedule_fft(data);
-  schedule_task(&fft_metadata);
+  schedule_task(fft_metadata_block);
   
  #ifdef INT_TIME
   gettimeofday(&fft_stop, NULL);
