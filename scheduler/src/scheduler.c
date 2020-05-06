@@ -37,6 +37,7 @@
 #endif
 
 #include "scheduler.h"
+#include "accelerators.h" // include AFTER scheduler.h -- needs types form scheduler.h
 
 #define total_metadata_pool_blocks  32
 task_metadata_block_t master_metadata_pool[total_metadata_pool_blocks];
@@ -99,9 +100,6 @@ int
 get_task_status(int task_id) {
   return master_metadata_pool[task_id].metadata.status;
 }
-extern void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block); // float* data);
-extern void execute_cpu_viterbi_accelerator(int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem);
-
 
 static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 {
@@ -332,7 +330,7 @@ static void fft_in_hw(int *fd, struct fftHW_access *desc)
 #endif
 
 void
-execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block) // float * data)
+execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block)
 {
   DEBUG(printf("In execute_hwr_fft_accelerator: MB %d  CL %d\n", task_metadata_block.metadata.metadata_block_id, task_metadata_block.metadata.criticality_level ));
 #ifdef HW_FFT
