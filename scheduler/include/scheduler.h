@@ -52,10 +52,10 @@ typedef struct {
   int32_t n_data_bits;
   int32_t n_cbps;
   int32_t n_traceback;
-  int32_t inMem_size;   // The first inMem_size bytes of theData are the inMem
-  int32_t inData_size;  // The next inData_size bytes of theData are the inData
-  int32_t outMem_size;  // The next outMem_size bytes of theData are the outMem
-  uint8_t* theData;
+  int32_t inMem_size;    // The first inMem_size bytes of theData are the inMem (input memories)
+  int32_t inData_size;   // The next inData_size bytes of theData are the inData (input data)
+  int32_t outData_size;  // The next outData_size bytes of theData are the outData (output data)
+  uint8_t theData[64*1024]; // This is larger than needed (~24780 + 18585) but less than FFT requires (so okay)
 }  viterbi_data_struct_t;
 
 
@@ -67,6 +67,10 @@ extern task_metadata_block_t* get_task_metadata_block();
 
 extern void schedule_task(task_metadata_block_t* task_metadata_block);
 extern int get_task_status(int task_id);
+
+extern void print_base_metadata_block_contents(task_metadata_block_t* mb);
+extern void print_fft_metadata_block_contents(task_metadata_block_t* mb);
+extern void print_viterbi_metadata_block_contents(task_metadata_block_t* mb);
 
 //extern void schedule_fft(task_metadata_block_t* task_metadata_block);
 

@@ -29,8 +29,14 @@
 #include <stdio.h>
 
 #include "base.h"
+#include "scheduler.h"
 #include "viterbi_flat.h"
 #include "viterbi_standalone.h"
+
+/* #undef DEBUG */
+/*  #define DEBUG(x) x */
+/* #undef DO_VERBOSE */
+/*  #define DO_VERBOSE(x) x */
 
 #ifdef INT_TIME
 extern struct timeval dodec_stop, dodec_start;
@@ -392,57 +398,72 @@ void do_cpu_viterbi_function(int in_n_data_bits, int in_cbps, int in_ntraceback,
 
 
 
+/* #undef DEBUG */
+/* #define DEBUG(X) X */
+
 
 void
-execute_cpu_viterbi_accelerator(int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem)
+execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
+//   int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem)
 {
-	DEBUG(printf("In execute_cpu_viterbi_accelerator\n"));
+  DEBUG(printf("In execute_cpu_viterbi_accelerator\n"));
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
+  int32_t  in_cbps = vdata->n_cbps;
+  int32_t  in_ntraceback = vdata->n_traceback;
+  int32_t  in_data_bits = vdata->n_data_bits;
+  int32_t  inMem_offset = 0;
+  int32_t  inData_offset = vdata->inMem_size;
+  int32_t  outData_offset = inData_offset + vdata->inData_size;
+  uint8_t* in_Mem  = &(vdata->theData[inMem_offset]);
+  uint8_t* in_Data = &(vdata->theData[inData_offset]);
+  uint8_t* out_Data = &(vdata->theData[outData_offset]);
+  //extern void schedule_viterbi(int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inData, uint8_t* outMem);
+  /**
+  uint8_t cpuInMem[24852];  // This is "minimally sized for max entries"
+  uint8_t cpuOutMem[18585]; // This is "minimally sized for max entries"
 
-	uint8_t cpuInMem[24852];  // This is "minimally sized for max entries"
-	uint8_t cpuOutMem[18585]; // This is "minimally sized for max entries"
+  for (int ti = 0; ti < 70; ti ++) {
+    cpuInMem[ti] = inMem[ti];
+  }
+  cpuInMem[70] = 0;
+  cpuInMem[71] = 0;
+  int imi = 72;
+  for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
+    cpuInMem[imi++] = inDat[ti];
+  }
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+    cpuOutMem[ti] = 0;
+  }
+  // Some debugging...
+  DEBUG(for (int ti = 0; ti < 72; ti++) { 
+      printf(" CPU_VIT inMem : %3u %3u : %3u %3u\n", ti, ti, inMem[ti], cpuInMem[ti]);
+    }
+    printf("\n");
+    for (int ti = 0; ti < 28; ti++) { 
+      printf(" CPU_VIT inDat : %3u %3u : %3u %3u\n", ti, 72+ti, inDat[ti], cpuInMem[72+ti]);
+    });
+  **/
+#ifdef INT_TIME
+  gettimeofday(&dodec_start, NULL);
+#endif
 
-	for (int ti = 0; ti < 70; ti ++) {
-		cpuInMem[ti] = inMem[ti];
-	}
-	cpuInMem[70] = 0;
-	cpuInMem[71] = 0;
-	int imi = 72;
-	for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
-		cpuInMem[imi++] = inDat[ti];
-	}
-	for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-		cpuOutMem[ti] = 0;
-	}
-	// Some debugging...
-	DEBUG(for (int ti = 0; ti < 72; ti++) { 
-			printf(" CPU_VIT inMem : %3u %3u : %3u %3u\n", ti, ti, inMem[ti], cpuInMem[ti]);
-		}
-		printf("\n");
-		for (int ti = 0; ti < 28; ti++) { 
-			printf(" CPU_VIT inDat : %3u %3u : %3u %3u\n", ti, 72+ti, inDat[ti], cpuInMem[72+ti]);
-		});
+  DEBUG(for (int i = 0; i < 20; i++) {
+      printf("CPU_VIT_PRE_RUN_INPUT %3u : ID  %3u : IM  %3u  %3u\n", i, in_Data[i], in_Mem[i+inData_offset], i+inData_offset); // cpuOutMem[i]);
+    });
+  do_cpu_viterbi_function(in_data_bits, in_cbps, in_ntraceback, in_Mem, out_Data); // cpuInMem, cpuOutMem);
+  DEBUG(for (int i = 0; i < 20; i++) {
+      printf("CPU_VIT_OUT %3u : %3u @ %p \n", i, out_Data[i], &(out_Data[i])); // cpuOutMem[i]);
+    });
 
-      #ifdef INT_TIME
-	gettimeofday(&dodec_start, NULL);
-      #endif
+#ifdef INT_TIME
+  gettimeofday(&dodec_stop, NULL);
+  dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
+  dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
+#endif
 
-	DEBUG(for (int i = 0; i < 20; i++) {
-			printf("CPU_VIT_PRE %3u : %3u \n", i, cpuOutMem[i]);
-		});
-	do_cpu_viterbi_function(in_data_bits, in_cbps, in_ntraceback, cpuInMem, cpuOutMem);
-	DEBUG(for (int i = 0; i < 20; i++) {
-			printf("CPU_VIT_OUT %3u : %3u \n", i, cpuOutMem[i]);
-		});
-
-      #ifdef INT_TIME
-	gettimeofday(&dodec_stop, NULL);
-	dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
-	dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
-      #endif
-
-	for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-		outMem[ti] = cpuOutMem[ti];
-	}
+  /* for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
+  /*   outMem[ti] = cpuOutMem[ti]; */
+  /* } */
 }
 
 

@@ -24,7 +24,7 @@ extern uint64_t fft_usec;
 
 void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block) //float* data)
 {
-  DEBUG(printf("In execute_cpu_fft_accelerator: MB %d  CL %d\n", task_metadata_block.metadata.metadata_block_id, task_metadata_block.metadata.criticality_level ));
+  DEBUG(printf("In execute_cpu_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.criticality_level ));
   float * data = (float*)(task_metadata_block->metadata.data);
 
 #ifdef INT_TIME

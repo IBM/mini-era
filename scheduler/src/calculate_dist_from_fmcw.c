@@ -87,7 +87,7 @@ float calculate_peak_dist_from_fmcw(float* data)
   task_metadata_block_t* fft_metadata_block = get_task_metadata_block();
   if (fft_metadata_block == NULL) {
     // We ran out of metadata blocks -- PANIC!
-    printf("Out of metadata blocks -- PANIC Quit the run (for now)\n");
+    printf("Out of metadata blocks for FFT -- PANIC Quit the run (for now)\n");
     exit (-4);
   }
   fft_metadata_block->metadata.job_type = fft_task;
