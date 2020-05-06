@@ -71,9 +71,15 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
 
 
 // This now illustrates the use of the "task metadata" to transfer information for an FFT operation.
-//  NOTE: we really should have a "pool" of these metadata entries, or dynamically allocate them
-//      and copy over the data (so it is distinct from the caller, adn wholly within the scheduler's control).
-//      This means treating the scheduler like an off-load accelerator, in many ways.
+//  NOTE: We request a metadata block form the scheduler -- if one is not currently available, then what?
+//     OPTIONS: 1. Wait for one to become available
+//              2. Purge a lower-criticality task (if there is one), else wait
+//              3. Drop task if this is lowest-criticality (?), else wait
+//   To make the task independent of the calling program, we need to copy over the data into the metadata block
+//      This treats the scheduler like an off-load accelerator, in many ways.
+//   Then we should try to make thes CPU accelerators run in independent threads (pthreads, I think)?
+//      This will let us refine the non-blocking behavior, and start the more detailed behavior of the
+//        scheduler implementation (i.e. ranking, queue management, etc.)
 
 float calculate_peak_dist_from_fmcw(float* data)
 {
@@ -85,10 +91,16 @@ float calculate_peak_dist_from_fmcw(float* data)
     exit (-4);
   }
   fft_metadata_block->metadata.job_type = fft_task;
+  fft_metadata_block->metadata.criticality_level = 1; // Maybe send in a parm to calculate_peak_dist ?
   fft_metadata_block->metadata.data_size = 2 * RADAR_N * sizeof(float);
-  fft_metadata_block->metadata.data = (uint8_t*)data;
+  // Copy over our task data to the MetaData Block
+  //fft_metadata_block->metadata.data = (uint8_t*)data;
+  float* mdataptr = (float*)fft_metadata_block->metadata.data;
+  for (int i = 0; i < 2*RADAR_N; i++) {
+    mdataptr[i] = data[i];
+  }
 
-#ifdef INT_TIME
+ #ifdef INT_TIME
   gettimeofday(&calc_start, NULL);
  #endif
 

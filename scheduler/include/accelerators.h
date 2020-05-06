@@ -18,7 +18,7 @@
 #ifndef H_ACCELERATORS_H
 #define H_ACCELERATORS_H
 
-extern void execute_cpu_fft_accelerator(float* data);
+extern void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block); // float* data);
 extern void execute_hwr_fft_accelerator(int n, float* data); // Execute FFT on hardware FFT accelerator "n"
 
 #endif

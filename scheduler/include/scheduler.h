@@ -36,15 +36,17 @@ typedef enum { fft_task = 0,
 //  block of data is task-dependent, and can have an over-laid structure, etc.
 
 typedef union task_metadata_entry_union {
-  uint8_t rawBytes[128*1024 + 32];  // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
   struct task_metadata_struct {
-    uint32_t  metadata_block_id;
-    scheduler_jobs_t job_type;
-    uint32_t  criticality_level;
-    uint32_t  data_size; // A count of data bytes in data (NOT USED/NOT NEEDED?)
-    uint8_t*  data;      // All the data (in/out, etc.)
+    int32_t  metadata_block_id;   // +4 Bytes : master-pool-index; a unique ID per metadata task
+    int32_t  status;              // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
+    scheduler_jobs_t job_type;    // +4 Bytes : see above enumeration
+    int32_t  criticality_level;   // +4 Bytes : [0 .. ?] ?
+    int32_t  data_size;           // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
+    uint8_t  data[128*1024];      // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
   } metadata;
+  uint8_t rawBytes[128*1024 + 32];  // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
 } task_metadata_block_t;
+
 
 typedef struct {
   int32_t n_data_bits;
@@ -63,9 +65,10 @@ extern status_t initialize_scheduler();
 
 extern task_metadata_block_t* get_task_metadata_block();
 
-extern void schedule_task(task_metadata_block_t* task_metadata);
+extern void schedule_task(task_metadata_block_t* task_metadata_block);
+extern int get_task_status(int task_id);
 
-extern void schedule_fft(float * data);
+//extern void schedule_fft(task_metadata_block_t* task_metadata_block);
 
 extern void schedule_viterbi(int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inData, uint8_t* outMem);
 

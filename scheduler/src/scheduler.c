@@ -46,10 +46,11 @@ int free_metadata_blocks = total_metadata_pool_blocks;
 
 void print_metadata_block_contents(task_metadata_block_t* mb)
 {
-  printf("metadata_block_id = %i\n", mb->metadata.metadata_block_id);
-  printf("job_type = %i\n",  mb->metadata.job_type);
-  printf(" criticality_level = %i\n",  mb->metadata.criticality_level);
-  printf("data_size  = %i\n",  mb->metadata.data_size);
+  printf("metadata_block_id = %d\n", mb->metadata.metadata_block_id);
+  printf("    status = %d\n",  mb->metadata.status);
+  printf("    job_type = %d\n",  mb->metadata.job_type);
+  printf("    criticality_level = %d\n",  mb->metadata.criticality_level);
+  printf("    data_size  = %d\n",  mb->metadata.data_size);
 }
 
 task_metadata_block_t* get_task_metadata_block()
@@ -63,8 +64,9 @@ task_metadata_block_t* get_task_metadata_block()
   free_metadata_pool[free_metadata_blocks - 1] = -1;
   free_metadata_blocks -= 1;
   // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
-  master_metadata_pool[bi].metadata.job_type = -1;
-  master_metadata_pool[bi].metadata.criticality_level = 0;
+  master_metadata_pool[bi].metadata.job_type = -1; // unset
+  master_metadata_pool[bi].metadata.status = 0;    // allocated
+  master_metadata_pool[bi].metadata.criticality_level = 0; // lowest/free?
   master_metadata_pool[bi].metadata.data_size = 0;
   return &(master_metadata_pool[bi]);
 }
@@ -76,6 +78,11 @@ void free_task_metadata_block(task_metadata_block_t* mb)
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
+    // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
+    master_metadata_pool[bi].metadata.job_type = -1; // unset
+    master_metadata_pool[bi].metadata.status = -1;   // free
+    master_metadata_pool[bi].metadata.criticality_level = 0; // lowest/free?
+    master_metadata_pool[bi].metadata.data_size = 0;
   } else {
     printf("ERROR : We are freeing a metadata block when we already have max metadata blocks free...\n");
     printf("   THE FREE Metadata Blocks list:\n");
@@ -88,8 +95,11 @@ void free_task_metadata_block(task_metadata_block_t* mb)
   }
 }
 
-
-extern void execute_cpu_fft_accelerator(float* data);
+int
+get_task_status(int task_id) {
+  return master_metadata_pool[task_id].metadata.status;
+}
+extern void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block); // float* data);
 extern void execute_cpu_viterbi_accelerator(int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem);
 
 
@@ -322,10 +332,11 @@ static void fft_in_hw(int *fd, struct fftHW_access *desc)
 #endif
 
 void
-execute_hwr_fft_accelerator(int fn, float * data)
+execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block) // float * data)
 {
-  DEBUG(printf("In allocate_fft_accelerator\n"));
+  DEBUG(printf("In execute_hwr_fft_accelerator: MB %d  CL %d\n", task_metadata_block.metadata.metadata_block_id, task_metadata_block.metadata.criticality_level ));
 #ifdef HW_FFT
+  float * data = (float*)(task_metadata_block->metadata.data);
   // convert input from float to fixed point
   for (int j = 0; j < 2 * (1 << fft_logn_samples); j++) {
     fftHW_lmem[fn][j] = float2fx(data[j], FX_IL);
@@ -339,33 +350,13 @@ execute_hwr_fft_accelerator(int fn, float * data)
   for (int j = 0; j < 2 * (1 << fft_logn_samples); j++) {
     data[j] = (float)fx2float(fftHW_lmem[fn][j], FX_IL);
   }
+
+  task_metadata_block.metadata.status = 3; // done
+
 #else
   printf("ERROR : This executable DOES NOT support Hardware-FFT execution!\n");
   exit(-2);
 #endif
-}
-
-
-#ifdef HW_FFT
-#define FFT_HW_THRESHOLD 25    // 75% chance of using HWR
-#else
-#define FFT_HW_THRESHOLD 101   // 0% chance of using HWR
-#endif
-
-void
-schedule_fft(float * data)
-{
-  // Scheduler should now run this either on CPU or FFT:
-  int num = (rand() % (100)); // Return a value from [0,99]
-  if (num >= FFT_HW_THRESHOLD) {
-    // Execute on hardware
-    printf("SCHED: executing FFT on Hardware : %u > %u\n", num, FFT_HW_THRESHOLD);
-    execute_hwr_fft_accelerator(0, data);  // only using FFT HW 0 for now -- still blocking, too
-  } else {
-    // Execute in CPU (softwware)
-    printf("SCHED: executing FFT on CPU Software : %u < %u\n", num, FFT_HW_THRESHOLD);
-    execute_cpu_fft_accelerator(data);
-  }
 }
 
 
@@ -428,29 +419,6 @@ execute_hwr_viterbi_accelerator(int vn, int n_cbps, int n_traceback, int n_data_
 #endif // HW_VIT
 }
 
-#ifdef HW_VIT
-#define VITERBI_HW_THRESHOLD 25   // 75% chance to use Viterbi Hardware
-#else
-#define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
-#endif
-
-void
-schedule_viterbi(int n_data_bits, int n_cbps, int n_traceback, uint8_t* inMem, uint8_t* inData, uint8_t* outMem)
-{
-  // Scheduler should now run this either on CPU or VITERBI:
-  int num = (rand() % (100)); // Return a value from [0,99]
-  if (num >= VITERBI_HW_THRESHOLD) {
-    // Execute on hardware
-    printf("SCHED: executing VITERBI on Hardware : %u > %u\n", num, VITERBI_HW_THRESHOLD);
-    execute_hwr_viterbi_accelerator(0, n_cbps, n_traceback, n_data_bits, inMem, inData, outMem);  // only using VITERBI HW 0 for now -- still blocking, too
-  } else {
-    // Execute in CPU (softwware)
-    printf("SCHED: executing VITERBI on CPU Software : %u < %u\n", num, VITERBI_HW_THRESHOLD);
-    execute_cpu_viterbi_accelerator(n_cbps, n_traceback, n_data_bits, inMem, inData, outMem); 
-  }
-}
-
-
 
 void shutdown_scheduler()
 {
@@ -471,16 +439,73 @@ void shutdown_scheduler()
 
 
 
+#ifdef HW_FFT
+#define FFT_HW_THRESHOLD 25    // 75% chance of using HWR
+#else
+#define FFT_HW_THRESHOLD 101   // 0% chance of using HWR
+#endif
+
+#ifdef HW_VIT
+#define VITERBI_HW_THRESHOLD 25   // 75% chance to use Viterbi Hardware
+#else
+#define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
+#endif
+
+/* void */
+/* schedule_fft(task_metadata_block_t* task_metadata_block) */
+/* { */
+/*   // Scheduler should now run this either on CPU or FFT: */
+/*   int num = (rand() % (100)); // Return a value from [0,99] */
+/*   if (num >= FFT_HW_THRESHOLD) { */
+/*     // Execute on hardware */
+/*     printf("SCHED: executing FFT on Hardware : %u > %u\n", num, FFT_HW_THRESHOLD); */
+/*     execute_hwr_fft_accelerator(0, data);  // only using FFT HW 0 for now -- still blocking, too */
+/*   } else { */
+/*     // Execute in CPU (softwware) */
+/*     printf("SCHED: executing FFT on CPU Software : %u < %u\n", num, FFT_HW_THRESHOLD); */
+/*     execute_cpu_fft_accelerator(data); */
+/*   } */
+/* } */
+
+void
+schedule_viterbi(int n_data_bits, int n_cbps, int n_traceback, uint8_t* inMem, uint8_t* inData, uint8_t* outMem)
+{
+  // Scheduler should now run this either on CPU or VITERBI:
+  int num = (rand() % (100)); // Return a value from [0,99]
+  if (num >= VITERBI_HW_THRESHOLD) {
+    // Execute on hardware
+    printf("SCHED: executing VITERBI on Hardware : %u > %u\n", num, VITERBI_HW_THRESHOLD);
+    execute_hwr_viterbi_accelerator(0, n_cbps, n_traceback, n_data_bits, inMem, inData, outMem);  // only using VITERBI HW 0 for now -- still blocking, too
+  } else {
+    // Execute in CPU (softwware)
+    printf("SCHED: executing VITERBI on CPU Software : %u < %u\n", num, VITERBI_HW_THRESHOLD);
+    execute_cpu_viterbi_accelerator(n_cbps, n_traceback, n_data_bits, inMem, inData, outMem); 
+  }
+}
+
+
 
 
 void
 schedule_task(task_metadata_block_t* task_metadata_block)
 {
+  task_metadata_block->metadata.status = 1; // queued
   switch(task_metadata_block->metadata.job_type) {
   case fft_task:
     {
-      float * data = (float*)(task_metadata_block->metadata.data);
-      schedule_fft(data);
+      // Scheduler should now run this either on CPU or FFT:
+      task_metadata_block->metadata.status = 2; // running
+      int num = (rand() % (100)); // Return a value from [0,99]
+      if (num >= FFT_HW_THRESHOLD) {
+	// Execute on hardware
+	printf("SCHED: executing FFT on Hardware : %u > %u\n", num, FFT_HW_THRESHOLD);
+	execute_hwr_fft_accelerator(0, task_metadata_block); // data);  // only using FFT HW 0 for now -- still blocking, too
+      } else {
+	// Execute in CPU (softwware)
+	printf("SCHED: executing FFT on CPU Software : %u < %u\n", num, FFT_HW_THRESHOLD);
+	execute_cpu_fft_accelerator(task_metadata_block); // data);
+      }
+      //}
     }
     break;
   case viterbi_task:

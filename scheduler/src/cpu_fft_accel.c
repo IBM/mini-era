@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#include "verbose.h"
 #include "scheduler.h"
 
 #include "fft-1d.h"
@@ -21,9 +22,12 @@ extern uint64_t fft_usec;
 
 #endif
 
-void execute_cpu_fft_accelerator(float* data)
+void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block) //float* data)
 {
- #ifdef INT_TIME
+  DEBUG(printf("In execute_cpu_fft_accelerator: MB %d  CL %d\n", task_metadata_block.metadata.metadata_block_id, task_metadata_block.metadata.criticality_level ));
+  float * data = (float*)(task_metadata_block->metadata.data);
+
+#ifdef INT_TIME
   gettimeofday(&calc_start, NULL);
  #endif
 
@@ -45,5 +49,7 @@ void execute_cpu_fft_accelerator(float* data)
   calc_sec  += calc_stop.tv_sec  - calc_start.tv_sec;
   calc_usec += calc_stop.tv_usec - calc_start.tv_usec;
  #endif
+
+  task_metadata_block->metadata.status = 3; // done
 }
 
