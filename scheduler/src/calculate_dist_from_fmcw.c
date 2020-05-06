@@ -124,6 +124,11 @@ float calculate_peak_dist_from_fmcw(float* data)
   gettimeofday(&cdfmcw_start, NULL);
  #endif // INT_TIME
 
+  // Now we need to copy out the results (from the executed, accelerator task)
+  for (int i = 0; i < 2*RADAR_N; i++) {
+    data[i] = mdataptr[i];
+  }
+
   float max_psd = 0;
   unsigned int max_index = 0;
   unsigned int i;
