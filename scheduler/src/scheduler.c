@@ -409,27 +409,39 @@ extern uint64_t dodec_usec;
 #endif
 
 void
-execute_hwr_viterbi_accelerator(int vn, int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outData)
+execute_hwr_viterbi_accelerator(int vn, task_metadata_block_t* task_metadata_block)
+//int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outData)
 {
   DEBUG(printf("In execute_hwr_viterbi_accelerator\n"));
-    #ifdef HW_VIT
-  vitHW_desc[vn].cbps = n_cbps;
-  vitHW_desc[vn].ntraceback = n_traceback;
-  vitHW_desc[vn].data_bits = n_data_bits;
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
+  int32_t  in_cbps = vdata->n_cbps;
+  int32_t  in_ntraceback = vdata->n_traceback;
+  int32_t  in_data_bits = vdata->n_data_bits;
+  int32_t  inMem_offset = 0;
+  int32_t  inData_offset = vdata->inMem_size;
+  int32_t  outData_offset = inData_offset + vdata->inData_size;
+  uint8_t* in_Mem  = &(vdata->theData[inMem_offset]);
+  uint8_t* in_Data = &(vdata->theData[inData_offset]);
+  uint8_t* out_Data = &(vdata->theData[outData_offset]);
+
+#ifdef HW_VIT
+  vitHW_desc[vn].cbps = in_cbps;
+  vitHW_desc[vn].ntraceback = in_ntraceback;
+  vitHW_desc[vn].data_bits = in_data_bits;
 
   uint8_t* hwrInMem  = vitHW_li_mem[vn];
   uint8_t* hwrOutMem = vitHW_lo_mem[vn];
   for (int ti = 0; ti < 70; ti ++) {
-    hwrInMem[ti] = inMem[ti];
+    hwrInMem[ti] = in_Mem[ti];
   }
   hwrInMem[70] = 0;
   hwrInMem[71] = 0;
   int imi = 72;
   for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
-    hwrInMem[imi++] = inDat[ti];
+    hwrInMem[imi++] = in_Data[ti];
   }
   for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-    outData[ti] = 0;
+    out_Data[ti] = 0;
   }
 
 #ifdef INT_TIME
@@ -544,21 +556,22 @@ schedule_task(task_metadata_block_t* task_metadata_block)
       if (num >= VITERBI_HW_THRESHOLD) {
 	// Execute on hardware
 	printf("SCHED: executing VITERBI on Hardware : %u > %u\n", num, VITERBI_HW_THRESHOLD);
-	viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
-	int32_t  in_ncbps = vdata->n_cbps;
-	int32_t  in_ntraceback = vdata->n_traceback;
-	int32_t  in_ndata_bits = vdata->n_data_bits;
-	int32_t  inMem_offset = 0;
-	int32_t  inData_offset = vdata->inMem_size;
-	int32_t  outData_offset = inData_offset + vdata->inData_size;
-	uint8_t* in_Mem  = &(vdata->theData[inMem_offset]);
-	uint8_t* in_Data = &(vdata->theData[inData_offset]);
-	uint8_t* out_Data = &(vdata->theData[outData_offset]);
-	execute_hwr_viterbi_accelerator(0, in_ncbps, in_ntraceback, in_ndata_bits, in_Mem, in_Data, out_Data);  // only using VITERBI HW 0 for now -- still blocking, too
+	/* viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data); */
+	/* int32_t  in_ncbps = vdata->n_cbps; */
+	/* int32_t  in_ntraceback = vdata->n_traceback; */
+	/* int32_t  in_ndata_bits = vdata->n_data_bits; */
+	/* int32_t  inMem_offset = 0; */
+	/* int32_t  inData_offset = vdata->inMem_size; */
+	/* int32_t  outData_offset = inData_offset + vdata->inData_size; */
+	/* uint8_t* in_Mem  = &(vdata->theData[inMem_offset]); */
+	/* uint8_t* in_Data = &(vdata->theData[inData_offset]); */
+	/* uint8_t* out_Data = &(vdata->theData[outData_offset]); */
+	/* execute_hwr_viterbi_accelerator(0, in_ncbps, in_ntraceback, in_ndata_bits, in_Mem, in_Data, out_Data);  // only using VITERBI HW 0 for now -- still blocking, too */
+	execute_hwr_viterbi_accelerator(0, task_metadata_block); // only using VITERBI HW 0 for now -- still blocking, too
       } else {
 	// Execute in CPU (softwware)
 	printf("SCHED: executing VITERBI on CPU Software : %u < %u\n", num, VITERBI_HW_THRESHOLD);
-	execute_cpu_viterbi_accelerator(task_metadata_block); // n_cbps, n_traceback, n_data_bits, inMem, inData, outData);
+	execute_cpu_viterbi_accelerator(task_metadata_block);
       }
     }
     break;

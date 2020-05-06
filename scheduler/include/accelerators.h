@@ -24,7 +24,8 @@ extern void execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_meta
 
 extern void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block);
 // int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem);
-extern void execute_hwr_viterbi_accelerator(int vn, int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem);
+extern void execute_hwr_viterbi_accelerator(int vn, task_metadata_block_t* task_metadata_block);
+// int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem);
 
 
 #endif
