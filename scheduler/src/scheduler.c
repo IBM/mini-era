@@ -143,7 +143,7 @@ void print_critical_task_list_ids() {
 
 task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_criticality_t crit_level)
 {
-  printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks);
+  DEBUG(printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks));
   if (free_metadata_blocks < 1) {
     // Out of metadata blocks -- all in use, cannot enqueue new tasks!
     return NULL;
@@ -170,8 +170,8 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
     critical_live_task_head = &(critical_live_tasks_list[li]);
     total_critical_tasks += 1;
   }
-  printf("  returning block %u\n", bi);
-  print_critical_task_list_ids();
+  DEBUG(printf("  returning block %u\n", bi);
+	print_critical_task_list_ids());
   return &(master_metadata_pool[bi]);
 }
 
@@ -182,7 +182,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
 void free_task_metadata_block(task_metadata_block_t* mb)
 {
   int bi = mb->metadata.metadata_block_id;
-  printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);
+  DEBUG(printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks));
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
@@ -202,7 +202,8 @@ void free_task_metadata_block(task_metadata_block_t* mb)
       }
       // We've found the critical task in critical_live_tasks_list - cli points to it
       int cti = cli->clt_block_id;
-      free_critlist_pool[free_critlist_entries - 1] = cti; // Enable this crit-list entry for new use
+      //printf(" freeing critlist_pool %u to %u\n", free_critlist_entries - 1, cti);
+      free_critlist_pool[free_critlist_entries] = cti; // Enable this crit-list entry for new use
       free_critlist_entries += 1; // Update the count of available critlist entries in the pool
       cli->clt_block_id = -1; // clear the clt_block_id indicator (we're done with it)
       // And remove the cli entry from the critical_lvet_tasks linked list
@@ -225,8 +226,8 @@ void free_task_metadata_block(task_metadata_block_t* mb)
     for (int ii = 0; ii < free_metadata_blocks; ii++) {
       printf("        free[%2u] = %u\n", ii, free_metadata_pool[ii]);
     }
-    printf("    THE Being-Freed Metat-Data Block:\n");
-    print_base_metadata_block_contents(mb);
+    DEBUG(printf("    THE Being-Freed Meta-Data Block:\n");
+	  print_base_metadata_block_contents(mb));
     exit(-5);
   }
 }
@@ -333,8 +334,8 @@ status_t initialize_scheduler()
 	DEBUG(printf("In initialize...\n"));
 	for (int i = 0; i < total_metadata_pool_blocks; i++) {
 	  master_metadata_pool[i].metadata.metadata_block_id = i; // Set the master pool's block_ids
-	  free_metadata_pool[i] = i;     // Set up all blocks are free
-	  free_critlist_pool[i] = -1;    // Set all critlist entries are unallocated
+	  free_metadata_pool[i] = i;    // Set up all blocks are free
+	  free_critlist_pool[i] = i;    // Set up all critlist blocks are free
 	}
 	
 #ifdef HW_FFT

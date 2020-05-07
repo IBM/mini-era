@@ -394,23 +394,25 @@ int main(int argc, char *argv[])
     gettimeofday(&start_exec_rad, NULL);
    #endif
     task_metadata_block_t* fft_mb_ptr = start_execution_of_rad_kernel(radar_inputs);
-    printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id);
-    distance = finish_execution_of_rad_kernel(fft_mb_ptr);
+    DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id));
    #ifdef TIME
-    gettimeofday(&stop_exec_rad, NULL);
-    exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
-    exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
-
     gettimeofday(&start_exec_vit, NULL);
    #endif
     //NOTE Removed the num_messages stuff -- need to do this differently (separate invocations of this process per message)
     task_metadata_block_t* vit_mb_ptr = start_execution_of_vit_kernel(vdentry_p);
-    printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id);
-    message = finish_execution_of_vit_kernel(vit_mb_ptr);
+    DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id));
    #ifdef TIME
     gettimeofday(&stop_exec_vit, NULL);
     exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
     exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
+   #endif
+
+    distance = finish_execution_of_rad_kernel(fft_mb_ptr);
+    message = finish_execution_of_vit_kernel(vit_mb_ptr);
+   #ifdef TIME
+    gettimeofday(&stop_exec_rad, NULL);
+    exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
+    exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
    #endif
 
     // POST-EXECUTE each kernels to gather stats, etc.
