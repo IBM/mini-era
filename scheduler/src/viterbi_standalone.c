@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <stdbool.h>
+//#include <stdbool.h>
 
 #include "base.h"
 #include "viterbi_flat.h"
