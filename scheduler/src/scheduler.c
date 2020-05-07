@@ -54,12 +54,42 @@ int free_critlist_entries = total_metadata_pool_blocks;
 int total_critical_tasks = 0;
 
 
+const char* task_job_str[NUM_JOB_TYPES] = { "NO-JOB",
+					    "FFT-TASK",
+					    "VITERBI-TASK" };
+
+const char* task_criticality_str[NUM_TASK_CRIT_LEVELS] = { "NO-TASK",
+							   "BASE-TASK",
+							   "ELEVATED-TASK",
+							   "CRITICAL-TASK" };
+
+const char* task_status_str[NUM_TASK_STATUS] = {"TASK-FREE",
+						"TASK-ALLOCATED",
+						"TASK-QUEUED",
+						"TASK-RUNNING",
+						"TASK-DONE"};
+
 void print_base_metadata_block_contents(task_metadata_block_t* mb)
 {
   printf("metadata_block_id = %d @ %p\n", mb->metadata.metadata_block_id, mb);
-  printf("    status = %d\n",  mb->metadata.status);
-  printf("    job_type = %d\n",  mb->metadata.job_type);
-  printf("    crit_level = %d\n",  mb->metadata.crit_level);
+  unsigned status = mb->metadata.status;
+  if (status < NUM_TASK_STATUS) {
+    printf(" ** status = %s\n", task_status_str[status]);
+  } else {
+    printf(" ** status = %d <= NOT a legal value!\n",  mb->metadata.status);
+  }
+  unsigned job_type = mb->metadata.job_type;
+  if (job_type < NUM_JOB_TYPES) {
+    printf("    job_type = %s\n", task_job_str[job_type]);
+  } else {
+    printf(" ** job_type = %d <= NOT a legal value!\n", mb->metadata.job_type);
+  }
+  unsigned crit_level = mb->metadata.crit_level;
+  if (crit_level < NUM_TASK_CRIT_LEVELS) {
+    printf("    crit_level = %s\n",  task_criticality_str[crit_level]);
+  } else {
+    printf(" ** crit_level = %d <= NOT a legal value!\n",  mb->metadata.crit_level);
+  }
   printf("    data_size  = %d\n",  mb->metadata.data_size);
   printf("    data @ %p\n", mb->metadata.data);
 }
@@ -93,7 +123,7 @@ void print_viterbi_metadata_block_contents(task_metadata_block_t* mb)
   printf("      out_Data @ %p\n",  &(vdata->theData[outData_offset]));
 }
 
-task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, int crit_level)
+task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_criticality_t crit_level)
 {
   printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks);
   if (free_metadata_blocks < 1) {
@@ -105,7 +135,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, int c
   free_metadata_blocks -= 1;
   // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
   master_metadata_pool[bi].metadata.job_type = task_type;
-  master_metadata_pool[bi].metadata.status = 0;    // allocated
+  master_metadata_pool[bi].metadata.status = TASK_ALLOCATED;
   master_metadata_pool[bi].metadata.crit_level = crit_level;
   master_metadata_pool[bi].metadata.data_size = 0;
   if (crit_level > 1) { // is this a "critical task"
@@ -159,9 +189,9 @@ void free_task_metadata_block(task_metadata_block_t* mb)
       total_critical_tasks -= 1;
     }
     // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
-    master_metadata_pool[bi].metadata.job_type = -1; // unset
-    master_metadata_pool[bi].metadata.status = -1;   // free
-    master_metadata_pool[bi].metadata.crit_level = 0; // lowest/free?
+    master_metadata_pool[bi].metadata.job_type = NO_TASK_JOB; // unset
+    master_metadata_pool[bi].metadata.status = TASK_FREE;   // free
+    master_metadata_pool[bi].metadata.crit_level = NO_TASK; // lowest/free?
     master_metadata_pool[bi].metadata.data_size = 0;
   } else {
     printf("ERROR : We are freeing a metadata block when we already have max metadata blocks free...\n");
@@ -429,7 +459,7 @@ execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block)
     data[j] = (float)fx2float(fftHW_lmem[fn][j], FX_IL);
   }
 
-  task_metadata_block->metadata.status = 3; // done
+  task_metadata_block->metadata.status = TASK_DONE; // done
 
 #else
   printf("ERROR : This executable DOES NOT support Hardware-FFT execution!\n");
@@ -503,6 +533,9 @@ execute_hwr_viterbi_accelerator(int vn, task_metadata_block_t* task_metadata_blo
   dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
   dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
+
+  task_metadata_block->metadata.status = TASK_DONE; // done
+
 #else // HW_VIT
   printf("ERROR : This executable DOES NOT support Viterbi Hardware execution!\n");
   exit(-3);
@@ -579,12 +612,12 @@ void shutdown_scheduler()
 void
 request_execution(task_metadata_block_t* task_metadata_block)
 {
-  task_metadata_block->metadata.status = 1; // queued
+  task_metadata_block->metadata.status = TASK_QUEUED; // queued
   switch(task_metadata_block->metadata.job_type) {
-  case fft_task:
+  case FFT_TASK:
     {
       // Scheduler should now run this either on CPU or FFT:
-      task_metadata_block->metadata.status = 2; // running
+      task_metadata_block->metadata.status = TASK_RUNNING; // running
       int num = (rand() % (100)); // Return a value from [0,99]
       if (num >= FFT_HW_THRESHOLD) {
 	// Execute on hardware
@@ -598,9 +631,10 @@ request_execution(task_metadata_block_t* task_metadata_block)
       //}
     }
     break;
-  case viterbi_task:
+  case VITERBI_TASK:
     {
       // Scheduler should now run this either on CPU or VITERBI:
+      task_metadata_block->metadata.status = TASK_RUNNING; // running
       int num = (rand() % (100)); // Return a value from [0,99]
       if (num >= VITERBI_HW_THRESHOLD) {
 	// Execute on hardware
@@ -638,6 +672,6 @@ request_execution(task_metadata_block_t* task_metadata_block)
 
 void wait_all_critical()
 {
-  // Right now we are blocking; no need to wait;
-
+  // Loop through the critical tasks list and check whether they are all in status "done"
+  
 }

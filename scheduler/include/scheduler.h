@@ -24,14 +24,23 @@
 
 #include "base_types.h"
 
-typedef enum { fft_task = 0,
-	       viterbi_task } scheduler_jobs_t;
+typedef enum { NO_TASK_JOB = 0,
+	       FFT_TASK,
+	       VITERBI_TASK,
+	       NUM_JOB_TYPES } scheduler_jobs_t;
 
-typedef enum { NO_TASK   = -1,
+typedef enum { NO_TASK   = 0,
 	       BASE_TASK = 1,
 	       ELEVATED_TASK = 2,
-	       CRITICAL_TASK = 3 } task_criticality_t;
+	       CRITICAL_TASK = 3,
+	       NUM_TASK_CRIT_LEVELS} task_criticality_t;
 	       
+typedef enum { TASK_FREE = 0,
+	       TASK_ALLOCATED,
+	       TASK_QUEUED,
+	       TASK_RUNNING,
+	       TASK_DONE,
+	       NUM_TASK_STATUS} task_status_t;
 	       
 // This is a metatdata structure; it is used to hold all information for any job
 //  to be invoked through the scheduler.  This includes a description of the
@@ -44,7 +53,7 @@ typedef enum { NO_TASK   = -1,
 typedef union task_metadata_entry_union {
   struct task_metadata_struct {
     int32_t  metadata_block_id;    // +4 Bytes : master-pool-index; a unique ID per metadata task
-    int32_t  status;               // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
+    task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
     scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
     task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
     int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)

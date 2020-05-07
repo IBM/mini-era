@@ -190,7 +190,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 
   {
     // Set up the task_metadata
-    task_metadata_block_t* vit_metadata_block = get_task_metadata_block(viterbi_task, CRITICAL_TASK);
+    task_metadata_block_t* vit_metadata_block = get_task_metadata_block(VITERBI_TASK, CRITICAL_TASK);
     if (vit_metadata_block == NULL) {
       // We ran out of metadata blocks -- PANIC!
       printf("Out of metadata blocks for Viterbi -- PANIC Quit the run (for now)\n");

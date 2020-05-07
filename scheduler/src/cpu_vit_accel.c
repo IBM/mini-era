@@ -464,6 +464,8 @@ execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   /* for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
   /*   outMem[ti] = cpuOutMem[ti]; */
   /* } */
+
+  task_metadata_block->metadata.status = TASK_DONE; // done
 }
 
 

@@ -50,6 +50,6 @@ void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block) //f
   calc_usec += calc_stop.tv_usec - calc_start.tv_usec;
  #endif
 
-  task_metadata_block->metadata.status = 3; // done
+  task_metadata_block->metadata.status = TASK_DONE; // done
 }
 
