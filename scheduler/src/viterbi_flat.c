@@ -190,29 +190,17 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 
   {
     // Set up the task_metadata
-    task_metadata_block_t* vit_metadata_block = get_task_metadata_block();
+    task_metadata_block_t* vit_metadata_block = get_task_metadata_block(viterbi_task, CRITICAL_TASK);
     if (vit_metadata_block == NULL) {
       // We ran out of metadata blocks -- PANIC!
       printf("Out of metadata blocks for Viterbi -- PANIC Quit the run (for now)\n");
       exit (-4);
     }
-    vit_metadata_block->metadata.job_type = viterbi_task;
-    vit_metadata_block->metadata.criticality_level = 1; // Maybe send in a parm to calculate_peak_dist ?
     vit_metadata_block->metadata.data_size = 43365; // MAX size?
     // Copy over our task data to the MetaData Block
-    /* //vit_metadata_block->metadata.data = (uint8_t*)data; */
-    /* float* mdataptr = (float*)vit_metadata_block->metadata.data; */
-    /* for (int i = 0; i < 2*RADAR_N; i++) { */
-    /*   mdataptr[i] = data[i]; */
-    /* } */
-
     // Get a viterbi_data_struct_t "View" of the metablock data pointer.
-    viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)vit_metadata_block->metadata.data;
     // Copy inputs into the vdsptr data view of the metadata_block metadata data segment
-    // Copy inputs into the inMemory for esp-interface version
-    //uint8_t inMemory[70];  // This is "minimally sized for max entries"
-    //uint8_t inData[MAX_ENCODED_BITS];
-    // Copy some multi-block stuff into a single memory (cleaner transport)
+    viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)vit_metadata_block->metadata.data;
     vdsptr->n_data_bits = frame->n_data_bits;
     vdsptr->n_cbps      = ofdm->n_cbps;
     vdsptr->n_traceback = d_ntraceback;
@@ -222,12 +210,13 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     uint8_t* in_Mem   = &(vdsptr->theData[0]);
     uint8_t* in_Data  = &(vdsptr->theData[vdsptr->inMem_size]);
     uint8_t* out_Data = &(vdsptr->theData[vdsptr->inMem_size + vdsptr->inData_size]);
+    // Copy some multi-block stuff into a single memory (cleaner transport)
     DEBUG(printf("SET UP VITERBI TASK: \n");
 	  print_viterbi_metadata_block_contents(vit_metadata_block);
 	  printf("      in_Mem   @ %p\n",  in_Mem);
 	  printf("      in_Data  @ %p\n",  in_Data);
 	  printf("      out_Data @ %p\n",  out_Data));
-    {
+    { // scope block for definition of imi
       int imi = 0;
       for (int ti = 0; ti < 2; ti ++) {
 	for (int tj = 0; tj < 32; tj++) {
@@ -255,7 +244,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     //  NOTE: We are sending addresses in our space -- the accelerator should xfer the data in this model.
     DEBUG(printf("Calling schedule_task for viterbi_task with nDb %u nCb %u nTrb %u\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback));
     //schedule_viterbi(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, depunctured, d_decoded);
-    schedule_task(vit_metadata_block);
+    request_execution(vit_metadata_block);
     DEBUG(printf("BACK FROM EXECUTION OF VITERBI TASK:\n");
 	  print_viterbi_metadata_block_contents(vit_metadata_block));
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) { // This zeros out the full-size OUTPUT area

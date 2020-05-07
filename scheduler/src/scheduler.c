@@ -44,6 +44,14 @@ task_metadata_block_t master_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_blocks = total_metadata_pool_blocks;
 
+typedef struct bi_ll_struct { int clt_block_id;  struct bi_ll_struct* next; } bi_linked_list_t;
+
+bi_linked_list_t critical_live_tasks_list[total_metadata_pool_blocks];
+bi_linked_list_t* critical_live_task_head = NULL;
+//bi_linked_list_t* critical_live_task_tail = NULL;
+int free_critlist_pool[total_metadata_pool_blocks];
+int free_critlist_entries = total_metadata_pool_blocks;
+int total_critical_tasks = 0;
 
 
 void print_base_metadata_block_contents(task_metadata_block_t* mb)
@@ -51,7 +59,7 @@ void print_base_metadata_block_contents(task_metadata_block_t* mb)
   printf("metadata_block_id = %d @ %p\n", mb->metadata.metadata_block_id, mb);
   printf("    status = %d\n",  mb->metadata.status);
   printf("    job_type = %d\n",  mb->metadata.job_type);
-  printf("    criticality_level = %d\n",  mb->metadata.criticality_level);
+  printf("    crit_level = %d\n",  mb->metadata.crit_level);
   printf("    data_size  = %d\n",  mb->metadata.data_size);
   printf("    data @ %p\n", mb->metadata.data);
 }
@@ -85,7 +93,7 @@ void print_viterbi_metadata_block_contents(task_metadata_block_t* mb)
   printf("      out_Data @ %p\n",  &(vdata->theData[outData_offset]));
 }
 
-task_metadata_block_t* get_task_metadata_block()
+task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, int crit_level)
 {
   printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks);
   if (free_metadata_blocks < 1) {
@@ -96,10 +104,23 @@ task_metadata_block_t* get_task_metadata_block()
   free_metadata_pool[free_metadata_blocks - 1] = -1;
   free_metadata_blocks -= 1;
   // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
-  master_metadata_pool[bi].metadata.job_type = -1; // unset
+  master_metadata_pool[bi].metadata.job_type = task_type;
   master_metadata_pool[bi].metadata.status = 0;    // allocated
-  master_metadata_pool[bi].metadata.criticality_level = 0; // lowest/free?
+  master_metadata_pool[bi].metadata.crit_level = crit_level;
   master_metadata_pool[bi].metadata.data_size = 0;
+  if (crit_level > 1) { // is this a "critical task"
+    int ci = total_critical_tasks; // Set index for crit_task block_id in pool
+    critical_live_tasks_list[ci].clt_block_id = bi;  // Set the critical task block_id indication
+    // Select the next available critical-task-list (linked-list) 
+    int li = free_critlist_pool[free_critlist_entries - 1];
+    free_critlist_pool[free_critlist_entries - 1] = -1;
+    free_critlist_entries -= 1;
+    // Now set up the revisions to the critical live tasks list
+    critical_live_tasks_list[li].clt_block_id = ci;   // point this entry to the master_metatdata_pool block id
+    critical_live_tasks_list[li].next = critical_live_task_head;     // Insert as head of critical tasks list
+    critical_live_task_head = &(critical_live_tasks_list[li]);
+    total_critical_tasks += 1;
+  }
   return &(master_metadata_pool[bi]);
 }
 
@@ -110,10 +131,37 @@ void free_task_metadata_block(task_metadata_block_t* mb)
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
+    if (master_metadata_pool[bi].metadata.crit_level > 1) { // is this a critical tasks?
+      // Remove task form critical list, free critlist entry, etc.
+      bi_linked_list_t* lcli = NULL;
+      bi_linked_list_t* cli = critical_live_task_head;
+      while ((cli != NULL) && (critical_live_tasks_list[cli->clt_block_id].clt_block_id != bi)) {
+	lcli = cli;  // The "previoud" block; NULL == "head"
+	cli = cli->next;	
+      }
+      if (cli == NULL) {
+	printf("ERROR: Critical task NOT on the critical_live_task_list :\n");
+	print_base_metadata_block_contents(mb);
+	exit(-6);
+      }
+      // We've found the critical task in critical_live_tasks_list - cli points to it
+      int cti = cli->clt_block_id;
+      free_critlist_pool[free_critlist_entries - 1] = cti; // Enable this crit-list entry for new use
+      free_critlist_entries += 1; // Update the count of available critlist entries in the pool
+      cli->clt_block_id = -1; // clear the clt_block_id indicator (we're done with it)
+      // And remove the cli entry from the critical_lvet_tasks linked list
+      if (lcli == NULL) {
+	critical_live_task_head = cli->next;
+      } else {
+	lcli->next = cli->next;
+      }
+      cli->next = NULL;
+      total_critical_tasks -= 1;
+    }
     // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
     master_metadata_pool[bi].metadata.job_type = -1; // unset
     master_metadata_pool[bi].metadata.status = -1;   // free
-    master_metadata_pool[bi].metadata.criticality_level = 0; // lowest/free?
+    master_metadata_pool[bi].metadata.crit_level = 0; // lowest/free?
     master_metadata_pool[bi].metadata.data_size = 0;
   } else {
     printf("ERROR : We are freeing a metadata block when we already have max metadata blocks free...\n");
@@ -229,6 +277,7 @@ status_t initialize_scheduler()
 	DEBUG(printf("In initialize...\n"));
 	for (int i = 0; i < total_metadata_pool_blocks; i++) {
 	  free_metadata_pool[i] = i;
+	  free_critlist_pool[i] = i;
 	}
 	
 #ifdef HW_FFT
@@ -363,7 +412,7 @@ static void fft_in_hw(int *fd, struct fftHW_access *desc)
 void
 execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block)
 {
-  DEBUG(printf("In execute_hwr_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.criticality_level ));
+  DEBUG(printf("In execute_hwr_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.crit_level ));
 #ifdef HW_FFT
   float * data = (float*)(task_metadata_block->metadata.data);
   // convert input from float to fixed point
@@ -528,7 +577,7 @@ void shutdown_scheduler()
 
 
 void
-schedule_task(task_metadata_block_t* task_metadata_block)
+request_execution(task_metadata_block_t* task_metadata_block)
 {
   task_metadata_block->metadata.status = 1; // queued
   switch(task_metadata_block->metadata.job_type) {
@@ -576,11 +625,19 @@ schedule_task(task_metadata_block_t* task_metadata_block)
     }
     break;
   default:
-    printf("ERROR : schedule_task called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+    printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
   }
 
 
   // For now, since this is blocking, etc. we can return the MetaData Block here
   //   In reality, this should happen when we detect a task has non-blockingly-finished...
   free_task_metadata_block(task_metadata_block);
+}
+
+
+
+void wait_all_critical()
+{
+  // Right now we are blocking; no need to wait;
+
 }

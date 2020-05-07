@@ -27,6 +27,12 @@
 typedef enum { fft_task = 0,
 	       viterbi_task } scheduler_jobs_t;
 
+typedef enum { NO_TASK   = -1,
+	       BASE_TASK = 1,
+	       ELEVATED_TASK = 2,
+	       CRITICAL_TASK = 3 } task_criticality_t;
+	       
+	       
 // This is a metatdata structure; it is used to hold all information for any job
 //  to be invoked through the scheduler.  This includes a description of the
 //  job type, and all input/output data space for the task
@@ -37,14 +43,14 @@ typedef enum { fft_task = 0,
 
 typedef union task_metadata_entry_union {
   struct task_metadata_struct {
-    int32_t  metadata_block_id;   // +4 Bytes : master-pool-index; a unique ID per metadata task
-    int32_t  status;              // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
-    scheduler_jobs_t job_type;    // +4 Bytes : see above enumeration
-    int32_t  criticality_level;   // +4 Bytes : [0 .. ?] ?
-    int32_t  data_size;           // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
-    uint8_t  data[128*1024];      // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
+    int32_t  metadata_block_id;    // +4 Bytes : master-pool-index; a unique ID per metadata task
+    int32_t  status;               // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
+    scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
+    task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
+    int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
+    uint8_t  data[128*1024];       // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
   } metadata;
-  uint8_t rawBytes[128*1024 + 32];  // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
+  uint8_t rawBytes[128*1024 + 32]; // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
 } task_metadata_block_t;
 
 
@@ -63,9 +69,11 @@ extern unsigned fft_logn_samples;
 
 extern status_t initialize_scheduler();
 
-extern task_metadata_block_t* get_task_metadata_block();
+extern task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_criticality_t crit_level);
 
-extern void schedule_task(task_metadata_block_t* task_metadata_block);
+extern void request_execution(task_metadata_block_t* task_metadata_block);
+extern void wait_all_critical();
+
 extern int get_task_status(int task_id);
 
 extern void print_base_metadata_block_contents(task_metadata_block_t* mb);
