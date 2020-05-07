@@ -95,6 +95,12 @@ Usage: ./cmain.exe <OPTIONS>
                :      5 = One long  msg per obstacle + 1 per time step ** Currently unavailable
 ```
 
+To actually execute a trace, one must point to the trace repository.  The scheduler sub-directoyr does not include a trace directory itself, but instead uses the one from Mini-ERA.  One can do this in several ways:
+1. Copy the ```test-scheduler.exe``` to the (parent) mini-era directory, and run from there
+2. Create a soft-link (```ln -s scheduler/test-scheduler.exe .```) in the (parent) mini-era directory, and run from there, therefore always using the most-recently compiled version of ```test-scheduler.exe```
+3. Create a soft-link in the scheduler directory to the (parent) Mini-ERA traces directory, and run from the scheduler directory, e.g. ```ln -s ../traces .```   This is done by default and should work IF you cloned the top-level mini-era repository in full.
+4. create a local traces directory, and populate it with the required files (see the Mini-ERA README)
+
 ## Status
 
 This platform is meant for Scheduler-Library/Layer development and integration, so it is expected to change over
