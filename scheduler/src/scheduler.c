@@ -44,11 +44,11 @@ task_metadata_block_t master_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_blocks = total_metadata_pool_blocks;
 
-typedef struct bi_ll_struct { int clt_block_id;  struct bi_ll_struct* next; } bi_linked_list_t;
+typedef struct bi_ll_struct { int clt_block_id;  struct bi_ll_struct* next; } blockid_linked_list_t;
 
-bi_linked_list_t critical_live_tasks_list[total_metadata_pool_blocks];
-bi_linked_list_t* critical_live_task_head = NULL;
-//bi_linked_list_t* critical_live_task_tail = NULL;
+blockid_linked_list_t critical_live_tasks_list[total_metadata_pool_blocks];
+blockid_linked_list_t* critical_live_task_head = NULL;
+//blockid_linked_list_t* critical_live_task_tail = NULL;
 int free_critlist_pool[total_metadata_pool_blocks];
 int free_critlist_entries = total_metadata_pool_blocks;
 int total_critical_tasks = 0;
@@ -124,6 +124,23 @@ void print_viterbi_metadata_block_contents(task_metadata_block_t* mb)
   printf("      out_Data @ %p\n",  &(vdata->theData[outData_offset]));
 }
 
+
+void print_critical_task_list_ids() {
+  blockid_linked_list_t* cli = critical_live_task_head;
+  if (cli == NULL) {
+    printf("Critical task list is EMPTY\n");
+  } else {
+    printf("Critical task list : ");
+    while (cli != NULL) {
+      printf(" %u", cli->clt_block_id); //, free_critlist_pool[cli->clt_block_id]);
+      cli = cli->next;
+    }
+    printf("\n");
+  }
+}
+
+
+
 task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_criticality_t crit_level)
 {
   printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks);
@@ -140,22 +157,26 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   master_metadata_pool[bi].metadata.crit_level = crit_level;
   master_metadata_pool[bi].metadata.data_size = 0;
   if (crit_level > 1) { // is this a "critical task"
-    int ci = total_critical_tasks; // Set index for crit_task block_id in pool
-    critical_live_tasks_list[ci].clt_block_id = bi;  // Set the critical task block_id indication
-    // Select the next available critical-task-list (linked-list) 
+    /* int ci = total_critical_tasks; // Set index for crit_task block_id in pool */
+    /* critical_live_tasks_list[ci].clt_block_id = bi;  // Set the critical task block_id indication */
+    // Select the next available critical-live-task-list entry ID 
     int li = free_critlist_pool[free_critlist_entries - 1];
-    free_critlist_pool[free_critlist_entries - 1] = -1;
+    free_critlist_pool[free_critlist_entries - 1] = -1; // clear it a(as it is no longer free)
     free_critlist_entries -= 1;
+    // Now li indicates the critical_live_tasks_list[] index to use
     // Now set up the revisions to the critical live tasks list
-    critical_live_tasks_list[li].clt_block_id = ci;   // point this entry to the master_metatdata_pool block id
+    critical_live_tasks_list[li].clt_block_id = bi;   // point this entry to the master_metatdata_pool block id
     critical_live_tasks_list[li].next = critical_live_task_head;     // Insert as head of critical tasks list
     critical_live_task_head = &(critical_live_tasks_list[li]);
     total_critical_tasks += 1;
   }
   printf("  returning block %u\n", bi);
-
+  print_critical_task_list_ids();
   return &(master_metadata_pool[bi]);
 }
+
+
+
 
 
 void free_task_metadata_block(task_metadata_block_t* mb)
@@ -167,9 +188,10 @@ void free_task_metadata_block(task_metadata_block_t* mb)
     free_metadata_blocks += 1;
     if (master_metadata_pool[bi].metadata.crit_level > 1) { // is this a critical tasks?
       // Remove task form critical list, free critlist entry, etc.
-      bi_linked_list_t* lcli = NULL;
-      bi_linked_list_t* cli = critical_live_task_head;
-      while ((cli != NULL) && (critical_live_tasks_list[cli->clt_block_id].clt_block_id != bi)) {
+      blockid_linked_list_t* lcli = NULL;
+      blockid_linked_list_t* cli = critical_live_task_head;
+      //while ((cli != NULL) && (critical_live_tasks_list[cli->clt_block_id].clt_block_id != bi)) {
+      while ((cli != NULL) && (cli->clt_block_id != bi)) {
 	lcli = cli;  // The "previoud" block; NULL == "head"
 	cli = cli->next;	
       }
@@ -310,8 +332,9 @@ status_t initialize_scheduler()
 {
 	DEBUG(printf("In initialize...\n"));
 	for (int i = 0; i < total_metadata_pool_blocks; i++) {
-	  free_metadata_pool[i] = i;
-	  free_critlist_pool[i] = i;
+	  master_metadata_pool[i].metadata.metadata_block_id = i; // Set the master pool's block_ids
+	  free_metadata_pool[i] = i;     // Set up all blocks are free
+	  free_critlist_pool[i] = -1;    // Set all critlist entries are unallocated
 	}
 	
 #ifdef HW_FFT

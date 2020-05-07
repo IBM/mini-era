@@ -692,6 +692,7 @@ message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr)
   return msg;
 }
 
+
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 {
   total_msgs++;
