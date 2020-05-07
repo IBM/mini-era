@@ -407,6 +407,8 @@ int main(int argc, char *argv[])
     exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
    #endif
 
+    wait_all_critical();
+    
     distance = finish_execution_of_rad_kernel(fft_mb_ptr);
     message = finish_execution_of_vit_kernel(vit_mb_ptr);
    #ifdef TIME

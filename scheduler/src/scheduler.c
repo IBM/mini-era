@@ -697,9 +697,24 @@ request_execution(task_metadata_block_t* task_metadata_block)
 }
 
 
+int check_if_all_critical_tasks_are_done()
+{
+  // Loop through the critical tasks list and check whether they are all in status "done"
+  blockid_linked_list_t* cli = critical_live_task_head;
+  while (cli != NULL) {
+    if (master_metadata_pool[cli->clt_block_id].metadata.status != TASK_DONE) {
+      return false;
+    }
+    cli = cli->next;
+  }
+  return true;
+}
+
 
 void wait_all_critical()
 {
-  // Loop through the critical tasks list and check whether they are all in status "done"
-  
+  while (!check_if_all_critical_tasks_are_done()) {
+    sleep(0.001);
+  }
 }
+
