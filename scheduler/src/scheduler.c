@@ -109,9 +109,10 @@ void print_viterbi_metadata_block_contents(task_metadata_block_t* mb)
   uint8_t* in_Data = &(vdata->theData[inData_offset]);
   uint8_t* out_Data = &(vdata->theData[outData_offset]);
   printf("   Viterbi Data: @ %p\n", vdata);
-  printf("      n_cbps = %d\n", vdata->n_cbps);
+  printf("      n_cbps      = %d\n", vdata->n_cbps);
   printf("      n_traceback = %d\n", vdata->n_traceback);
   printf("      n_data_bits = %d\n", vdata->n_data_bits);
+  printf("      psdu_size   = %d\n", vdata->psdu_size);
   printf("      in_Mem_size   = %d\n", vdata->inMem_size);
   printf("      in_Data_size  = %d\n", vdata->inData_size);
   printf("      out_Data_size = %d\n", vdata->outData_size);

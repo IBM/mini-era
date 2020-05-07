@@ -402,7 +402,9 @@ int main(int argc, char *argv[])
 
     gettimeofday(&start_exec_vit, NULL);
    #endif
-    message = execute_vit_kernel(vdentry_p, num_vit_msgs);
+    //NOTE Removed the num_messages stuff -- need to do this differently (separate invocations of this process per message)
+    task_metadata_block_t* vit_mb_ptr = start_execution_of_vit_kernel(vdentry_p);
+    message = finish_execution_of_vit_kernel(vit_mb_ptr);
    #ifdef TIME
     gettimeofday(&stop_exec_vit, NULL);
     exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
@@ -420,7 +422,7 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    printf("Time Step %3u : Calling Plan and Control with message %u and distane %.1f\n", time_step, message, distance);
+    printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance);
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 

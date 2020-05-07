@@ -157,7 +157,8 @@ distance_t finish_execution_of_rad_kernel(task_metadata_block_t* mb_ptr);
 void       post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
+task_metadata_block_t* start_execution_of_vit_kernel(vit_dict_entry_t* trace_msg);
+message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr);
 void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
 

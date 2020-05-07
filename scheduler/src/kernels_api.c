@@ -644,40 +644,46 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   return trace_msg;
 }
 
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
+task_metadata_block_t* start_execution_of_vit_kernel(vit_dict_entry_t* trace_msg)
+{
+  // Send each message (here they are all the same) through the viterbi decoder
+  task_metadata_block_t* mb_ptr; 
+  DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
+  mb_ptr = start_decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
+  return mb_ptr;
+}
+
+message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr)
 {
   // Send each message (here they are all the same) through the viterbi decoder
   message_t msg = num_message_t;
   uint8_t *result;
   char     msg_text[1600]; // Big enough to hold largest message (1500?)
-  for (int mi = 0; mi < num_msgs; mi++) {
-    DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
-    int n_res_char;
-    result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]), &n_res_char);
-    // descramble the output - put it in result
-    int psdusize = trace_msg->frame_p.psdu_size;
-    DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-    descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
 
-   #if(0)
-    printf(" PSDU %u : Msg : = `", psdusize);
-    for (int ci = 0; ci < (psdusize - 26); ci++) {
-      printf("%c", msg_text[ci]);
-    }
-    printf("'\n");
-   #endif
-    // Here we look at the message string and select proper message_t
-    switch(msg_text[3]) {
-    case '0' : msg = safe_to_move_right_or_left; break;
-    case '1' : msg = safe_to_move_right_only; break;
-    case '2' : msg = safe_to_move_left_only; break;
-    case '3' : msg = unsafe_to_move_left_or_right; break;
-    default  : msg = num_message_t; break;
-    }
+  int psdusize; // set by finish_decode call...
+  result = finish_decode(mb_ptr, &psdusize);
+  // descramble the output - put it in result
+  DEBUG(printf("  Calling the viterbi descrambler routine; psdusize = %u\n", psdusize));
+  descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
+  
+#if(0)
+  printf(" PSDU %u : Msg : = `", psdusize);
+  for (int ci = 0; ci < (psdusize - 26); ci++) {
+    printf("%c", msg_text[ci]);
+  }
+  printf("'\n");
+#endif
+  // Here we look at the message string and select proper message_t
+  switch(msg_text[3]) {
+  case '0' : msg = safe_to_move_right_or_left; break;
+  case '1' : msg = safe_to_move_right_only; break;
+  case '2' : msg = safe_to_move_left_only; break;
+  case '3' : msg = unsafe_to_move_left_or_right; break;
+  default  : msg = num_message_t; break;
   }
 
   DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
-
+  
   return msg;
 }
 
