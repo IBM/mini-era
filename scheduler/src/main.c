@@ -72,7 +72,7 @@ unsigned time_step;
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
-  printf("    -h         : print this helpfule usage info\n");
+  printf("    -h         : print this helpful usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
   printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
