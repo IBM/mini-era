@@ -301,7 +301,12 @@ int main(int argc, char *argv[])
   uint64_t exec_rad_usec = 0LL;
   uint64_t exec_vit_usec = 0LL;
   uint64_t exec_cv_usec  = 0LL;
-  //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+
+  struct timeval stop_wait_all_crit, start_wait_all_crit;
+  uint64_t wait_all_crit_sec = 0LL;
+  uint64_t wait_all_crit_usec = 0LL;
+
+//printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
  #endif // TIME
 
   printf("Starting the main loop...\n");
@@ -407,7 +412,15 @@ int main(int argc, char *argv[])
     exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
    #endif
 
+   #ifdef TIME
+    gettimeofday(&start_wait_all_crit, NULL);
+   #endif
     wait_all_critical();
+   #ifdef TIME
+    gettimeofday(&stop_wait_all_crit, NULL);
+    wait_all_crit_sec  += stop_wait_all_crit.tv_sec  - start_wait_all_crit.tv_sec;
+    wait_all_crit_usec += stop_wait_all_crit.tv_usec - start_wait_all_crit.tv_usec;
+   #endif
     
     distance = finish_execution_of_rad_kernel(fft_mb_ptr);
     message = finish_execution_of_vit_kernel(vit_mb_ptr);
@@ -462,6 +475,7 @@ int main(int argc, char *argv[])
     uint64_t exec_rad   = (uint64_t) (exec_rad_sec) * 1000000 + (uint64_t) (exec_rad_usec);
     uint64_t exec_vit   = (uint64_t) (exec_vit_sec) * 1000000 + (uint64_t) (exec_vit_usec);
     uint64_t exec_cv    = (uint64_t) (exec_cv_sec)  * 1000000 + (uint64_t) (exec_cv_usec);
+    uint64_t wait_all_crit   = (uint64_t) (wait_all_crit_sec) * 1000000 + (uint64_t) (wait_all_crit_usec);
     printf("\nProgram total execution time     %lu usec\n", total_exec);
     printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
     printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
@@ -469,6 +483,7 @@ int main(int argc, char *argv[])
     printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
     printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
     printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
+    printf("  wait_all_critical run time     %lu usec\n", wait_all_crit);
   }
  #endif // TIME
  #ifdef INT_TIME

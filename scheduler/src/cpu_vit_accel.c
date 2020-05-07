@@ -402,10 +402,11 @@ void do_cpu_viterbi_function(int in_n_data_bits, int in_cbps, int in_ntraceback,
 /* #define DEBUG(X) X */
 
 
-void
-execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
-//   int in_cbps, int in_ntraceback, int in_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outMem)
+//void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
+void* execute_cpu_viterbi_accelerator(void * void_parm_ptr)
 {
+  task_metadata_block_t* task_metadata_block = (task_metadata_block_t*)void_parm_ptr;
+
   DEBUG(printf("In execute_cpu_viterbi_accelerator\n"));
   viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
   int32_t  in_cbps = vdata->n_cbps;

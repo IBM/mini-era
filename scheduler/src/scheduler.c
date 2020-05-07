@@ -654,7 +654,11 @@ request_execution(task_metadata_block_t* task_metadata_block)
       } else {
 	// Execute in CPU (softwware)
 	printf("SCHED: executing FFT on CPU Software : %u < %u\n", num, FFT_HW_THRESHOLD);
-	execute_cpu_fft_accelerator(task_metadata_block); // data);
+	//execute_cpu_fft_accelerator(task_metadata_block);
+	if (pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_cpu_fft_accelerator, task_metadata_block)) {
+	  printf("ERROR: Scheduler failed to creat thread for execute_cpu_fft_accelerator(task_metadata_block)\n");
+	  exit(-10);
+	}
       }
       //}
     }
@@ -682,7 +686,11 @@ request_execution(task_metadata_block_t* task_metadata_block)
       } else {
 	// Execute in CPU (softwware)
 	printf("SCHED: executing VITERBI on CPU Software : %u < %u\n", num, VITERBI_HW_THRESHOLD);
-	execute_cpu_viterbi_accelerator(task_metadata_block);
+	//execute_cpu_viterbi_accelerator(task_metadata_block);
+	if (pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_cpu_viterbi_accelerator, task_metadata_block)) {
+	  printf("ERROR: Scheduler failed to creat thread for execute_cpu_viterbi_accelerator(task_metadata_block)\n");
+	  exit(-10);
+	}
       }
     }
     break;
@@ -697,24 +705,49 @@ request_execution(task_metadata_block_t* task_metadata_block)
 }
 
 
-int check_if_all_critical_tasks_are_done()
+/********************************************************************************
+ * This is a non-pthreads version... with the pthreads, since we want to 
+ * wait for all critical threads, we can "pthread_join" for the first 
+ * non-done status thread we encounter...
+ ********************************************************************************/
+/* int check_if_all_critical_tasks_are_done() */
+/* { */
+/*   // Loop through the critical tasks list and check whether they are all in status "done" */
+/*   blockid_linked_list_t* cli = critical_live_task_head; */
+/*   while (cli != NULL) { */
+/*     if (master_metadata_pool[cli->clt_block_id].metadata.status != TASK_DONE) { */
+/*       return false; */
+/*     } */
+/*     cli = cli->next; */
+/*   } */
+/*   return true; */
+/* } */
+
+
+/* void wait_all_critical() */
+/* { */
+/*   while (!check_if_all_critical_tasks_are_done()) { */
+/*     sleep(0.001); */
+/*   } */
+/* } */
+
+/********************************************************************************
+ * Here is the pthread_join version...
+ ********************************************************************************/
+void wait_all_critical()
 {
   // Loop through the critical tasks list and check whether they are all in status "done"
   blockid_linked_list_t* cli = critical_live_task_head;
   while (cli != NULL) {
     if (master_metadata_pool[cli->clt_block_id].metadata.status != TASK_DONE) {
-      return false;
+      // Wait for this critical task to complete
+      pthread_join(master_metadata_pool[cli->clt_block_id].metadata.thread_id, NULL);
+      // And for safety, start at the head again
+      //  The list should not have changed under us, but it is possible in the future...
+      cli = critical_live_task_head;
+    } else {
+      cli = cli->next;
     }
-    cli = cli->next;
-  }
-  return true;
-}
-
-
-void wait_all_critical()
-{
-  while (!check_if_all_critical_tasks_are_done()) {
-    sleep(0.001);
   }
 }
 

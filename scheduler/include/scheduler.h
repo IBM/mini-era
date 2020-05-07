@@ -19,6 +19,7 @@
 #define H_SCHEDULER_INTERFACE_H
 
 #include <stdint.h>
+#include <pthread.h>
 
 //#include "verbose.h"
 
@@ -54,6 +55,7 @@ typedef union task_metadata_entry_union {
   struct task_metadata_struct {
     int32_t  metadata_block_id;    // +4 Bytes : master-pool-index; a unique ID per metadata task
     task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
+    pthread_t       thread_id;     // +? Bytes : set when we invoke pthread_create (at least for CPU)
     scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
     task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
     int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
