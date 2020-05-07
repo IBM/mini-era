@@ -499,8 +499,11 @@ distance_t execute_rad_kernel(float * inputs)
   DEBUG(printf("In execute_rad_kernel\n"));
 
   /* 2) Conduct distance estimation on the waveform */
-  DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-  distance_t dist = calculate_peak_dist_from_fmcw(inputs);
+  DEBUG(printf("  Calling start_calculate_peak_dist_from_fmcw\n"));
+  task_metadata_block_t* tptr = start_calculate_peak_dist_from_fmcw(inputs);
+  
+  DEBUG(printf("  Calling finalize_calculate_peak_dist_from_fmcw\n"));
+  distance_t dist = finish_calculate_peak_dist_from_fmcw(tptr);
   DEBUG(printf("  Returning distance = %.1f\n", dist));
 
   return dist;

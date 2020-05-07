@@ -81,7 +81,7 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
 //      This will let us refine the non-blocking behavior, and start the more detailed behavior of the
 //        scheduler implementation (i.e. ranking, queue management, etc.)
 
-float calculate_peak_dist_from_fmcw(float* data)
+task_metadata_block_t* start_calculate_peak_dist_from_fmcw(float* data)
 {
   // Set up the task_metadata
   task_metadata_block_t* fft_metadata_block = get_task_metadata_block(FFT_TASK, CRITICAL_TASK);
@@ -107,7 +107,20 @@ float calculate_peak_dist_from_fmcw(float* data)
  #endif // INT_TIME
   //  schedule_fft(data);
   request_execution(fft_metadata_block);
-  
+  // This now ends this block -- we've kicked off execution
+  //  We now have to "poll" for when the execution is done...
+  return fft_metadata_block;
+};
+
+// NOTE: This routine DOES NOT copy out the data results -- a call to
+//   calculate_peak_distance_from_fmcw now results in alteration ONLY
+//   of the metadata task data; we could send in the data pointer and
+//   over-write the original input data with the FFT results (As we used to)
+//   but this seems un-necessary since we only want the final "distance" really.
+float
+finish_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_block)
+{
+  float* mdataptr = (float*)fft_metadata_block->metadata.data;
  #ifdef INT_TIME
   gettimeofday(&fft_stop, NULL);
   fft_sec  += fft_stop.tv_sec  - fft_start.tv_sec;
@@ -122,10 +135,11 @@ float calculate_peak_dist_from_fmcw(float* data)
   gettimeofday(&cdfmcw_start, NULL);
  #endif // INT_TIME
 
-  // Now we need to copy out the results (from the executed, accelerator task)
-  for (int i = 0; i < 2*RADAR_N; i++) {
-    data[i] = mdataptr[i];
-  }
+  float* data = mdataptr;
+  /* // Now we need to copy out the results (from the executed, accelerator task) */
+  /* for (int i = 0; i < 2*RADAR_N; i++) { */
+  /*   data[i] = mdataptr[i]; */
+  /* } */
 
   float max_psd = 0;
   unsigned int max_index = 0;
