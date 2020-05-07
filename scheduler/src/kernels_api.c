@@ -509,8 +509,11 @@ distance_t finish_execution_of_rad_kernel(task_metadata_block_t* mb_ptr)
   DEBUG(printf("In finish_execution_of_rad_kernel\n"));
   DEBUG(printf("  Calling finalize_calculate_peak_dist_from_fmcw\n"));
   distance_t dist = finish_calculate_peak_dist_from_fmcw(mb_ptr);
-  DEBUG(printf("  Returning distance = %.1f\n", dist));
 
+  // We've finished the execution and lifetime for this task; free its metadata
+  free_task_metadata_block(mb_ptr);
+  
+  DEBUG(printf("  Returning distance = %.1f\n", dist));
   return dist;
 }
 
@@ -682,8 +685,10 @@ message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr)
   default  : msg = num_message_t; break;
   }
 
-  DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
+  // We've finished the execution and lifetime for this task; free its metadata
+  free_task_metadata_block(mb_ptr);
   
+  DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
   return msg;
 }
 

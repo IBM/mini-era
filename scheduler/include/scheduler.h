@@ -80,6 +80,7 @@ extern unsigned fft_logn_samples;
 extern status_t initialize_scheduler();
 
 extern task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_criticality_t crit_level);
+extern void free_task_metadata_block(task_metadata_block_t* mb);
 
 extern void request_execution(task_metadata_block_t* task_metadata_block);
 extern void wait_all_critical();

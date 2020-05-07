@@ -152,6 +152,8 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
     critical_live_task_head = &(critical_live_tasks_list[li]);
     total_critical_tasks += 1;
   }
+  printf("  returning block %u\n", bi);
+
   return &(master_metadata_pool[bi]);
 }
 
@@ -159,6 +161,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
 void free_task_metadata_block(task_metadata_block_t* mb)
 {
   int bi = mb->metadata.metadata_block_id;
+  printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
@@ -664,9 +667,9 @@ request_execution(task_metadata_block_t* task_metadata_block)
   }
 
 
-  // For now, since this is blocking, etc. we can return the MetaData Block here
-  //   In reality, this should happen when we detect a task has non-blockingly-finished...
-  free_task_metadata_block(task_metadata_block);
+  /* // For now, since this is blocking, etc. we can return the MetaData Block here */
+  /* //   In reality, this should happen when we detect a task has non-blockingly-finished... */
+  /* free_task_metadata_block(task_metadata_block); */
 }
 
 
