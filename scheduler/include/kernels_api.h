@@ -24,6 +24,8 @@
 
 #include "base_types.h"
 
+#include "scheduler.h"
+
 typedef float distance_t;
 
 /* These are some top-level defines for the dictionaries */
@@ -150,7 +152,8 @@ label_t execute_cv_kernel(label_t in_tr_val);
 void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
-distance_t execute_rad_kernel(float * inputs);
+task_metadata_block_t* start_execution_of_rad_kernel(float * inputs);
+distance_t finish_execution_of_rad_kernel(task_metadata_block_t* mb_ptr);
 void       post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);

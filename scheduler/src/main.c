@@ -393,7 +393,8 @@ int main(int argc, char *argv[])
 
     gettimeofday(&start_exec_rad, NULL);
    #endif
-    distance = execute_rad_kernel(radar_inputs);
+    task_metadata_block_t* tptr = start_execution_of_rad_kernel(radar_inputs);
+    distance = finish_execution_of_rad_kernel(tptr);
    #ifdef TIME
     gettimeofday(&stop_exec_rad, NULL);
     exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;

@@ -494,16 +494,21 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 }
   
 
-distance_t execute_rad_kernel(float * inputs)
+task_metadata_block_t* start_execution_of_rad_kernel(float * inputs)
 {
-  DEBUG(printf("In execute_rad_kernel\n"));
-
-  /* 2) Conduct distance estimation on the waveform */
+  DEBUG(printf("In start_execution_of_rad_kernel\n"));
   DEBUG(printf("  Calling start_calculate_peak_dist_from_fmcw\n"));
   task_metadata_block_t* tptr = start_calculate_peak_dist_from_fmcw(inputs);
-  
+
+  return tptr;
+}
+
+
+distance_t finish_execution_of_rad_kernel(task_metadata_block_t* mb_ptr)
+{
+  DEBUG(printf("In finish_execution_of_rad_kernel\n"));
   DEBUG(printf("  Calling finalize_calculate_peak_dist_from_fmcw\n"));
-  distance_t dist = finish_calculate_peak_dist_from_fmcw(tptr);
+  distance_t dist = finish_calculate_peak_dist_from_fmcw(mb_ptr);
   DEBUG(printf("  Returning distance = %.1f\n", dist));
 
   return dist;
