@@ -117,7 +117,6 @@ its off-shoots to date has focused around the ```tt02.new``` trace.
 For additional information, please see the (historic, parent) Mini-ERA master main-line README.
 
 
-
 ## Contacts and Current Maintainers
 
  - J-D Wellman (wellman@us.ibm.com)
