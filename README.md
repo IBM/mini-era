@@ -42,7 +42,12 @@ Usage: ./cmain.exe <OPTIONS>
  OPTIONS:
     -h         : print this helpfule usage info
     -o         : print the Visualizer output traace information during the run
-    -t <trace> : defines the input trace file to use
+    -R <file>  : defines the input Radar dictionary file <file> to use
+    -V <file>  : defines the input Viterbi dictionary file <file> to use
+    -C <file>  : defines the input CV/CNN dictionary file <file> to use
+    -t <trace> : defines the input trace file <trace> to use
+    -f <N>     : defines Log2 number of FFT samples
+               :      14 = 2^14 = 16k samples (default); 10 = 1k samples
     -v <N>     : defines Viterbi messaging behavior:
                :      0 = One short message per time step
                :      1 = One long  message per time step
