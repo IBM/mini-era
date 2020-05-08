@@ -66,3 +66,7 @@ utils/debug_vistracegen
 utils/tracegen
 utils/vistracegen
 
+#Executables in erav3-app
+erav3-app/erav3c
+erav3-app/verbose_erav3c
+
