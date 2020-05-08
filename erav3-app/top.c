@@ -12,7 +12,11 @@
 #include "sync_long.h"
 #include "gr_equalizer.h"
 #include "ofdm.h"
-#include "simple_dft.h"
+#ifdef USE_SIMPLE_DFT
+ #include "simple_dft.h"
+#else
+ #include "fft-1d.h"
+#endif
 #include "top.h"
 
 
@@ -191,10 +195,13 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
   }
   DEBUG(printf("FFT_COMP : num_fft_frames = %u / 64 = %u\n", num_sync_long_vals, num_fft_frames));
   { // The simple_DFT uses an array of input real, imag, and output real, imag all in floats
+    // The FFT only uses one set of input/outputs (the fft_in) and overwrites the inputs with outputs
     float fft_in_real[64];
     float fft_in_imag[64];
+   #ifdef USE_SIMPLE_DFT
     float fft_out_real[64];
     float fft_out_imag[64];
+   #endif
     const bool shift_inputs = false;
     for (unsigned i = 0; i < num_fft_frames /*SYNC_L_OUT_MAX_SIZE/64*/; i++) { // This is the "spin" to invoke the FFT
       if (shift_inputs) { // This is FALSE for this usage
@@ -204,14 +211,18 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	  fftSample = d_sync_long_out_frames[64*i + j]; // 64 * invocations + offset_j
 	  fft_in_real[32 + j] = (float)creal(fftSample);
 	  fft_in_imag[32 + j] = (float)cimagf(fftSample);
+         #ifdef USE_SIMPLE_DFT
 	  fft_out_real[32 + j] = 0.0;
 	  fft_out_imag[32 + j] = 0.0;
-
+         #endif
+	  
 	  fftSample = d_sync_long_out_frames[64*i + 32 + j]; // 64 * invocations + offset_j
 	  fft_in_real[j] = (float)crealf(fftSample);
 	  fft_in_imag[j] = (float)cimagf(fftSample);
+         #ifdef USE_SIMPLE_DFT
 	  fft_out_real[j] = 0.0;
 	  fft_out_imag[j] = 0.0;
+	 #endif
 	}
       } else {
 	for (unsigned j = 0; j < 64; j++) {
@@ -219,8 +230,10 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	  fftSample = d_sync_long_out_frames[64*i + j]; // 64 * invocations + offset_j
 	  fft_in_real[j] = (float)crealf(fftSample);
 	  fft_in_imag[j] = (float)cimagf(fftSample);
+         #ifdef USE_SIMPLE_DFT
 	  fft_out_real[j] = 0.0;
 	  fft_out_imag[j] = 0.0;
+	 #endif
 	}
       }
       // Now we have the data ready -- invoke simple_DFT
@@ -228,6 +241,7 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	    for (unsigned j = 0; j < 64; j++) {
 	      printf("   FFT_IN %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
 	    });
+     #ifdef USE_SIMPLE_DFT
       simple_dft(fft_in_real, fft_in_imag, fft_out_real, fft_out_imag, false, true, 64); // not-inverse, not-shifting
       DEBUG(printf("  FFT Output %4u \n", i);
 	    for (unsigned j = 0; j < 64; j++) {
@@ -238,6 +252,18 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	fft_ar_r[64*i + j] = fft_out_real[j];
 	fft_ar_i[64*i + j] = fft_out_imag[j];
       }
+     #else
+      fft(fft_in_real, fft_in_imag, false, true, 64, 6); // not-inverse, not-shifting
+      DEBUG(printf("  FFT Output %4u \n", i);
+	    for (unsigned j = 0; j < 64; j++) {
+	      printf("   FFT_OUT %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
+	    });
+      // Now put the fft outputs into the full FFT results...
+      for (unsigned j = 0; j < 64; j++) {
+	fft_ar_r[64*i + j] = fft_in_real[j];
+	fft_ar_i[64*i + j] = fft_in_imag[j];
+      }
+     #endif
       num_fft_outs += 64;
     } // for (i = 0 to CHUNK/64) (FFT invocations loop)
   }
