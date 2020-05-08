@@ -41,6 +41,11 @@
 #include "base.h"
 #include "xmit_pipe.h"
 
+#ifdef USE_SIMPLE_DFT
+ #include "simple_dft.h"
+#else
+ #include "fft-1d.h"
+#endif
 
 extern bool show_output;
 extern bool do_add_pre_pad;
@@ -999,7 +1004,8 @@ int do_packet_header_gen(unsigned int packet_len, uint8_t* out ) // int noutput_
 
 /** THIS code comes from gr-digital/ofdm_carrier_allocator_cvc_impl.cc **/
 
-#define d_fft_len  64
+#define d_fft_len   64
+#define d_fft_logn   6
   
 
 #define d_num_pilot_carriers       1
@@ -1385,52 +1391,7 @@ do_ofdm_carrier_allocator_cvc_impl_work (int noutput_items,
 
 
 
-/*******************************************************************************/
-/* This is a simple implementation of a DFT (Discrete Fourier Xform) which     */
-/* supports complex inputs (inreal, inimag) and complex outputs, as well       */
-/* as the inverse FFT operation.  Ths input n is the "size" (num samples).     */
-/* NOTES:                                                                      */
-//  This has been cast from double to float representation
-//  The code to support the "shift" options added
-/*******************************************************************************/
 
-#include "simple_dft.h"
-
-/* #ifndef M_PI */
-/*   #define M_PI 3.14159265358979323846 */
-/* #endif  */
-
-/* static void simple_dft(const float *inreal, const float *inimag, */
-/* 		       float *outreal, float *outimag, */
-/* 		       bool inverse, bool shift, int n) { */
-  
-/*   float coef = (inverse ? 2 : -2) * M_PI; */
-/*   for (int k = 0; k < n; k++) {  // For each output element */
-/*     float sumreal = 0; */
-/*     float sumimag = 0; */
-/*     for (int t = 0; t < n; t++) {  // For each input element */
-/*       float angle = (coef * ((long long)t * k % n)) / n; */
-/*       sumreal += inreal[t] * cos(angle) - inimag[t] * sin(angle); */
-/*       sumimag += inreal[t] * sin(angle) + inimag[t] * cos(angle); */
-/*     } */
-/*     outreal[k] = sumreal; */
-/*     outimag[k] = sumimag; */
-/*   } */
-
-/*   float swap_r, swap_i; */
-/*   if (shift) { */
-/*     /\* shift: *\/ */
-/*     for(unsigned i = 0; i < (n/2); i++) { */
-/*       swap_r = outreal[i]; */
-/*       swap_i = outimag[i]; */
-/*       outreal[i] = outreal[32+i]; */
-/*       outimag[i] = outimag[32+i]; */
-/*       outreal[32+i] = swap_r; */
-/*       outimag[32+i] = swap_i; */
-/*     } */
-/*   } */
-
-/* } */
 
 
 void
@@ -1440,12 +1401,15 @@ do_fft_work(int n_inputs, float scale, float *input_real, float * input_imag, fl
   //   Also add the weighting/scaling for the window
   float fft_in_real[64];
   float fft_in_imag[64];
+#ifdef USE_SIMPLE_DFT
   float fft_out_real[64];
   float fft_out_imag[64];
+#endif
   bool inverse = true;
   bool shift = true;
   bool swap_odd_signs = false; // We shift the inputs instead?
   int  size = d_fft_len;
+  int  log_size = d_fft_logn;
   float recluster[2] = {1.0, 1.0}; // used to alter sign of "odd" fft results
   if (swap_odd_signs) {
     recluster[1] = -1.0;
@@ -1480,8 +1444,9 @@ do_fft_work(int n_inputs, float scale, float *input_real, float * input_imag, fl
 	for (int i = 0; i < size; i++) {
 	  printf("  FFT_%u_IN[ %2u ] = %11.8f * ( %11.8f + %11.8f i) = %11.8f + %11.8f i\n", k, i, scale, input_real[k+i], input_imag[k+i], fft_in_real[i], fft_in_imag[i]);
 	}
-	printf("\nCalling simple_dft with inverse = %u size = %u\n", inverse, size);
+	printf("\nCalling FFT function with inverse = %u size = %u\n", inverse, size);
       });
+#ifdef USE_SIMPLE_DFT
     simple_dft(fft_in_real, fft_in_imag, fft_out_real, fft_out_imag, inverse, false /*shift*/, size);
     for (int i = 0; i < size; i++) {
       // Swap sign on the "odd" FFT results (re-cluster energy around zero?)
@@ -1491,6 +1456,16 @@ do_fft_work(int n_inputs, float scale, float *input_real, float * input_imag, fl
       /*   printf(" FFT_%u_OUT[ %2u : %5u ] = %11.8f + %11.8f i\n", k, i, k+i, output_real[k+i], output_imag[k+i]); */
       /* }); */
     }
+#else
+    // NOTE: This version over-writes the input data with output data
+    fft(fft_in_real, fft_in_imag, inverse, false, size, log_size);
+    for (int i = 0; i < size; i++) {
+      // Swap sign on the "odd" FFT results (re-cluster energy around zero?)
+      output_real[k + i] = recluster[i&0x1]*fft_in_real[i];
+      output_imag[k + i] = recluster[i&0x1]*fft_in_imag[i];
+    }
+
+#endif
     DEBUG(if (k < 256) {
 	for (int i = 0; i < size; i++) {
 	  printf(" FFT_%u_OUT[ %2u : %5u ] = %11.8f + %11.8f i\n", k, i, k+i, output_real[k+i], output_imag[k+i]);

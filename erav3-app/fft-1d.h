@@ -77,6 +77,11 @@
 #include <math.h>
 #include <limits.h>
 
+#ifndef M_PI
+  #define M_PI 3.14159265358979323846
+#endif 
+
+
 int fft (float * rdata, float* idata,
 	 int inverse  , int shift, unsigned int N, unsigned int logn);
 

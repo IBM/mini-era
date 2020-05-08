@@ -125,7 +125,7 @@ bit_reverse (float * rw, float * iw, unsigned int N, unsigned int bits)
 
 
 int
-fft (float * rdata, float * idata, int inverse, int shift, unsigned int N, unsigned int logn)
+fft(float * rdata, float * idata, int inverse, int shift, unsigned int N, unsigned int logn)
 {
   unsigned int transform_length;
   unsigned int a, b, i, j, bit;
