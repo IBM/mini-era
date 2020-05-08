@@ -96,23 +96,6 @@ Trace-driven Mini-era requires the specification of the input trace (using -t <t
 
 By using the -v <N> behavior controls, one can simulate the Viterbi messaging work that could load the system when either operating with a single global (environmental) messsage model, with a pure swarm collaboration model (where each other nearby vehicle sends a message) and in a hybrid that includes both kinds of messaging.  The message length also allows one to consider the effect of larger and small message payload decoding on the overall Viterbi run-time impact.
 
-Recall that the usage is:
-```
-./main.exe -h
-Usage: ./cmain.exe <OPTIONS>
- OPTIONS:
-    -h         : print this helpfule usage info
-    -o         : print the Visualizer output traace information during the run
-    -t <trace> : defines the input trace file <trace> to use
-    -v <N>     : defines Viterbi messaging behavior:
-               :      0 = One short message per time step
-               :      1 = One long  message per time step
-               :      2 = One short message per obstacle per time step
-               :      3 = One long  message per obstacle per time step
-               :      4 = One short msg per obstacle + 1 per time step
-               :      5 = One long  msg per obstacle + 1 per time step
-```
-
 
 #### Simulation Mode:
 
@@ -122,18 +105,21 @@ Trace-driven Mini-era requires the specification of the input trace (using -t <t
 ./sim_main.exe 
 ```
 
-
 The simulation-mode usage is:
 ```
-./csim_main.exe -h
 Usage: ./csim_main.exe <OPTIONS>
  OPTIONS:
     -h         : print this helpfule usage info
     -o         : print the Visualizer output traace information during the run
+    -R <file>  : defines the input Radar dictionary file <file> to use
+    -V <file>  : defines the input Viterbi dictionary file <file> to use
+    -C <file>  : defines the input CV/CNN dictionary file <file> to use
     -s <N>     : Sets the max number of time steps to simulate
     -r <N>     : Sets the rand random number seed to N
-    -A         : Allow obstacle vehicles in All lanes (otherwise not in left or right hazard lanes)
+    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)
     -W <wfile> : defines the world environment parameters description file <wfile> to use
+    -f <N>     : defines Log2 number of FFT samples
+               :      14 = 2^14 = 16k samples (default); 10 = 1k samples
     -v <N>     : defines Viterbi messaging behavior:
                :      0 = One short message per time step
                :      1 = One long  message per time step
@@ -148,6 +134,32 @@ Note that in simulation mode, there is no option to specify a trace (the '-t' of
 In the Simulation mode there is also a `-A` option, which allows the simulation to add obstacle vehicles to all five lanes of the highway.  This is allowable in the simulation mode because the autonomous vehicle ("red car") is allowed to alter speed, etc. in order to avoid collisions, which otherwise tend to require a clear lane in the trace mode.  It is possible, however, to run simulation mode in either the default 3-lanes of obstacle traffic (leaving the left-most and right-most free of obstacles) or in a five-lane obstacles mode by specifying the '-A' for "All lanes can contain obstacle vehicles."
 
 Finally, there is the '-W' options which allows one to specify a "World Description File" which is used to define various parameters of the simulation used to decide elements like the probability of new obstacle vehicle arriving, their speeds, etc.  See the detailed description below.
+
+### Parameter Dependence
+
+The usage defines sets of command-line options, but there are some usage restrictions and comditions that must hold
+in order to define a legal (i.e. functionally correct) execution. These are detialed here.
+
+#### FFT Samples and FFT Dictionary
+
+Mini-ERA defaults currenlty to a 16k-sample FFT, and to teh ```traces/radar_dictionary.dfn``` radar dictionary file.
+There are some additional radar dictionary files provided in the ```traces``` directory, and if one specified the 1K-sample size
+FFT for a given run, one must also indicate the proper dictionary file to use.
+
+The radar dictionary files and their descriptions:
+ - ```radar_dictionary.dfn``` this is really a link to the ```radar_16k_dictionary.dfn```
+ - ```radar_16k_dictionary.dfn``` defines inputs, etc. for a 16k-sample FFT 
+ - ```radar_01k_dictionary.dfn``` defines inputs, etc. for a 16k-sample FFT 
+ - ```norm_radar_16k_dictionary.dfn``` defines normalized inputs, etc. for a 16k-sample FFT 
+ - ```norm_radar_01k_dictionary.dfn``` defines normalized inputs, etc. for a 16k-sample FFT
+
+Thus, legal combinations of the ```-f``` and ```-R``` options are:
+ - ```-f 14 -R traces/radar_dictionary``` which is the default
+ - ```-f 14 -R traces/radar_16k_dictionary``` which is also the default
+ - ```-f 14 -R traces/norm_radar_16k_dictionary``` which is 16k normalized samples
+ - ```-f 10 -R traces/radar_01k_dictionary``` which is 1k-samples FFT with proper input
+ - ```-f 10 -R traces/norm_radar_01k_dictionary``` which is 1k nromalized samples FFT
+
 
 ## Status
 
