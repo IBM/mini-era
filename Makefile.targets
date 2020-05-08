@@ -172,15 +172,22 @@ gp_$(C_S_TARGET): $(C_S_OBJ_G_DIR) $(C_S_OBJ_G) libviterbi_gp libfmcwdist
 
 
 
-trace: objdirs $(TARGET) it-$(TARGET) $(C_TARGET) f$(C_TARGET) it-$(C_TARGET) it-f$(C_TARGET) v$(TARGET) v$(C_TARGET) vf$(C_TARGET) gp_$(TARGET) gp_$(C_TARGET) 
+ctrace: cobjdirs $(C_TARGET) f$(C_TARGET) it-$(C_TARGET) it-f$(C_TARGET) v$(C_TARGET) vf$(C_TARGET) gp_$(C_TARGET) 
 
-sim: objdirs $(S_TARGET) it-$(S_TARGET) $(C_S_TARGET) f$(C_S_TARGET) it-$(C_S_TARGET) it-f$(C_S_TARGET) v$(TARGET) v$(C_S_TARGET) vf$(C_S_TARGET) gp_$(TARGET) gp_$(C_S_TARGET)
+trace: objdirs $(TARGET) it-$(TARGET) v$(TARGET) gp_$(TARGET)
+
+csim: cobjdirs $(C_S_TARGET) f$(C_S_TARGET) it-$(C_S_TARGET) it-f$(C_S_TARGET) v$(C_S_TARGET) vf$(C_S_TARGET) gp_$(C_S_TARGET)
+
+sim: objdirs $(S_TARGET) it-$(S_TARGET) v$(TARGET) gp_$(TARGET)
 
 
-all: objdirs trace sim util_prog
+all: objdirs trace sim util_prog cver
 
+cver: cobjdirs ctrace csim util_prog
 
-objdirs: $(OBJDIR) $(C_OBJDIR) $(FC_OBJDIR) $(IT_OBJDIR) $(ITC_OBJDIR) $(ITFC_OBJDIR) $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR) $(OBJ_G_DIR) $(C_OBJ_G_DIR) $(S_OBJDIR) $(C_S_OBJDIR) $(FC_S_OBJDIR) $(ITS_OBJDIR) $(ITC_S_OBJDIR) $(ITFC_S_OBJDIR) $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR) $(FC_S_OBJ_V_DIR) $(S_OBJ_G_DIR) $(C_S_OBJ_G_DIR)
+objdirs: $(OBJDIR) $(IT_OBJDIR) $(OBJ_V_DIR) $(OBJ_G_DIR) $(S_OBJDIR) $(ITS_OBJDIR) $(S_OBJ_V_DIR) $(S_OBJ_G_DIR)
+
+cobjdirs: $(C_OBJDIR) $(FC_OBJDIR) $(ITC_OBJDIR) $(ITFC_OBJDIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR) $(C_OBJ_G_DIR) $(C_S_OBJDIR) $(FC_S_OBJDIR) $(ITC_S_OBJDIR) $(ITFC_S_OBJDIR) $(C_S_OBJ_V_DIR) $(FC_S_OBJ_V_DIR) $(C_S_OBJ_G_DIR)
 
 
 
