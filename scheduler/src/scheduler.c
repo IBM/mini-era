@@ -541,9 +541,9 @@ extern uint64_t dodec_usec;
 void
 execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  int fn = task_metadata_block->metadata.accelerator_id;
+  int vn = task_metadata_block->metadata.accelerator_id;
   //DEBUG(
-  printf("In execute_hwr_viterbi_accelerator on Viterbi HWR Accel %u\n", fn);//);
+  printf("In execute_hwr_viterbi_accelerator on Viterbi HWR Accel %u\n", vn);//);
   viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
