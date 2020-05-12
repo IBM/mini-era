@@ -25,7 +25,8 @@
 
 #include "base_types.h"
 
-#define MAX_ACCEL_OF_EACH_TYPE   10
+#define MAX_LIVE_METADATA_BLOCKS  32  // Must be <= total_metadata_pool_blocks 
+#define MAX_ACCEL_OF_EACH_TYPE    10
 
 
 typedef enum { NO_TASK_JOB = 0,
@@ -69,12 +70,15 @@ typedef union task_metadata_entry_union {
     int32_t  accelerator_id;       // +4 bytes : indicates which accelerator this task is executing on
     scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
     task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
+    void (*finish)(union task_metadata_entry_union *); //  +8?Bytes : Call-back Finish-time function		  
     int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
     uint8_t  data[128*1024];       // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
   } metadata;
   uint8_t rawBytes[128*1024 + 64]; // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
 } task_metadata_block_t;
 
+// This is a typedef for the call-back function, called by the scheduler at finish time for a task
+typedef void (*task_finish_callback_t)(task_metadata_block_t*);
 
 typedef struct {
   int32_t n_data_bits;

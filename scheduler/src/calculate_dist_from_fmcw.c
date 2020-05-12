@@ -81,15 +81,8 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
 //      This will let us refine the non-blocking behavior, and start the more detailed behavior of the
 //        scheduler implementation (i.e. ranking, queue management, etc.)
 
-task_metadata_block_t* start_calculate_peak_dist_from_fmcw(float* data)
+void start_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_block, float* data)
 {
-  // Set up the task_metadata
-  task_metadata_block_t* fft_metadata_block = get_task_metadata_block(FFT_TASK, CRITICAL_TASK);
-  if (fft_metadata_block == NULL) {
-    // We ran out of metadata blocks -- PANIC!
-    printf("Out of metadata blocks for FFT -- PANIC Quit the run (for now)\n");
-    exit (-4);
-  }
   fft_metadata_block->metadata.data_size = 2 * RADAR_N * sizeof(float);
   // Copy over our task data to the MetaData Block
   //fft_metadata_block->metadata.data = (uint8_t*)data;
@@ -108,8 +101,6 @@ task_metadata_block_t* start_calculate_peak_dist_from_fmcw(float* data)
   //  schedule_fft(data);
   request_execution(fft_metadata_block);
   // This now ends this block -- we've kicked off execution
-  //  We now have to "poll" for when the execution is done...
-  return fft_metadata_block;
 };
 
 // NOTE: This routine DOES NOT copy out the data results -- a call to

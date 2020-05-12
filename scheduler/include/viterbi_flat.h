@@ -29,7 +29,7 @@
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-task_metadata_block_t* start_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
+void start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_param *frame, uint8_t *in);
 uint8_t* finish_decode(task_metadata_block_t* mb_ptr, int* n_dec_char);
 
 typedef union branchtab27_u {

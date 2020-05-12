@@ -494,13 +494,11 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 }
   
 
-task_metadata_block_t* start_execution_of_rad_kernel(float * inputs)
+void start_execution_of_rad_kernel(task_metadata_block_t* mb_ptr, float * inputs)
 {
   DEBUG(printf("In start_execution_of_rad_kernel\n"));
   DEBUG(printf("  Calling start_calculate_peak_dist_from_fmcw\n"));
-  task_metadata_block_t* tptr = start_calculate_peak_dist_from_fmcw(inputs);
-
-  return tptr;
+  start_calculate_peak_dist_from_fmcw(mb_ptr, inputs);
 }
 
 
@@ -647,13 +645,11 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   return trace_msg;
 }
 
-task_metadata_block_t* start_execution_of_vit_kernel(vit_dict_entry_t* trace_msg)
+void start_execution_of_vit_kernel(task_metadata_block_t*  mb_ptr, vit_dict_entry_t* trace_msg)
 {
   // Send each message (here they are all the same) through the viterbi decoder
-  task_metadata_block_t* mb_ptr; 
   DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
-  mb_ptr = start_decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
-  return mb_ptr;
+  start_decode(mb_ptr, &(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
 }
 
 message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr)

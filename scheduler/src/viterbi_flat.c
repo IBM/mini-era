@@ -163,7 +163,8 @@ void reset() {
 //  <return> : OUTPUT : uint8_t Array [ MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
 //uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
-task_metadata_block_t* start_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in)
+void
+start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_param *frame, uint8_t *in)
 {
   d_ofdm = ofdm;
   d_frame = frame;
@@ -192,12 +193,6 @@ task_metadata_block_t* start_decode(ofdm_param *ofdm, frame_param *frame, uint8_
     });
 
   // Set up the task_metadata scope block
-  task_metadata_block_t* vit_metadata_block = get_task_metadata_block(VITERBI_TASK, CRITICAL_TASK);
-  if (vit_metadata_block == NULL) {
-    // We ran out of metadata blocks -- PANIC!
-    printf("Out of metadata blocks for Viterbi -- PANIC Quit the run (for now)\n");
-    exit (-4);
-  }
   vit_metadata_block->metadata.data_size = 43365; // MAX size?
   // Copy over our task data to the MetaData Block
   // Get a viterbi_data_struct_t "View" of the metablock data pointer.
@@ -248,8 +243,6 @@ task_metadata_block_t* start_decode(ofdm_param *ofdm, frame_param *frame, uint8_
   DEBUG(printf("Calling schedule_task for viterbi_task with nDb %u nCb %u nTrb %u\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback));
   //schedule_viterbi(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, depunctured, d_decoded);
   request_execution(vit_metadata_block);
-
-  return vit_metadata_block;
 }
 
 

@@ -165,6 +165,10 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   master_metadata_pool[bi].metadata.status = TASK_ALLOCATED;
   master_metadata_pool[bi].metadata.crit_level = crit_level;
   master_metadata_pool[bi].metadata.data_size = 0;
+  master_metadata_pool[bi].metadata.accelerator_type = no_accelerator_t;
+  master_metadata_pool[bi].metadata.accelerator_id   = -1;
+  master_metadata_pool[bi].metadata.finish = NULL;  // NO finish call-back function
+  
   if (crit_level > 1) { // is this a "critical task"
     /* int ci = total_critical_tasks; // Set index for crit_task block_id in pool */
     /* critical_live_tasks_list[ci].clt_block_id = bi;  // Set the critical task block_id indication */

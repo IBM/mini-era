@@ -87,13 +87,17 @@ void print_usage(char * pname) {
 #endif
   printf("    -f <N>     : defines Log2 number of FFT samples\n");
   printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
-  printf("    -v <N>     : defines Viterbi messaging behavior:\n");
-  printf("               :      0 = One short message per time step\n");
-  printf("               :      1 = One long  message per time step\n");
-  printf("               :      2 = One short message per obstacle per time step\n");
-  printf("               :      3 = One long  message per obstacle per time step\n");
-  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
-  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  
+  printf("    -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.\n");
+  printf("    -v <N>     : 0 = use chort Viterbi messages, 1 = use long Viterbi messages.\n");
+  printf("    -M <M>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.\n");
+  //printf("    -v <N>     : defines Viterbi messaging behavior:\n");
+  //printf("               :      0 = One short message per time step\n");
+  //printf("               :      1 = One long  message per time step\n");
+  //printf("               :      2 = One short message per obstacle per time step\n");
+  //printf("               :      3 = One long  message per obstacle per time step\n");
+  //printf("               :      4 = One short msg per obstacle + 1 per time step\n");
+  //printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
 }
 
 
@@ -114,10 +118,13 @@ int main(int argc, char *argv[])
   vit_dict[0] = '\0';
   cv_dict[0] = '\0';
 
+  unsigned additional_fft_tasks_per_time_step = 0;
+  unsigned additional_vit_tasks_per_time_step = 0;
+
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -173,6 +180,13 @@ int main(int argc, char *argv[])
       printf("Using world description file: %s\n", world_desc_file_name);
 #endif
       break;
+    case 'F':
+      additional_fft_tasks_per_time_step = atoi(optarg);
+      break;
+    case 'M':
+      additional_vit_tasks_per_time_step = atoi(optarg);
+      break;
+      
     case ':':
       printf("option needs a value\n");
       break;
@@ -204,6 +218,8 @@ int main(int argc, char *argv[])
   printf("   Radar  : %s\n", rad_dict);
   printf("   Viterbi: %s\n", vit_dict);
 
+  printf("\n There are %u additional FFT and %u addtional Viterbi tasks per time step\n", additional_fft_tasks_per_time_step, additional_vit_tasks_per_time_step);
+  
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
    * are required to have the same base name, using the file extension to indicate
@@ -398,14 +414,36 @@ int main(int argc, char *argv[])
 
     gettimeofday(&start_exec_rad, NULL);
    #endif
-    task_metadata_block_t* fft_mb_ptr = start_execution_of_rad_kernel(radar_inputs);
+    // Request a MetadataBlock (for an FFT_TASK at Critical Level)
+    task_metadata_block_t* fft_mb_ptr = get_task_metadata_block(FFT_TASK, CRITICAL_TASK);
+    if (fft_mb_ptr == NULL) {
+      // We ran out of metadata blocks -- PANIC!
+      printf("Out of metadata blocks for FFT -- PANIC Quit the run (for now)\n");
+      exit (-4);
+    }
+    start_execution_of_rad_kernel(fft_mb_ptr, radar_inputs); // Critical RADAR task
+    /* for (int i = 0; i < additional_fft_tasks_per_time_step; i++) { */
+    /*   task_metadata_block_t* fft_mb_ptr_2 = start_execution_of_rad_kernel(radar_inputs, 1); // Additional RADAR tasks */
+    /* } */
+      
+      
     DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id));
    #ifdef TIME
     gettimeofday(&start_exec_vit, NULL);
    #endif
     //NOTE Removed the num_messages stuff -- need to do this differently (separate invocations of this process per message)
-    task_metadata_block_t* vit_mb_ptr = start_execution_of_vit_kernel(vdentry_p);
+    // Request a MetadataBlock (for an VITERBI_TASK at Critical Level)
+    task_metadata_block_t* vit_mb_ptr = get_task_metadata_block(VITERBI_TASK, 3);
+    if (vit_mb_ptr == NULL) {
+      // We ran out of metadata blocks -- PANIC!
+      printf("Out of metadata blocks for VITERBI -- PANIC Quit the run (for now)\n");
+      exit (-4);
+    }
+    start_execution_of_vit_kernel(vit_mb_ptr, vdentry_p); // Critical VITERBI task
     DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id));
+    /* for (int i = 0; i < additional_vit_tasks_per_time_step; i++) { */
+    /*   task_metadata_block_t* vit_mb_ptr_2 = start_execution_of_rad_kernel(radar_inputs, 1); // Additional VITERBI tasks */
+    /* } */
    #ifdef TIME
     gettimeofday(&stop_exec_vit, NULL);
     exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
@@ -415,7 +453,9 @@ int main(int argc, char *argv[])
    #ifdef TIME
     gettimeofday(&start_wait_all_crit, NULL);
    #endif
+
     wait_all_critical();
+
    #ifdef TIME
     gettimeofday(&stop_wait_all_crit, NULL);
     wait_all_crit_sec  += stop_wait_all_crit.tv_sec  - start_wait_all_crit.tv_sec;
