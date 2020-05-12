@@ -18,14 +18,14 @@
 #ifndef H_ACCELERATORS_H
 #define H_ACCELERATORS_H
 
-//extern void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block);
-extern void* execute_cpu_fft_accelerator(void* void_parm_ptr);
-extern void execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block);
+extern void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block);
+//extern void* execute_cpu_fft_accelerator(void* void_parm_ptr);
+extern void execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block);
 
 
-//extern void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block);
-extern void* execute_cpu_viterbi_accelerator(void* void_parm_ptr);
-extern void execute_hwr_viterbi_accelerator(int vn, task_metadata_block_t* task_metadata_block);
+extern void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block);
+//extern void* execute_cpu_viterbi_accelerator(void* void_parm_ptr);
+extern void execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block);
 
 
 #endif

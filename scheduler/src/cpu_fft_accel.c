@@ -23,10 +23,8 @@ extern uint64_t fft_usec;
 #endif
 
 // Putting this into a pthreads invocation mode...
-void* execute_cpu_fft_accelerator(void * void_parm_ptr)
+void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  task_metadata_block_t* task_metadata_block = (task_metadata_block_t*)void_parm_ptr;
-  
   DEBUG(printf("In execute_cpu_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.criticality_level ));
   float * data = (float*)(task_metadata_block->metadata.data);
 

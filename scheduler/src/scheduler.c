@@ -69,6 +69,11 @@ const char* task_status_str[NUM_TASK_STATUS] = {"TASK-FREE",
 						"TASK-RUNNING",
 						"TASK-DONE"};
 
+const char* accel_type_str[NUM_ACCEL_TYPES] = { "NO-ACCELERATOR",
+						"CPU-ACCELERATOR",
+						"FFT-HWR-ACCEL",
+						"VITERBI-HWR-ACCEL"};
+
 void print_base_metadata_block_contents(task_metadata_block_t* mb)
 {
   printf("metadata_block_id = %d @ %p\n", mb->metadata.metadata_block_id, mb);
@@ -165,7 +170,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
     free_critlist_entries -= 1;
     // Now li indicates the critical_live_tasks_list[] index to use
     // Now set up the revisions to the critical live tasks list
-    critical_live_tasks_list[li].clt_block_id = bi;   // point this entry to the master_metatdata_pool block id
+    critical_live_tasks_list[li].clt_block_id = bi;   // point this entry to the master_metadata_pool block id
     critical_live_tasks_list[li].next = critical_live_task_head;     // Insert as head of critical tasks list
     critical_live_task_head = &(critical_live_tasks_list[li]);
     total_critical_tasks += 1;
@@ -468,9 +473,11 @@ static void fft_in_hw(int *fd, struct fftHW_access *desc)
 #endif
 
 void
-execute_hwr_fft_accelerator(int fn, task_metadata_block_t* task_metadata_block)
+execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  DEBUG(printf("In execute_hwr_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.crit_level ));
+  int fn = task_metadata_block->metadata.accelerator_id;
+  //DEBUG(
+  printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.crit_level );//);
 #ifdef HW_FFT
   float * data = (float*)(task_metadata_block->metadata.data);
   // convert input from float to fixed point
@@ -516,10 +523,11 @@ extern uint64_t dodec_usec;
 #endif
 
 void
-execute_hwr_viterbi_accelerator(int vn, task_metadata_block_t* task_metadata_block)
-//int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inDat, uint8_t* outData)
+execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  DEBUG(printf("In execute_hwr_viterbi_accelerator\n"));
+  int fn = task_metadata_block->metadata.accelerator_id;
+  //DEBUG(
+  printf("In execute_hwr_viterbi_accelerator on Viterbi HWR Accel %u\n", fn);//);
   viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
@@ -571,6 +579,45 @@ execute_hwr_viterbi_accelerator(int vn, task_metadata_block_t* task_metadata_blo
 }
 
 
+// NOTE: This is executed on a separate pthread;
+//  The metadata block is shared aross threads.
+void*
+execute_task_on_accelerator(void* void_parm_ptr)
+{
+  task_metadata_block_t* task_metadata_block = (task_metadata_block_t*)void_parm_ptr;
+  printf("In execute_task_on_accelerator with Accel Type %s and Number %u\n", accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id);
+  switch(task_metadata_block->metadata.accelerator_type) {
+  case no_accelerator_t: {
+    printf("ERROR -- called execute_task_on_accelerator for NO_ACCELERATOR_T with block:\n");
+    print_base_metadata_block_contents(task_metadata_block);
+    exit(-11);
+  } break;
+  case cpu_accel_t: {
+    switch(task_metadata_block->metadata.job_type) {
+    case FFT_TASK:
+      execute_cpu_fft_accelerator(task_metadata_block);
+      break;
+    case VITERBI_TASK:
+      execute_cpu_viterbi_accelerator(task_metadata_block);
+      break;
+    default:
+      printf("ERROR : execute_task_on_accelerator called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+      exit(-13);
+    }
+  } break;
+  case fft_hwr_accel_t: {
+    execute_hwr_fft_accelerator(task_metadata_block);
+  } break;
+  case vit_hwr_accel_t: {
+    execute_hwr_viterbi_accelerator(task_metadata_block);
+  } break;
+  default:
+    printf("ERROR : Unknown accelerator type in execute_task_on_accelerator with block:\n");
+    print_base_metadata_block_contents(task_metadata_block);
+    exit(-12);
+  }
+}
+
 void shutdown_scheduler()
 {
   #ifdef HW_VIT
@@ -602,45 +649,11 @@ void shutdown_scheduler()
 #define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
 #endif
 
-/* void */
-/* schedule_fft(task_metadata_block_t* task_metadata_block) */
-/* { */
-/*   // Scheduler should now run this either on CPU or FFT: */
-/*   int num = (rand() % (100)); // Return a value from [0,99] */
-/*   if (num >= FFT_HW_THRESHOLD) { */
-/*     // Execute on hardware */
-/*     printf("SCHED: executing FFT on Hardware : %u > %u\n", num, FFT_HW_THRESHOLD); */
-/*     execute_hwr_fft_accelerator(0, data);  // only using FFT HW 0 for now -- still blocking, too */
-/*   } else { */
-/*     // Execute in CPU (softwware) */
-/*     printf("SCHED: executing FFT on CPU Software : %u < %u\n", num, FFT_HW_THRESHOLD); */
-/*     execute_cpu_fft_accelerator(data); */
-/*   } */
-/* } */
-
-/* void */
-/* schedule_viterbi(int n_data_bits, int n_cbps, int n_traceback, uint8_t* inMem, uint8_t* inData, uint8_t* outData) */
-/* { */
-/*   // Scheduler should now run this either on CPU or VITERBI: */
-/*   int num = (rand() % (100)); // Return a value from [0,99] */
-/*   if (num >= VITERBI_HW_THRESHOLD) { */
-/*     // Execute on hardware */
-/*     printf("SCHED: executing VITERBI on Hardware : %u > %u\n", num, VITERBI_HW_THRESHOLD); */
-/*     execute_hwr_viterbi_accelerator(0, n_cbps, n_traceback, n_data_bits, inMem, inData, outData);  // only using VITERBI HW 0 for now -- still blocking, too */
-/*   } else { */
-/*     // Execute in CPU (softwware) */
-/*     printf("SCHED: executing VITERBI on CPU Software : %u < %u\n", num, VITERBI_HW_THRESHOLD); */
-/*     execute_cpu_viterbi_accelerator(n_cbps, n_traceback, n_data_bits, inMem, inData, outData);  */
-/*   } */
-/* } */
-
-
-
-
 void
-request_execution(task_metadata_block_t* task_metadata_block)
+select_target_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  task_metadata_block->metadata.status = TASK_QUEUED; // queued
+  int accel_type = no_accelerator_t;
+  int accel_id   = -1;
   switch(task_metadata_block->metadata.job_type) {
   case FFT_TASK:
     {
@@ -649,18 +662,16 @@ request_execution(task_metadata_block_t* task_metadata_block)
       int num = (rand() % (100)); // Return a value from [0,99]
       if (num >= FFT_HW_THRESHOLD) {
 	// Execute on hardware
-	printf("SCHED: executing FFT on Hardware : %u > %u\n", num, FFT_HW_THRESHOLD);
-	execute_hwr_fft_accelerator(0, task_metadata_block); // data);  // only using FFT HW 0 for now -- still blocking, too
+	accel_type = fft_hwr_accel_t;
+	accel_id   = 0;
       } else {
 	// Execute in CPU (softwware)
-	printf("SCHED: executing FFT on CPU Software : %u < %u\n", num, FFT_HW_THRESHOLD);
-	//execute_cpu_fft_accelerator(task_metadata_block);
-	if (pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_cpu_fft_accelerator, task_metadata_block)) {
-	  printf("ERROR: Scheduler failed to creat thread for execute_cpu_fft_accelerator(task_metadata_block)\n");
-	  exit(-10);
-	}
+	accel_type = cpu_accel_t;
+	accel_id   = 0;
       }
-      //}
+      printf("SCHED: scheduling FFT on Hardware Accel Type %s Num %u : %u vs %u\n", accel_type_str[accel_type], accel_id, num, FFT_HW_THRESHOLD);
+      task_metadata_block->metadata.accelerator_type = accel_type;
+      task_metadata_block->metadata.accelerator_id = accel_id;
     }
     break;
   case VITERBI_TASK:
@@ -670,40 +681,42 @@ request_execution(task_metadata_block_t* task_metadata_block)
       int num = (rand() % (100)); // Return a value from [0,99]
       if (num >= VITERBI_HW_THRESHOLD) {
 	// Execute on hardware
-	printf("SCHED: executing VITERBI on Hardware : %u > %u\n", num, VITERBI_HW_THRESHOLD);
-	/* viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data); */
-	/* int32_t  in_ncbps = vdata->n_cbps; */
-	/* int32_t  in_ntraceback = vdata->n_traceback; */
-	/* int32_t  in_ndata_bits = vdata->n_data_bits; */
-	/* int32_t  inMem_offset = 0; */
-	/* int32_t  inData_offset = vdata->inMem_size; */
-	/* int32_t  outData_offset = inData_offset + vdata->inData_size; */
-	/* uint8_t* in_Mem  = &(vdata->theData[inMem_offset]); */
-	/* uint8_t* in_Data = &(vdata->theData[inData_offset]); */
-	/* uint8_t* out_Data = &(vdata->theData[outData_offset]); */
-	/* execute_hwr_viterbi_accelerator(0, in_ncbps, in_ntraceback, in_ndata_bits, in_Mem, in_Data, out_Data);  // only using VITERBI HW 0 for now -- still blocking, too */
-	execute_hwr_viterbi_accelerator(0, task_metadata_block); // only using VITERBI HW 0 for now -- still blocking, too
+	accel_type = vit_hwr_accel_t;
+	accel_id   = 0;
       } else {
 	// Execute in CPU (softwware)
-	printf("SCHED: executing VITERBI on CPU Software : %u < %u\n", num, VITERBI_HW_THRESHOLD);
-	//execute_cpu_viterbi_accelerator(task_metadata_block);
-	if (pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_cpu_viterbi_accelerator, task_metadata_block)) {
-	  printf("ERROR: Scheduler failed to creat thread for execute_cpu_viterbi_accelerator(task_metadata_block)\n");
-	  exit(-10);
-	}
+	accel_type = cpu_accel_t;
+	accel_id   = 0;
       }
+      printf("SCHED: scheduling Viterbi on Accel Type %s Num %u : %u vs %u\n", accel_type_str[accel_type], accel_id, num, FFT_HW_THRESHOLD);
+      task_metadata_block->metadata.accelerator_type = accel_type;
+      task_metadata_block->metadata.accelerator_id = accel_id;
     }
     break;
   default:
     printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
   }
 
-
-  /* // For now, since this is blocking, etc. we can return the MetaData Block here */
-  /* //   In reality, this should happen when we detect a task has non-blockingly-finished... */
-  /* free_task_metadata_block(task_metadata_block); */
 }
 
+
+void
+request_execution(task_metadata_block_t* task_metadata_block)
+{
+  task_metadata_block->metadata.status = TASK_QUEUED; // queued
+  select_target_accelerator(task_metadata_block);
+  if (task_metadata_block->metadata.accelerator_type != no_accelerator_t) {
+    task_metadata_block->metadata.status = TASK_RUNNING; // running
+    if (pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_task_on_accelerator, task_metadata_block)) {
+      printf("ERROR: Scheduler failed to creat thread for execute_task_on_accelerator for metadata block:\n");
+      print_base_metadata_block_contents(task_metadata_block);
+      exit(-10);
+    }
+  } else {
+    printf("Cannot allocate execution resources for metadata block:\n");
+    print_base_metadata_block_contents(task_metadata_block);
+  }
+}
 
 /********************************************************************************
  * This is a non-pthreads version... with the pthreads, since we want to 
