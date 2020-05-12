@@ -25,6 +25,9 @@
 
 #include "base_types.h"
 
+#define MAX_ACCEL_OF_EACH_TYPE   10
+
+
 typedef enum { NO_TASK_JOB = 0,
 	       FFT_TASK,
 	       VITERBI_TASK,
@@ -43,10 +46,10 @@ typedef enum { TASK_FREE = 0,
 	       TASK_DONE,
 	       NUM_TASK_STATUS} task_status_t;
 
-typedef enum { no_accelerator_t = 0,
-	       cpu_accel_t,
+typedef enum { cpu_accel_t = 0,
 	       fft_hwr_accel_t,
 	       vit_hwr_accel_t,
+	       no_accelerator_t,
 	       NUM_ACCEL_TYPES} accelerator_type_t;
 
 // This is a metatdata structure; it is used to hold all information for any job
@@ -59,7 +62,7 @@ typedef enum { no_accelerator_t = 0,
 
 typedef union task_metadata_entry_union {
   struct task_metadata_struct {
-    int32_t  metadata_block_id;    // +4 Bytes : master-pool-index; a unique ID per metadata task
+    int32_t  block_id;             // +4 Bytes : master-pool-index; a unique ID per metadata task
     task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
     pthread_t       thread_id;     // +8?Bytes : set when we invoke pthread_create (at least for CPU)
     accelerator_type_t  accelerator_type;     // +4 bytes : indicates which accelerator this task is executing on

@@ -69,14 +69,18 @@ const char* task_status_str[NUM_TASK_STATUS] = {"TASK-FREE",
 						"TASK-RUNNING",
 						"TASK-DONE"};
 
-const char* accel_type_str[NUM_ACCEL_TYPES] = { "NO-ACCELERATOR",
-						"CPU-ACCELERATOR",
+const char* accel_type_str[NUM_ACCEL_TYPES] = { "CPU-ACCELERATOR",
 						"FFT-HWR-ACCEL",
-						"VITERBI-HWR-ACCEL"};
+						"VITERBI-HWR-ACCEL",
+						"NO-ACCELERATOR"};
+
+
+int accelerator_in_use_by[NUM_ACCEL_TYPES-1][MAX_ACCEL_OF_EACH_TYPE];
+int num_accelerators_of_type[NUM_ACCEL_TYPES-1];
 
 void print_base_metadata_block_contents(task_metadata_block_t* mb)
 {
-  printf("metadata_block_id = %d @ %p\n", mb->metadata.metadata_block_id, mb);
+  printf("block_id = %d @ %p\n", mb->metadata.block_id, mb);
   unsigned status = mb->metadata.status;
   if (status < NUM_TASK_STATUS) {
     printf(" ** status = %s\n", task_status_str[status]);
@@ -186,7 +190,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
 
 void free_task_metadata_block(task_metadata_block_t* mb)
 {
-  int bi = mb->metadata.metadata_block_id;
+  int bi = mb->metadata.block_id;
   DEBUG(printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks));
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
@@ -338,11 +342,22 @@ status_t initialize_scheduler()
 {
 	DEBUG(printf("In initialize...\n"));
 	for (int i = 0; i < total_metadata_pool_blocks; i++) {
-	  master_metadata_pool[i].metadata.metadata_block_id = i; // Set the master pool's block_ids
+	  master_metadata_pool[i].metadata.block_id = i; // Set the master pool's block_ids
 	  free_metadata_pool[i] = i;    // Set up all blocks are free
 	  free_critlist_pool[i] = i;    // Set up all critlist blocks are free
 	}
-	
+
+	// I'm hard-coding these for now.
+	num_accelerators_of_type[cpu_accel_t] = 10;
+	num_accelerators_of_type[fft_hwr_accel_t] = 4;
+	num_accelerators_of_type[vit_hwr_accel_t] = 4;
+
+	for (int i = 0; i < NUM_ACCEL_TYPES-1; i++) {
+	  for (int j = 0; j < MAX_ACCEL_OF_EACH_TYPE; j++) {
+	    accelerator_in_use_by[i][j] = -1; // NOT a valid metadata block ID; -1 indicates "Not in Use"
+	  }
+	}
+
 #ifdef HW_FFT
 	// This initializes the FFT Accelerator Pool
 	for (int fi = 0; fi < NUM_FFT_ACCEL; fi++) {
@@ -477,7 +492,7 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
 {
   int fn = task_metadata_block->metadata.accelerator_id;
   //DEBUG(
-  printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.crit_level );//);
+  printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level );//);
 #ifdef HW_FFT
   float * data = (float*)(task_metadata_block->metadata.data);
   // convert input from float to fixed point
@@ -495,6 +510,7 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
   }
 
   task_metadata_block->metadata.status = TASK_DONE; // done
+  release_accelerator_for_task(task_metadata_block);
 
 #else
   printf("ERROR : This executable DOES NOT support Hardware-FFT execution!\n");
@@ -571,11 +587,28 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 #endif
 
   task_metadata_block->metadata.status = TASK_DONE; // done
+  release_accelerator_for_task(task_metadata_block);
 
 #else // HW_VIT
   printf("ERROR : This executable DOES NOT support Viterbi Hardware execution!\n");
   exit(-3);
 #endif // HW_VIT
+}
+
+
+void
+release_accelerator_for_task(task_metadata_block_t* task_metadata_block)
+{
+  unsigned mdb_id     = task_metadata_block->metadata.block_id;
+  unsigned accel_type = task_metadata_block->metadata.accelerator_type;
+  unsigned accel_id   = task_metadata_block->metadata.accelerator_id;
+  if (accelerator_in_use_by[accel_type][accel_id] != mdb_id) {
+    printf("ERROR - in release_accelerator_for_task for ACCEL %s Num %d but BLOCK_ID Mismatch: %d vs %d\n", accel_type_str[accel_type], accel_id, accelerator_in_use_by[accel_type][accel_id], mdb_id);
+    printf("  this occurred on finish of block:\n");
+    print_base_metadata_block_contents(task_metadata_block);
+  } else {
+    accelerator_in_use_by[accel_type][accel_id] = -1; // Indicates "Not in Use"
+  }
 }
 
 
@@ -649,54 +682,53 @@ void shutdown_scheduler()
 #define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
 #endif
 
+// This routine determines whether there is an available accelerator for
+//  this task, and if so, returns that accelerator...
 void
 select_target_accelerator(task_metadata_block_t* task_metadata_block)
 {
   int accel_type = no_accelerator_t;
   int accel_id   = -1;
   switch(task_metadata_block->metadata.job_type) {
-  case FFT_TASK:
-    {
-      // Scheduler should now run this either on CPU or FFT:
-      task_metadata_block->metadata.status = TASK_RUNNING; // running
-      int num = (rand() % (100)); // Return a value from [0,99]
-      if (num >= FFT_HW_THRESHOLD) {
-	// Execute on hardware
-	accel_type = fft_hwr_accel_t;
-	accel_id   = 0;
-      } else {
-	// Execute in CPU (softwware)
-	accel_type = cpu_accel_t;
-	accel_id   = 0;
-      }
-      printf("SCHED: scheduling FFT on Hardware Accel Type %s Num %u : %u vs %u\n", accel_type_str[accel_type], accel_id, num, FFT_HW_THRESHOLD);
-      task_metadata_block->metadata.accelerator_type = accel_type;
-      task_metadata_block->metadata.accelerator_id = accel_id;
+  case FFT_TASK: {
+    // Scheduler should now run this either on CPU or FFT:
+    task_metadata_block->metadata.status = TASK_RUNNING; // running
+    int num = (rand() % (100)); // Return a value from [0,99]
+    if (num >= FFT_HW_THRESHOLD) {
+      // Execute on hardware
+      accel_type = fft_hwr_accel_t;
+    } else {
+      // Execute in CPU (softwware)
+      accel_type = cpu_accel_t;
     }
-    break;
-  case VITERBI_TASK:
-    {
-      // Scheduler should now run this either on CPU or VITERBI:
-      task_metadata_block->metadata.status = TASK_RUNNING; // running
-      int num = (rand() % (100)); // Return a value from [0,99]
-      if (num >= VITERBI_HW_THRESHOLD) {
-	// Execute on hardware
-	accel_type = vit_hwr_accel_t;
-	accel_id   = 0;
-      } else {
-	// Execute in CPU (softwware)
-	accel_type = cpu_accel_t;
-	accel_id   = 0;
-      }
-      printf("SCHED: scheduling Viterbi on Accel Type %s Num %u : %u vs %u\n", accel_type_str[accel_type], accel_id, num, FFT_HW_THRESHOLD);
-      task_metadata_block->metadata.accelerator_type = accel_type;
-      task_metadata_block->metadata.accelerator_id = accel_id;
+  } break;
+  case VITERBI_TASK: {
+    // Scheduler should now run this either on CPU or VITERBI:
+    task_metadata_block->metadata.status = TASK_RUNNING; // running
+    int num = (rand() % (100)); // Return a value from [0,99]
+    if (num >= VITERBI_HW_THRESHOLD) {
+      // Execute on hardware
+      accel_type = vit_hwr_accel_t;
+    } else {
+      // Execute in CPU (softwware)
+      accel_type = cpu_accel_t;
     }
-    break;
+  } break;
   default:
     printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+    exit(-15);
   }
-
+  // Okay, here we should have a good task to schedule...
+  int i = 0;
+  while ((i < num_accelerators_of_type[accel_type]) && (accel_id < 0)) {
+    if (accelerator_in_use_by[accel_type][i] == -1) { // Not is use -- available
+      accel_id = i;
+    }
+    i++;
+  }
+  printf("SCHED: scheduling Task on Acceeratorl %s Number %u\n", accel_type_str[accel_type], accel_id);
+  task_metadata_block->metadata.accelerator_type = accel_type;
+  task_metadata_block->metadata.accelerator_id = accel_id;
 }
 
 
@@ -705,7 +737,15 @@ request_execution(task_metadata_block_t* task_metadata_block)
 {
   task_metadata_block->metadata.status = TASK_QUEUED; // queued
   select_target_accelerator(task_metadata_block);
-  if (task_metadata_block->metadata.accelerator_type != no_accelerator_t) {
+  unsigned int accel_type = task_metadata_block->metadata.accelerator_type;
+  unsigned int accel_id = task_metadata_block->metadata.accelerator_id;
+  if (accel_type < no_accelerator_t) {
+    // Mark the requested accelerator as "In-USE" by this metadata block
+    if (accelerator_in_use_by[accel_type][accel_id] != -1) {
+      printf("ERROR : request_execution is trying to allocate ACCEL %s %u which is already allocated to Block %u\n", accel_type_str[accel_type], accel_id, accelerator_in_use_by[accel_type][accel_id]);
+      exit(-14);
+    }
+    accelerator_in_use_by[accel_type][accel_id] = task_metadata_block->metadata.block_id;
     task_metadata_block->metadata.status = TASK_RUNNING; // running
     if (pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_task_on_accelerator, task_metadata_block)) {
       printf("ERROR: Scheduler failed to creat thread for execute_task_on_accelerator for metadata block:\n");

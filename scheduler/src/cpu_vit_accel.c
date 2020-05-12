@@ -464,6 +464,7 @@ void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   /* } */
 
   task_metadata_block->metadata.status = TASK_DONE; // done
+  release_accelerator_for_task(task_metadata_block);
 }
 
 
