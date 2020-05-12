@@ -97,6 +97,7 @@ extern void free_task_metadata_block(task_metadata_block_t* mb);
 
 extern void request_execution(task_metadata_block_t* task_metadata_block);
 extern void wait_all_critical();
+extern void release_accelerator_for_task(task_metadata_block_t* task_metadata_block);
 
 extern int get_task_status(int task_id);
 
