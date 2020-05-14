@@ -171,7 +171,7 @@ The trace version currently uses an input trace to drive the Mini-ERA behaviors,
  - ```tt002new``` is a 5000 record trace that includes multiple obstacle vehicles per lane (at times)
  - ```tt003new``` is a 5000 record trace that includes multiple obstacle vehicles per lane (at times)
 
-There are also a collection of dictionary files (e.g. ```radar_dictionary.dfn```) in the ```traces``` subdirectory, which are used by the kernels to drive the proper kernel inputs given the desired inputs from the Mini-ERA environment.
+There is an example trace (`test_trace.new`) to illustrate the function of the Mini-ERA, and a collection of dictionary files (e.g. `radar_dictionary.dfn`) which are used by the kernels in conjunction with the input trace to drive the proper kernel inputs (in response to the trace inputs).
 
 
 ### Trace Format
@@ -304,8 +304,7 @@ The Mini-ERA applications currently consists of four major components:
  - The Viterbi kernel
  - The Radar kernel
 
-Each kernel is implemented in a separate subdirectory space, consistent with their name/function (e.g. Viterbi is in `viterbi`, etc.). Most of the Mini-ERA is implemented in standard C code using GCC compilation. The CV CNN code, however, is a Keras implementation of a CNN and requires
-the system suport Keras python input, etc.
+Each kernel is implemented in a separate subdirectory space, consistent with their name/function (e.g. Viterbi is in `viterbi`, etc.). Most of the Mini-ERA is implemented in standard C code using GCC compilation. The CV CNN code, however, is a Keras implementation of a CNN and requires the system suport Keras python input, etc.
 
 <img src="/utils/block_diagram.png" width="600">
 
