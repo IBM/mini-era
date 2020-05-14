@@ -478,6 +478,7 @@ int main(int argc, char *argv[])
     gettimeofday(&start_wait_all_crit, NULL);
    #endif
 
+    printf("MAIN: Calling wait_all_critical\n");
     wait_all_critical();
 
    #ifdef TIME
@@ -494,7 +495,7 @@ int main(int argc, char *argv[])
     exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
    #endif
 
-    // POST-EXECUTE each kernels to gather stats, etc.
+    // POST-EXECUTE each kernel to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
     post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
@@ -516,11 +517,18 @@ int main(int argc, char *argv[])
     }
     #endif
 
+    // TEST - trying this here.
+    //wait_all_tasks_finish();
+    
     #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
     #endif
   }
 
+  // This is the end of time steps... wait for all tasks to be finished (?)
+  // Adding this results in never completing...  not sure why.
+  // wait_all_tasks_finish();
+  
   #ifdef TIME
   	gettimeofday(&stop, NULL);
   #endif

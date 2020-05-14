@@ -459,6 +459,7 @@ void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
 
+  printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id);
   mark_task_done(task_metadata_block);
 }
 
