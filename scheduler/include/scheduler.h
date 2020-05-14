@@ -53,6 +53,13 @@ typedef enum { cpu_accel_t = 0,
 	       no_accelerator_t,
 	       NUM_ACCEL_TYPES} accelerator_type_t;
 
+
+extern const char* task_job_str[NUM_JOB_TYPES];
+extern const char* task_criticality_str[NUM_TASK_CRIT_LEVELS];
+extern const char* task_status_str[NUM_TASK_STATUS];
+extern const char* accel_type_str[NUM_ACCEL_TYPES];
+
+
 // This is a metatdata structure; it is used to hold all information for any job
 //  to be invoked through the scheduler.  This includes a description of the
 //  job type, and all input/output data space for the task
@@ -70,7 +77,7 @@ typedef union task_metadata_entry_union {
     int32_t  accelerator_id;       // +4 bytes : indicates which accelerator this task is executing on
     scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
     task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
-    void (*finish)(union task_metadata_entry_union *); //  +8?Bytes : Call-back Finish-time function		  
+    void (*atFinish)(union task_metadata_entry_union *); //  +8?Bytes : Call-back Finish-time function		  
     int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
     uint8_t  data[128*1024];       // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
   } metadata;
@@ -100,10 +107,11 @@ extern task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type
 extern void free_task_metadata_block(task_metadata_block_t* mb);
 
 extern void request_execution(task_metadata_block_t* task_metadata_block);
-extern void wait_all_critical();
-extern void release_accelerator_for_task(task_metadata_block_t* task_metadata_block);
-
 extern int get_task_status(int task_id);
+extern void wait_all_critical();
+extern void wait_all_tasks_finish();
+extern void release_accelerator_for_task(task_metadata_block_t* task_metadata_block);
+void mark_task_done(task_metadata_block_t* task_metadata_block);
 
 extern void print_base_metadata_block_contents(task_metadata_block_t* mb);
 extern void print_fft_metadata_block_contents(task_metadata_block_t* mb);

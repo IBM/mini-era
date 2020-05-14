@@ -51,7 +51,7 @@ void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block)
   calc_usec += calc_stop.tv_usec - calc_start.tv_usec;
  #endif
 
-  task_metadata_block->metadata.status = TASK_DONE; // done
-  release_accelerator_for_task(task_metadata_block);
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  mark_task_done(task_metadata_block);
 }
 
