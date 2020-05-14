@@ -52,6 +52,5 @@ void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block)
  #endif
 
   mark_task_done(task_metadata_block);
-  task_metadata_block->metadata.status = TASK_DONE; // done
 }
 

@@ -162,6 +162,11 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
     return NULL;
   }
   int bi = free_metadata_pool[free_metadata_blocks - 1];
+  printf(" BEFORE_GET : MB %d : free_metadata_pool : ", bi);
+  for (int i = 0; i < total_metadata_pool_blocks; i++) {
+    printf("%d ", free_metadata_pool[i]);
+  }
+  printf("\n");
   if ((bi < 0) || (bi > total_metadata_pool_blocks)) {
     printf("ERROR : free_metadata_pool[%u -1] = %d   with %d free_metadata_blocks\n", free_metadata_blocks, bi, free_metadata_blocks);
     for (int i = 0; i < total_metadata_pool_blocks; i++) {
@@ -196,6 +201,11 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   }
   DEBUG(printf("  returning block %u\n", bi);
 	print_critical_task_list_ids());
+  printf(" AFTER_GET : MB %u : free_metadata_pool : ", bi);
+  for (int i = 0; i < total_metadata_pool_blocks; i++) {
+    printf("%d ", free_metadata_pool[i]);
+  }
+  printf("\n");
   pthread_mutex_unlock(&free_metadata_mutex);
   
   return &(master_metadata_pool[bi]);
@@ -212,6 +222,12 @@ void free_task_metadata_block(task_metadata_block_t* mb)
   int bi = mb->metadata.block_id;
   //DEBUG(
   printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);//);
+  printf(" BEFORE_FREE : MB %u : free_metadata_pool : ", bi);
+  for (int i = 0; i < total_metadata_pool_blocks; i++) {
+    printf("%d ", free_metadata_pool[i]);
+  }
+  printf("\n");
+
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
@@ -259,7 +275,7 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 	  print_base_metadata_block_contents(mb));
     exit(-5);
   }
-  printf(" AT_FREE : free_metadata_pool : ");
+  printf(" AFTER_FREE : MB %u : free_metadata_pool : ", bi);
   for (int i = 0; i < total_metadata_pool_blocks; i++) {
     printf("%d ", free_metadata_pool[i]);
   }
@@ -672,9 +688,11 @@ execute_task_on_accelerator(void* void_parm_ptr)
   case cpu_accel_t: {
     switch(task_metadata_block->metadata.job_type) {
     case FFT_TASK:
+      printf("Executing Task for MB %d on CPU_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id);
       execute_cpu_fft_accelerator(task_metadata_block);
       break;
     case VITERBI_TASK:
+      printf("Executing Task for MB %d on CPU_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id);
       execute_cpu_viterbi_accelerator(task_metadata_block);
       break;
     default:
@@ -683,9 +701,11 @@ execute_task_on_accelerator(void* void_parm_ptr)
     }
   } break;
   case fft_hwr_accel_t: {
+    printf("Executing Task for MB %d on HWR_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id);
     execute_hwr_fft_accelerator(task_metadata_block);
   } break;
   case vit_hwr_accel_t: {
+    printf("Executing Task for MB %d on HWR_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id);
     execute_hwr_viterbi_accelerator(task_metadata_block);
   } break;
   default:
@@ -693,7 +713,9 @@ execute_task_on_accelerator(void* void_parm_ptr)
     print_base_metadata_block_contents(task_metadata_block);
     exit(-12);
   }
+  printf("DONE Executing Task for MB %d -- should exit now\n", task_metadata_block->metadata.block_id);
 }
+
 
 void shutdown_scheduler()
 {
@@ -804,15 +826,25 @@ request_execution(task_metadata_block_t* task_metadata_block)
     task_metadata_block->metadata.status = TASK_RUNNING; // running
 
     printf("Creating task from Metadata Block %u : Task %s %s from Accel %s %u\n", task_metadata_block->metadata.block_id, task_job_str[task_metadata_block->metadata.job_type], task_criticality_str[task_metadata_block->metadata.crit_level], accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id);
-    
-    int pcrv = pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_task_on_accelerator, task_metadata_block);
-    if (pcrv != 0) {
-      printf("ERROR: Scheduler failed to create thread for execute_task_on_accelerator for metadata block: %d\n", pcrv);
-      printf("     : RVAL %d vs ENOMEM %d  EINVAL %d  EPERM %d\n", pcrv, ENOMEM, EINVAL, EPERM);
-      printf("     : RVAL %d vs EAGAin %d  EDEADLK %d \n", pcrv, EAGAIN, EDEADLK);
-      print_base_metadata_block_contents(task_metadata_block);
-      exit(-10);
-    }
+
+    int pcrv;
+    int pcrv_count = 0;
+    do {
+      pcrv = pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_task_on_accelerator, task_metadata_block);
+      if (pcrv != 0) {
+	if (pcrv == EAGAIN) {
+	  printf("NOTE: pthread_create for MB %d returned EAGAIN (count %u) : wait one second and retry...\n", task_metadata_block->metadata.block_id, pcrv_count);
+	  sleep(1);
+	  pcrv_count++;
+	} else {
+	  printf("ERROR: Scheduler failed to create thread for execute_task_on_accelerator for metadata block: %d\n", pcrv);
+	  printf("     : RVAL %d vs ENOMEM %d  EINVAL %d  EPERM %d\n", pcrv, ENOMEM, EINVAL, EPERM);
+	  printf("     : RVAL %d vs EAGAIN %d  EDEADLK %d \n", pcrv, EAGAIN, EDEADLK);
+	  print_base_metadata_block_contents(task_metadata_block);
+	  exit(-10);
+	}
+      }
+    } while (pcrv == EAGAIN);
   } else {
     printf("Cannot allocate execution resources for metadata block:\n");
     print_base_metadata_block_contents(task_metadata_block);

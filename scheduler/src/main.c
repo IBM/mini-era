@@ -106,9 +106,13 @@ void print_usage(char * pname) {
 void base_release_metadata_block(task_metadata_block_t* mb)
 {
   printf("Releasing non-critical Metadata block %u : Task %s %s from Accel %s %u\n", mb->metadata.block_id, task_job_str[mb->metadata.job_type], task_criticality_str[mb->metadata.crit_level], accel_type_str[mb->metadata.accelerator_type], mb->metadata.accelerator_id);
-  // Thead is done -- do a pthread_join to "clean up" the thread?
-  pthread_join(mb->metadata.thread_id, NULL);
   free_task_metadata_block(mb);
+  // Thread is done
+  //  We shouldn't need to do anything else -- when it returns from its starting function it should exit.
+  // -- do a pthread_join to "clean up" the thread?
+  //pthread_join(mb->metadata.thread_id, NULL);
+  // Do a pthread_exitso thread dies (commits suicide?)
+  //  pthread_exit(NULL);
 }
 
 
