@@ -465,9 +465,15 @@ int main(int argc, char *argv[])
     }
     start_execution_of_vit_kernel(vit_mb_ptr, vdentry_p); // Critical VITERBI task
     DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id));
-    /* for (int i = 0; i < additional_vit_tasks_per_time_step; i++) { */
-    /*   task_metadata_block_t* vit_mb_ptr_2 = start_execution_of_rad_kernel(radar_inputs, 1); // Additional VITERBI tasks */
-    /* } */
+    for (int i = 0; i < additional_vit_tasks_per_time_step; i++) {
+      task_metadata_block_t* vit_mb_ptr_2 = get_task_metadata_block(VITERBI_TASK, BASE_TASK);
+      if (vit_mb_ptr_2 == NULL) {
+	printf("Out of metadata blocks for Non-Critical VIT -- PANIC Quit the run (for now)\n");
+	exit (-5);
+      }
+      vit_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
+      start_execution_of_vit_kernel(vit_mb_ptr_2, vdentry_p); // Non-Critical VITERBI task
+    }
    #ifdef TIME
     gettimeofday(&stop_exec_vit, NULL);
     exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
