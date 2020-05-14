@@ -161,18 +161,17 @@ void print_critical_task_list_ids() {
 task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_criticality_t crit_level)
 {
   pthread_mutex_lock(&free_metadata_mutex);
-  //DEBUG(
-  printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks);//);
+  TDEBUG(printf("in get_task_metadata_block with %u free_metadata_blocks\n", free_metadata_blocks));
   if (free_metadata_blocks < 1) {
     // Out of metadata blocks -- all in use, cannot enqueue new tasks!
     return NULL;
   }
   int bi = free_metadata_pool[free_metadata_blocks - 1];
-  printf(" BEFORE_GET : MB %d : free_metadata_pool : ", bi);
-  for (int i = 0; i < total_metadata_pool_blocks; i++) {
-    printf("%d ", free_metadata_pool[i]);
-  }
-  printf("\n");
+  TDEBUG(printf(" BEFORE_GET : MB %d : free_metadata_pool : ", bi);
+	 for (int i = 0; i < total_metadata_pool_blocks; i++) {
+	   printf("%d ", free_metadata_pool[i]);
+	 }
+	 printf("\n"));
   if ((bi < 0) || (bi > total_metadata_pool_blocks)) {
     printf("ERROR : free_metadata_pool[%u -1] = %d   with %d free_metadata_blocks\n", free_metadata_blocks, bi, free_metadata_blocks);
     for (int i = 0; i < total_metadata_pool_blocks; i++) {
@@ -207,11 +206,11 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   }
   DEBUG(printf("  returning block %u\n", bi);
 	print_critical_task_list_ids());
-  printf(" AFTER_GET : MB %u : free_metadata_pool : ", bi);
-  for (int i = 0; i < total_metadata_pool_blocks; i++) {
-    printf("%d ", free_metadata_pool[i]);
-  }
-  printf("\n");
+  TDEBUG(printf(" AFTER_GET : MB %u : free_metadata_pool : ", bi);
+	 for (int i = 0; i < total_metadata_pool_blocks; i++) {
+	   printf("%d ", free_metadata_pool[i]);
+	 }
+	 printf("\n"));
   pthread_mutex_unlock(&free_metadata_mutex);
   
   return &(master_metadata_pool[bi]);
@@ -227,12 +226,12 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 
   int bi = mb->metadata.block_id;
   //DEBUG(
-  printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);//);
-  printf(" BEFORE_FREE : MB %u : free_metadata_pool : ", bi);
-  for (int i = 0; i < total_metadata_pool_blocks; i++) {
-    printf("%d ", free_metadata_pool[i]);
-  }
-  printf("\n");
+  TDEBUG(printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);//);
+	 printf(" BEFORE_FREE : MB %u : free_metadata_pool : ", bi);
+	 for (int i = 0; i < total_metadata_pool_blocks; i++) {
+	   printf("%d ", free_metadata_pool[i]);
+	 }
+	 printf("\n"));
 
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
@@ -281,11 +280,11 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 	  print_base_metadata_block_contents(mb));
     exit(-5);
   }
-  printf(" AFTER_FREE : MB %u : free_metadata_pool : ", bi);
-  for (int i = 0; i < total_metadata_pool_blocks; i++) {
-    printf("%d ", free_metadata_pool[i]);
-  }
-  printf("\n");
+  TDEBUG(printf(" AFTER_FREE : MB %u : free_metadata_pool : ", bi);
+	 for (int i = 0; i < total_metadata_pool_blocks; i++) {
+	   printf("%d ", free_metadata_pool[i]);
+	 }
+	 printf("\n"));
 
   pthread_mutex_unlock(&free_metadata_mutex);
 }
@@ -411,8 +410,7 @@ static void init_fft_parameters(unsigned n)
 void
 execute_task_on_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  //DEBUG(
-  printf("In execute_task_on_accelerator for MB %d with Accel Type %s and Number %u\n", task_metadata_block->metadata.block_id, accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id); //);
+  TDEBUG(printf("In execute_task_on_accelerator for MB %d with Accel Type %s and Number %u\n", task_metadata_block->metadata.block_id, accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id));
   switch(task_metadata_block->metadata.accelerator_type) {
   case no_accelerator_t: {
     printf("ERROR -- called execute_task_on_accelerator for NO_ACCELERATOR_T with block:\n");
@@ -422,11 +420,11 @@ execute_task_on_accelerator(task_metadata_block_t* task_metadata_block)
   case cpu_accel_t: {
     switch(task_metadata_block->metadata.job_type) {
     case FFT_TASK:
-      printf("Executing Task for MB %d on CPU_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id);
+      DEBUG(printf("Executing Task for MB %d on CPU_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id));
       execute_cpu_fft_accelerator(task_metadata_block);
       break;
     case VITERBI_TASK:
-      printf("Executing Task for MB %d on CPU_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id);
+      DEBUG(printf("Executing Task for MB %d on CPU_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id));
       execute_cpu_viterbi_accelerator(task_metadata_block);
       break;
     default:
@@ -435,11 +433,11 @@ execute_task_on_accelerator(task_metadata_block_t* task_metadata_block)
     }
   } break;
   case fft_hwr_accel_t: {
-    printf("Executing Task for MB %d on HWR_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id);
+    DEBUG(printf("Executing Task for MB %d on HWR_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id));
     execute_hwr_fft_accelerator(task_metadata_block);
   } break;
   case vit_hwr_accel_t: {
-    printf("Executing Task for MB %d on HWR_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id);
+    DEBUG(printf("Executing Task for MB %d on HWR_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id));
     execute_hwr_viterbi_accelerator(task_metadata_block);
   } break;
   default:
@@ -447,7 +445,7 @@ execute_task_on_accelerator(task_metadata_block_t* task_metadata_block)
     print_base_metadata_block_contents(task_metadata_block);
     exit(-12);
   }
-  printf("DONE Executing Task for MB %d\n", task_metadata_block->metadata.block_id);
+  TDEBUG(printf("DONE Executing Task for MB %d\n", task_metadata_block->metadata.block_id));
 }
 
 
@@ -460,11 +458,11 @@ metadata_thread_wait_for_task(void* void_parm_ptr)
   // I think we do this once, then can wait_cond many times
   pthread_mutex_lock(&metadata_mutex[bi]);
   do {
-    printf("MB_THREAD %d calling pthread_cond_wait\n", bi);
+    TDEBUG(printf("MB_THREAD %d calling pthread_cond_wait\n", bi));
     // This will cause the thread to wait for a triggering signal through metadata_condv[bi]
     pthread_cond_wait(&metadata_condv[bi], &metadata_mutex[bi]);
 
-    printf("MB_THREAD %d calling execute_task_on_accelerator...\n", bi);
+    TDEBUG(printf("MB_THREAD %d calling execute_task_on_accelerator...\n", bi));
     // Now we have been "triggered" -- so we invoke the appropriate accelerator
     execute_task_on_accelerator(task_metadata_block);
   } while (1); // We will loop here forever, until the main program exits....
@@ -889,7 +887,7 @@ request_execution(task_metadata_block_t* task_metadata_block)
     accelerator_in_use_by[accel_type][accel_id] = bi;
     task_metadata_block->metadata.status = TASK_RUNNING; // running
 
-    printf("Kicking off accelerator task for Metadata Block %u : Task %s %s on Accel %s %u\n", bi, task_job_str[task_metadata_block->metadata.job_type], task_criticality_str[task_metadata_block->metadata.crit_level], accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id);
+    TDEBUG(printf("Kicking off accelerator task for Metadata Block %u : Task %s %s on Accel %s %u\n", bi, task_job_str[task_metadata_block->metadata.job_type], task_criticality_str[task_metadata_block->metadata.crit_level], accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id));
 
     // Lock the mutex associated to the conditional variable
     pthread_mutex_lock(&metadata_mutex[bi]);

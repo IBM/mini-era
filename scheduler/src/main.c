@@ -105,7 +105,7 @@ void print_usage(char * pname) {
 //  This SHOULD be a routine that "does the right work" for a given task, and then releases the MetaData Block
 void base_release_metadata_block(task_metadata_block_t* mb)
 {
-  printf("Releasing non-critical Metadata block %u : Task %s %s from Accel %s %u\n", mb->metadata.block_id, task_job_str[mb->metadata.job_type], task_criticality_str[mb->metadata.crit_level], accel_type_str[mb->metadata.accelerator_type], mb->metadata.accelerator_id);
+  TDEBUG(printf("Releasing Metadata Block %u : Task %s %s from Accel %s %u\n", mb->metadata.block_id, task_job_str[mb->metadata.job_type], task_criticality_str[mb->metadata.crit_level], accel_type_str[mb->metadata.accelerator_type], mb->metadata.accelerator_id));
   free_task_metadata_block(mb);
   // Thread is done
   //  We shouldn't need to do anything else -- when it returns from its starting function it should exit.
@@ -478,7 +478,7 @@ int main(int argc, char *argv[])
     gettimeofday(&start_wait_all_crit, NULL);
    #endif
 
-    printf("MAIN: Calling wait_all_critical\n");
+    TDEBUG(printf("MAIN: Calling wait_all_critical\n"));
     wait_all_critical();
 
    #ifdef TIME
@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance);
+    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance));
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
