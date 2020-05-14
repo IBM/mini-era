@@ -97,6 +97,9 @@ clean:
 	$(RM) $(OBJ_S) $(TARGET)
 	$(RM) -r obj
 
+clobber: clean
+
+
 obj:
 	mkdir obj
 
