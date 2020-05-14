@@ -16,14 +16,10 @@ CFLAGS += $(INCLUDES)
 PYTHONINCLUDES = -I/usr/include/python3.6m
 
 
-LFLAGS = -Lviterbi -Lradar 
+LFLAGS = 
 #LFLAGS += 
 #LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
-LIBS     = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm
-LIBSG    = -lviterbi_gp -lfmcwdist_gp -lpthread -ldl -lutil -lm
-LIBS_IT  = -lviterbi_t -lfmcwdist_t -lpthread -ldl -lutil -lm
-FLIBS    = -lviterbiF -lfmcwdist -lpthread -ldl -lutil -lm
-FLIBS_IT = -lviterbiF_t -lfmcwdist_t -lpthread -ldl -lutil -lm
+LIBS = -lpthread -ldl -lutil -lm
 #PYTHONLIBS = $(shell /usr/bin/python-config --ldflags)
 PYTHONLIBS = -lpython3.6m
 CPYTHONLIBS =
