@@ -101,6 +101,18 @@ void print_usage(char * pname) {
 }
 
 
+// This is just a call-through to the scheduler routine, but we can also print a message here...
+//  This SHOULD be a routine that "does the right work" for a given task, and then releases the MetaData Block
+void base_release_metadata_block(task_metadata_block_t* mb)
+{
+  printf("Releasing non-critical Metadata block %u : Task %s %s from Accel %s %u\n", mb->metadata.block_id, task_job_str[mb->metadata.job_type], task_criticality_str[mb->metadata.crit_level], accel_type_str[mb->metadata.accelerator_type], mb->metadata.accelerator_id);
+  // Thead is done -- do a pthread_join to "clean up" the thread?
+  pthread_join(mb->metadata.thread_id, NULL);
+  free_task_metadata_block(mb);
+}
+
+
+	 
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
@@ -121,6 +133,8 @@ int main(int argc, char *argv[])
   unsigned additional_fft_tasks_per_time_step = 0;
   unsigned additional_vit_tasks_per_time_step = 0;
 
+  //printf("SIZEOF pthread_t : %lu\n", sizeof(pthread_t));
+  
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
@@ -422,9 +436,15 @@ int main(int argc, char *argv[])
       exit (-4);
     }
     start_execution_of_rad_kernel(fft_mb_ptr, radar_inputs); // Critical RADAR task
-    /* for (int i = 0; i < additional_fft_tasks_per_time_step; i++) { */
-    /*   task_metadata_block_t* fft_mb_ptr_2 = start_execution_of_rad_kernel(radar_inputs, 1); // Additional RADAR tasks */
-    /* } */
+    for (int i = 0; i < additional_fft_tasks_per_time_step; i++) {
+      task_metadata_block_t* fft_mb_ptr_2 = get_task_metadata_block(FFT_TASK, BASE_TASK);
+      if (fft_mb_ptr_2 == NULL) {
+	printf("Out of metadata blocks for Non-Critical FFT -- PANIC Quit the run (for now)\n");
+	exit (-5);
+      }
+      fft_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
+      start_execution_of_rad_kernel(fft_mb_ptr_2, radar_inputs); // Critical RADAR task
+    }
       
       
     DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id));

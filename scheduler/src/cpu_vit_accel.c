@@ -459,12 +459,7 @@ void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
 
-  /* for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
-  /*   outMem[ti] = cpuOutMem[ti]; */
-  /* } */
-
-  task_metadata_block->metadata.status = TASK_DONE; // done
-  release_accelerator_for_task(task_metadata_block);
+  mark_task_done(task_metadata_block);
 }
 
 
