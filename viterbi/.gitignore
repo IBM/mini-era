@@ -16,4 +16,12 @@ libviterbiF.a
 libviterbiF_esp.a
 libviterbiFV.a
 libviterbiFV_esp.a
+viterbi_ftest_gp
+viterbi_ftest_t
+viterbi_fvtest_gp
+viterbi_fvtest_t
+viterbi_test_gp
+viterbi_test_t
+vtest_gp
+vtest_t
 

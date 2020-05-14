@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-//#include "base.h"
+#include "base.h"
 
 
 /* This Viterbi decoder was taken from the gr-dvbt module of
@@ -25,7 +25,7 @@
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char);
 
 union branchtab27 {
 	unsigned char c[32];
