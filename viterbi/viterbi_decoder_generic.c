@@ -28,9 +28,21 @@
  */
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <sys/time.h>
 #include "base.h"
 #include "viterbi_decoder_generic.h"
-#include "viterbi_standalone.h"
+#include "viterbi_parms.h"
+
+#ifdef INT_TIME
+struct timeval dodec_stop, dodec_start;
+uint64_t dodec_sec  = 0LL;
+uint64_t dodec_usec = 0LL;
+
+struct timeval depunc_stop, depunc_start;
+uint64_t depunc_sec  = 0LL;
+uint64_t depunc_usec = 0LL;
+#endif
 
 #undef  GENERATE_CHECK_VALUES
 //#define  DO_RUN_TIME_CHECKING  // Now set in the Make process.
@@ -39,6 +51,10 @@
 
 #undef GENERATE_TEST_DATA
 
+
+#ifdef  DO_RUN_TIME_CHECKING
+#include "viterbi_dec_verif.h"
+#endif
 
 // GLOBAL VARIABLES
 
@@ -110,7 +126,7 @@ uint8_t* depuncture(uint8_t *in) {
  */
 
 // INPUTS/OUTPUTS:  All are 64-entry (bytes) arrays randomly accessed.
-//    symbols : INPUT        : Array [  4 bytes ] 
+//    symbols : INPUT        : Array [ 64 bytes ] - Really only 4 of these!
 //    mm0     : INPUT/OUTPUT : Array [ 64 bytes ]
 //    mm1     : INPUT/OUTPUT : Array [ 64 bytes ]
 //    pp0     : INPUT/OUTPUT : Array [ 64 bytes ] 
@@ -336,7 +352,7 @@ unsigned char viterbi_get_output_generic(unsigned char *mm0,
 //    frame  : INPUT/OUTPUT : Struct (see utils.h) [int, int, int, int]
 //    in     : INPUT/OUTPUT : Array [ MAX_ENCODED_BITS == 24780 ]
 
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
 
   d_ofdm = ofdm;
   d_frame = frame;
@@ -353,6 +369,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
   //printf("void set_viterbi_decode_verif_data() {\n");
 
   int viterbi_butterfly_calls = 0;
+
   while(n_decoded < d_frame->n_data_bits) {
     //printf("n_decoded = %d vs %d = d_frame->n_data_bits\n", n_decoded, d_frame->n_data_bits);
     if ((in_count % 4) == 0) { //0 or 3
@@ -364,7 +381,8 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
         uint8_t* t_mm1 = d_metric1_generic;
         uint8_t* t_pp0 = d_path0_generic;
         uint8_t* t_pp1 = d_path1_generic;
-        printf("\nINPUTS: mm0[64] : m1[64] : pp0[64] : pp1[64] : d_brtab [2][32] : symbols[4]\n");        for (int ti = 0; ti < 64; ti ++) {
+        printf("\nINPUTS: mm0[64] : m1[64] : pp0[64] : pp1[64] : d_brtab [2][32] : symbols[4]\n");
+        for (int ti = 0; ti < 64; ti ++) {
           printf("%u,", t_mm0[ti]);
         }
         for (int ti = 0; ti < 64; ti ++) {
@@ -415,7 +433,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
 	    inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
           }
         }
-        for (int ti = 0; ti < 4; ti ++) {
+        for (int ti = 0; ti < 64; ti ++) { // Note: This should be 4 symbols, not 64
           inMemory[imi++] = t_symbols[ti];
         }
 
@@ -572,16 +590,17 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
     in_count++;
   }
   //printf("};\n");
+
 #ifdef GENERATE_OUTPUT_VALUE
   printf("EXPECTED_OUTPUT[%d] = {\n  ", n_decoded);
   for (int di = 0; di < n_decoded; di++) {
-    if (di > 0) { printf(",");
-      printf("%u", d_decoded[di]);
-      if ((di % 80) == 79) { printf("\n  "); }
-    }
+    if (di > 0) { printf(","); }
+    printf("%u", d_decoded[di]);
+    if ((di % 80) == 79) { printf("\n  "); }
   }
   printf("\n};\n");
 #endif
+  *n_dec_char = n_decoded;
   return d_decoded;
 }
 

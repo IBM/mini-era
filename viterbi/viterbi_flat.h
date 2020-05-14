@@ -30,7 +30,7 @@
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char);
 
 typedef union branchtab27_u {
 	unsigned char c[32];
@@ -55,6 +55,16 @@ void viterbi_butterfly2_generic(unsigned char *symbols,
 
 unsigned char viterbi_get_output_generic(unsigned char *mm0,
 		unsigned char *pp0, int ntraceback, unsigned char *outbuf);
+
+
+
+#ifdef INT_TIME
+extern uint64_t dodec_sec;
+extern uint64_t dodec_usec;
+
+extern uint64_t depunc_sec;
+extern uint64_t depunc_usec;
+#endif
 
 
 #endif
