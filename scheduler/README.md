@@ -69,6 +69,7 @@ The config file contains a series of definitions, like #define macros or environ
 - CONFIG_VITERBI_EN=y	  enable Viterbi Decode Hardware Accelerators
 - CONFIG_KERAS_CV_BYPASS=y	 turns off the Tensorflow code, etc. -- Leave this enabled!
 - CONFIG_VERBOSE=y	  turns on a LOT of debugging output
+- CONFIG_DBG_THREADS=y	  turns on debugging output for the threads 
 - CONFIG_GDB=y		  indicates compilation should iclude the "-g" flag to retain symbols, etc. which provides for greater debugger support, etc.
 
 
@@ -86,17 +87,13 @@ Usage: ./cmain.exe <OPTIONS>
     -t <trace> : defines the input trace file <trace> to use
     -f <N>     : defines Log2 number of FFT samples
                :      14 = 2^14 = 16k samples (default); 10 = 1k samples
-    -v <N>     : defines Viterbi messaging behavior:
-               :      0 = One short message per time step
-               :      1 = One long  message per time step
-               :      2 = One short message per obstacle per time step ** Currently unavailable
-               :      3 = One long  message per obstacle per time step ** Currently unavailable
-               :      4 = One short msg per obstacle + 1 per time step ** Currently unavailable
-               :      5 = One long  msg per obstacle + 1 per time step ** Currently unavailable
+    -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.
+    -v <N>     : 0 = use chort Viterbi messages, 1 = use long Viterbi messages.
+    -M <M>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.
 ```
 
 To actually execute a trace, one must point to the trace repository.  The scheduler sub-directoyr does not include a trace directory itself, but instead uses the one from Mini-ERA.  One can do this in several ways:
-1. Copy the ```test-scheduler.exe``` to the (parent) mini-era directory, and run from there
+1. Copy the ```test-scheduler.exe``` to the (parent) mini-era directory, and run from there 
 2. Create a soft-link (```ln -s scheduler/test-scheduler.exe .```) in the (parent) mini-era directory, and run from there, therefore always using the most-recently compiled version of ```test-scheduler.exe```
 3. Create a soft-link in the scheduler directory to the (parent) Mini-ERA traces directory, and run from the scheduler directory, e.g. ```ln -s ../traces .```   This is done by default and should work IF you cloned the top-level mini-era repository in full.
 4. create a local traces directory, and populate it with the required files (see the Mini-ERA README)
