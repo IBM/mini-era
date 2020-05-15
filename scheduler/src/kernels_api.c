@@ -664,14 +664,14 @@ message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr)
   // descramble the output - put it in result
   DEBUG(printf("  Calling the viterbi descrambler routine; psdusize = %u\n", psdusize));
   descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
-  
-#if(0)
-  printf(" PSDU %u : Msg : = `", psdusize);
+ 
+ #if(0)
+  printf("MB%u PSDU %u : Msg : = `", mb_ptr->metadata.block_id, psdusize);
   for (int ci = 0; ci < (psdusize - 26); ci++) {
     printf("%c", msg_text[ci]);
   }
   printf("'\n");
-#endif
+ #endif
   // Here we look at the message string and select proper message_t
   switch(msg_text[3]) {
   case '0' : msg = safe_to_move_right_or_left; break;
@@ -731,19 +731,19 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
 	if (vehicle_state.lane < right) { 
-	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state.lane]));
+		DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state.lane]));
 	  new_vehicle_state.lane += 1;
 	} else {
-	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state.lane]));
+		DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state.lane]));
 	  new_vehicle_state.lane -= 1;
 	}	  
 	break; // prefer right lane
       case safe_to_move_right_only      :
-	DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state.lane]));
+	      DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane += 1;
 	break;
       case safe_to_move_left_only       :
-	DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state.lane]));
+	      DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane -= 1;
 	break;
       case unsafe_to_move_left_or_right :
@@ -752,7 +752,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 	  new_vehicle_state.speed = vehicle_state.speed - car_decel_rate; // was / 2.0;
 	  DEBUG(printf("   In %s with No_Safe_Move -- SLOWING DOWN from %.2f to %.2f\n", lane_names[vehicle_state.lane], vehicle_state.speed, new_vehicle_state.speed));
 	} else {
-	  DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
+		DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
 	  new_vehicle_state.speed = 0.0;
 	}
 	#else

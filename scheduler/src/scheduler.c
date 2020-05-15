@@ -693,7 +693,7 @@ void
 execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
   int vn = task_metadata_block->metadata.accelerator_id;
-  TDEBUG(printf("In execute_hwr_viterbi_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
+  TDEBUG(printf("In execute_hwr_viterbi_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", vn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
   viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
@@ -735,6 +735,15 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
   dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
+  // Copy output data from HWR memory to Metadata Block Memory.
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+
+    out_Data[ti] = hwrOutMem[ti];
+  }
+  DEBUG(printf("MB%u at end of HWR VITERBI:\n    out_Data : ", task_metadata_block->metadata.block_id);
+  for (int ti = 0; ti < 80 /*(MAX_ENCODED_BITS * 3 / 4)*/; ti ++) {
+    printf("%u ", out_Data[ti]);
+  });
 
   TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
   mark_task_done(task_metadata_block);
@@ -802,7 +811,7 @@ void shutdown_scheduler()
 #endif
 
 #ifdef HW_VIT
-#define VITERBI_HW_THRESHOLD 25   // 75% chance to use Viterbi Hardware
+#define VITERBI_HW_THRESHOLD 0   // 75% chance to use Viterbi Hardware
 #else
 #define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
 #endif

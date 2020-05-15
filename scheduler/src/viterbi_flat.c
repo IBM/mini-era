@@ -258,11 +258,14 @@ uint8_t* finish_decode(task_metadata_block_t* vit_metadata_block, int* psdu_size
   *psdu_size_out = vdsptr->psdu_size;
 
   DEBUG(printf("BACK FROM EXECUTION OF VITERBI TASK:\n");
-	print_viterbi_metadata_block_contents(vit_metadata_block));
-  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) { // This zeros out the full-size OUTPUT area
+	  print_viterbi_metadata_block_contents(vit_metadata_block);//);
+	  printf("MB%u OUTPUT: ", vit_metadata_block->metadata.block_id));
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) { // This covers the full-size OUTPUT area
     d_decoded[ti] = out_Data[ti];
-    DEBUG(if (ti < 31) { printf("FIN_VIT_OUT %3u : %3u @ %p \n", ti, out_Data[ti], &(out_Data[ti]));});
+    //DEBUG(if (ti < 31) { printf("FIN_VIT_OUT %3u : %3u @ %p \n", ti, out_Data[ti], &(out_Data[ti]));});
+    DEBUG(if (ti < 80) { printf("%u", out_Data[ti]); });
   }
+  DEBUG(printf("\n\n"));
   DEBUG(for (int i = 0; i < 32; i++) {
       printf("VIT_OUT %3u : %3u \n", i, d_decoded[i]);
     });

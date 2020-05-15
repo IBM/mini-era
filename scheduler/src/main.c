@@ -439,6 +439,7 @@ int main(int argc, char *argv[])
       printf("Out of metadata blocks for FFT -- PANIC Quit the run (for now)\n");
       exit (-4);
     }
+    fft_mb_ptr->metadata.atFinish = NULL; // Just to ensure it is NULL
     start_execution_of_rad_kernel(fft_mb_ptr, radar_inputs); // Critical RADAR task
     for (int i = 0; i < additional_fft_tasks_per_time_step; i++) {
       task_metadata_block_t* fft_mb_ptr_2 = get_task_metadata_block(FFT_TASK, BASE_TASK);
@@ -449,8 +450,7 @@ int main(int argc, char *argv[])
       fft_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
       start_execution_of_rad_kernel(fft_mb_ptr_2, radar_inputs); // Critical RADAR task
     }
-      
-      
+
     DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id));
    #ifdef TIME
     gettimeofday(&start_exec_vit, NULL);
@@ -463,6 +463,7 @@ int main(int argc, char *argv[])
       printf("Out of metadata blocks for VITERBI -- PANIC Quit the run (for now)\n");
       exit (-4);
     }
+    vit_mb_ptr->metadata.atFinish = NULL; // Just to ensure it is NULL
     start_execution_of_vit_kernel(vit_mb_ptr, vdentry_p); // Critical VITERBI task
     DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id));
     for (int i = 0; i < additional_vit_tasks_per_time_step; i++) {
