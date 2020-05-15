@@ -811,7 +811,7 @@ void shutdown_scheduler()
 #endif
 
 #ifdef HW_VIT
-#define VITERBI_HW_THRESHOLD 0   // 75% chance to use Viterbi Hardware
+#define VITERBI_HW_THRESHOLD 25   // 75% chance to use Viterbi Hardware
 #else
 #define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
 #endif
@@ -858,7 +858,7 @@ select_target_accelerator(task_metadata_block_t* task_metadata_block)
   // Okay, here we should have a good task to schedule...
   int i = 0;
   while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
-    if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not is use -- available
+    if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
       accel_type = proposed_accel;
       accel_id = i;
     }
