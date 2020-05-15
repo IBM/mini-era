@@ -643,8 +643,7 @@ void
 execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
 {
   int fn = task_metadata_block->metadata.accelerator_id;
-  //DEBUG(
-  printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level );//);
+  TDEBUG(printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
 #ifdef HW_FFT
   float * data = (float*)(task_metadata_block->metadata.data);
   // convert input from float to fixed point
@@ -661,8 +660,8 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
     data[j] = (float)fx2float(fftHW_lmem[fn][j], FX_IL);
   }
 
-  task_metadata_block->metadata.status = TASK_DONE; // done
-  release_accelerator_for_task(task_metadata_block);
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  mark_task_done(task_metadata_block);
 
 #else
   printf("ERROR : This executable DOES NOT support Hardware-FFT execution!\n");
@@ -694,8 +693,7 @@ void
 execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
   int vn = task_metadata_block->metadata.accelerator_id;
-  //DEBUG(
-  printf("In execute_hwr_viterbi_accelerator on Viterbi HWR Accel %u\n", vn);//);
+  TDEBUG(printf("In execute_hwr_viterbi_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
   viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
@@ -738,8 +736,8 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
 
-  task_metadata_block->metadata.status = TASK_DONE; // done
-  release_accelerator_for_task(task_metadata_block);
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  mark_task_done(task_metadata_block);
 
 #else // HW_VIT
   printf("ERROR : This executable DOES NOT support Viterbi Hardware execution!\n");
