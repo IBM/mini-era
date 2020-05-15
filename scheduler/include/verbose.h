@@ -20,10 +20,8 @@
 
 #ifdef VERBOSE
  #define DEBUG(x) x
- #define TDEBUG(x) x
 #else
  #define DEBUG(x)
- #define TDEBUG(x)
 #endif
 
 #ifdef DBG_THREADS
