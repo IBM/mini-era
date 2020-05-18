@@ -68,6 +68,7 @@ char vit_dict[256];
 
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
+unsigned task_size_variability;
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
@@ -90,7 +91,11 @@ void print_usage(char * pname) {
   
   printf("    -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.\n");
   printf("    -v <N>     : 0 = use chort Viterbi messages, 1 = use long Viterbi messages.\n");
-  printf("    -M <M>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.\n");
+  printf("    -M <N>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.\n");
+  printf("    -v <N>     : Task-Size Variability: Varies the sizes of input tasks where appropriate\n");
+  printf("               :      0 = No variability (e.g. all messages same size, etc.)\n");
+  printf("    -P <N>     : defines the Scheduler Accelerator Selection Policy:\n");
+  printf("               :      0 = Select_Accelerator_Type_And_Wait\n");
   //printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   //printf("               :      0 = One short message per time step\n");
   //printf("               :      1 = One long  message per time step\n");
@@ -142,7 +147,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:p:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -189,8 +194,8 @@ int main(int argc, char *argv[])
 #endif
       break;
     case 'v':
-      vit_msgs_behavior = atoi(optarg);
-      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      task_size_variability = atoi(optarg);
+      printf("Using task-size variability behavior %u\n", task_size_variability);
       break;
     case 'W':
 #ifdef USE_SIM_ENVIRON
@@ -204,7 +209,10 @@ int main(int argc, char *argv[])
     case 'M':
       additional_vit_tasks_per_time_step = atoi(optarg);
       break;
-      
+    case 'P':
+      global_scheduler_selection_policy = atoi(optarg);
+      break;
+
     case ':':
       printf("option needs a value\n");
       break;

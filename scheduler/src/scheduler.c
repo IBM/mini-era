@@ -40,6 +40,8 @@
 #include "scheduler.h"
 #include "accelerators.h" // include AFTER scheduler.h -- needs types form scheduler.h
 
+accel_selct_policy_t global_scheduler_selection_policy;
+
 #define total_metadata_pool_blocks  32
 task_metadata_block_t master_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_pool[total_metadata_pool_blocks];
@@ -816,12 +818,12 @@ void shutdown_scheduler()
 #define VITERBI_HW_THRESHOLD 101  // 0% chance to use Viterbi Hardware
 #endif
 
-// This routine determines whether there is an available accelerator for
-//  this task, and if so, returns that accelerator...
-//  This should ultipmately encode the "smarts" of scheduling tasks onto accelerators.
-// Currently, it tries one (HWR_FFT, CPU etc.) and if not available, does not schedule.
+// This is a basic accelerator selection policy:
+//   This one selects an accelerator type (HWR or CPU) randomly
+//   If an accelerators of that type is not available, it waits until it is.
+
 void
-select_target_accelerator(task_metadata_block_t* task_metadata_block)
+pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
 {
   int proposed_accel = no_accelerator_t;
   int accel_type     = no_accelerator_t;
@@ -856,17 +858,37 @@ select_target_accelerator(task_metadata_block_t* task_metadata_block)
     exit(-15);
   }
   // Okay, here we should have a good task to schedule...
-  int i = 0;
-  while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
-    if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
-      accel_type = proposed_accel;
-      accel_id = i;
+  // Creating a "busy spin loop" where we constantly try to allocate
+  //  This metablock to an accelerator, until one gets free...
+  do {
+    int i = 0;
+    while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
+      if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
+        accel_type = proposed_accel;
+        accel_id = i;
+      }
+      i++;
     }
-    i++;
-  }
-  DEBUG(printf("SCHED: select_target_accelerator set Accelerator %s Number %u\n", accel_type_str[accel_type], accel_id));
+  } while (accel_type == no_accelerator_t);
   task_metadata_block->metadata.accelerator_type = accel_type;
   task_metadata_block->metadata.accelerator_id = accel_id;
+}
+
+
+// This routine selects an available accelerator for the given job, 
+//  The accelerator is selected according to a policy
+//  The policies are implemented in separate functions.
+void
+select_target_accelerator(accel_selct_policy_t policy, task_metadata_block_t* task_metadata_block)
+{
+  switch(policy) { 
+  case SELECT_ACCEL_AND_WAIT_POLICY:
+    pick_accel_and_wait_for_available(task_metadata_block);
+    break;
+  default:
+    printf("ERROR : unknown scheduler accelerator selection policy: %u\n", policy);
+    exit(-15);
+  }
 }
 
 
@@ -875,12 +897,8 @@ void
 request_execution(task_metadata_block_t* task_metadata_block)
 {
   task_metadata_block->metadata.status = TASK_QUEUED; // queued
-  // Creating a "busy spin loop" where we constantly try to allocate
-  //  This metablock to an accelerator, until one gets free...
-  do {
-    select_target_accelerator(task_metadata_block);
-    DEBUG(sleep(0.1));
-  } while (task_metadata_block->metadata.accelerator_type == no_accelerator_t);
+  // Select the target accelerator to execute the task
+  select_target_accelerator(global_scheduler_selection_policy, task_metadata_block);
   
   unsigned int accel_type = task_metadata_block->metadata.accelerator_type;
   unsigned int accel_id = task_metadata_block->metadata.accelerator_id;

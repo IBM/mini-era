@@ -39,7 +39,8 @@ typedef enum { NO_TASK   = 0,
 	       ELEVATED_TASK = 2,
 	       CRITICAL_TASK = 3,
 	       NUM_TASK_CRIT_LEVELS} task_criticality_t;
-	       
+
+
 typedef enum { TASK_FREE = 0,
 	       TASK_ALLOCATED,
 	       TASK_QUEUED,
@@ -52,6 +53,9 @@ typedef enum { cpu_accel_t = 0,
 	       vit_hwr_accel_t,
 	       no_accelerator_t,
 	       NUM_ACCEL_TYPES} accelerator_type_t;
+
+typedef enum { SELECT_ACCEL_AND_WAIT_POLICY = 0,
+               NUM_SELECTION_POLICIES } accel_selct_policy_t;
 
 
 extern const char* task_job_str[NUM_JOB_TYPES];
@@ -98,7 +102,10 @@ typedef struct {
   uint8_t theData[64*1024]; // This is larger than needed (~24780 + 18585) but less than FFT requires (so okay)
 }  viterbi_data_struct_t;
 
+// This is the accelerator selection policy used by the scheduler
+extern accel_selct_policy_t global_scheduler_selection_policy;
 
+// This is the number of fft samples (the log of the samples, e.g. 10 = 1024 samples, 14 = 16k-samples)
 extern unsigned fft_logn_samples;
 
 extern status_t initialize_scheduler();

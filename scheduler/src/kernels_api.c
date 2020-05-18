@@ -36,6 +36,7 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 #endif
 
 extern unsigned time_step;
+extern unsigned task_size_variability;
 
 char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
