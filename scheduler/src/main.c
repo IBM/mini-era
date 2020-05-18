@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:p:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:p:S:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -476,7 +476,19 @@ int main(int argc, char *argv[])
 	exit (-5);
       }
       vit_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
-      start_execution_of_vit_kernel(vit_mb_ptr_2, vdentry_p); // Non-Critical VITERBI task
+      vit_dict_entry_t* vdentry2_p;
+      if (task_size_variability == 0) {
+	int lnum = vdentry_p->msg_num / NUM_MESSAGES;
+	int m_id = vdentry_p->msg_num % NUM_MESSAGES;
+	if (m_id != vdentry_p->msg_id) {
+	  printf("WARNING: MSG_NUM %u : LNUM %u M_ID %u MSG_ID %u\n", vdentry_p->msg_num, lnum, m_id, vdentry_p->msg_id);
+	}
+	vdentry2_p = select_specific_vit_input(lnum, m_id);
+      } else {
+	DEBUG(printf("Note: electing a random Vit Message for base-task %u\n", vit_mb_ptr_2->metadata.block_id));
+	vdentry2_p = select_random_vit_input();
+      }
+      start_execution_of_vit_kernel(vit_mb_ptr_2, vdentry2_p); // Non-Critical VITERBI task
     }
    #ifdef TIME
     gettimeofday(&stop_exec_vit, NULL);

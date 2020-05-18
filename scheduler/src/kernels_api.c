@@ -115,7 +115,7 @@ unsigned hist_distances[MAX_RDICT_ENTRIES];
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 #define VITERBI_LENGTHS  2
-unsigned viterbi_messages_histogram[VITERBI_LENGTHS*NUM_MESSAGES];
+unsigned viterbi_messages_histogram[VITERBI_LENGTHS][NUM_MESSAGES];
 
 /* These are some top-level defines needed for VITERBI */
 /* typedef struct { */
@@ -234,12 +234,6 @@ status_t init_vit_kernel(char* dict_fn)
     printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
     return error;
   }
-
-  //Clear the messages (injected) histogram
-  for (int i = 0; i < VITERBI_LENGTHS * NUM_MESSAGES; i++) {
-    viterbi_messages_histogram[i] = 0;
-  }
-
   // Read in each dictionary item
   for (int i = 0; i < num_viterbi_dictionary_items; i++) 
   {
@@ -253,7 +247,7 @@ status_t init_vit_kernel(char* dict_fn)
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
       exit(-5);
     }
-    the_viterbi_trace_dict[i].msg_id = mnum;
+    the_viterbi_trace_dict[i].msg_num = mnum;
     the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
@@ -290,6 +284,14 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("\n"));
   }
   fclose(dictF);
+
+
+  //Clear the messages (injected) histogram
+  for (int i = 0; i < VITERBI_LENGTHS; i++) {
+    for (int j = 0; j < NUM_MESSAGES; j++) {
+      viterbi_messages_histogram[i][j] = 0;
+    }
+  }
 
   for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
     hist_total_objs[i] = 0;
@@ -628,14 +630,15 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   // Here we determine short or long messages, based on global vit_msgs_behavior
   int msg_offset = 0; // 0 = short messages, 4 = long messages
   switch(vit_msgs_behavior) {
-  case 0: viterbi_messages_histogram[msg_offset]++; break;
-  case 1: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break;
+  case 0: break;
+  case 1: msg_offset = 4; break;
   /* case 2: viterbi_messages_histogram[msg_offset]++; break; */
   /* case 3: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break; */
   /* case 4: viterbi_messages_histogram[msg_offset]++; break; */
   /* case 5: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break; */
   }
 
+  viterbi_messages_histogram[vit_msgs_behavior][tr_val]++; 
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
     trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);
@@ -652,6 +655,22 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   }
   DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
   return trace_msg;
+}
+
+// This routine is used to select a random (non-critical?) Viterbi message input
+//  to support variable message sizes per iteration
+vit_dict_entry_t* select_specific_vit_input(int l_num, int m_num)
+{
+  viterbi_messages_histogram[l_num][m_num]++;
+  return&(the_viterbi_trace_dict[NUM_MESSAGES*l_num + m_num]);
+}
+
+vit_dict_entry_t* select_random_vit_input()
+{
+  int l_num = (rand() % (VITERBI_LENGTHS)); // Return a value from [0,VITERBI_LENGTHS)
+  int m_num = (rand() % (NUM_MESSAGES)); // Return a value from [0,NUM_MESSAGES)
+  viterbi_messages_histogram[l_num][m_num]++;
+  return&(the_viterbi_trace_dict[NUM_MESSAGES*l_num + m_num]);
 }
 
 void start_execution_of_vit_kernel(task_metadata_block_t*  mb_ptr, vit_dict_entry_t* trace_msg)
@@ -886,11 +905,11 @@ void closeout_vit_kernel()
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
 
-  printf("\nHistogram of Radar Distances:\n");
+  printf("\nHistogram of Viterbi Messages:\n");
   printf("    %3s | %3s | %9s \n", "Len", "Msg", "NumOccurs");
   for (int li = 0; li < VITERBI_LENGTHS; li++) {
     for (int mi = 0; mi < NUM_MESSAGES; mi++) {
-      printf("    %3u | %3u | %9u \n", li, mi, viterbi_messages_histogram[mi]);
+      printf("    %3u | %3u | %9u \n", li, mi, viterbi_messages_histogram[li][mi]);
     }
   }
   printf("\n");
