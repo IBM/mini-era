@@ -46,6 +46,8 @@ accel_selct_policy_t global_scheduler_selection_policy;
 task_metadata_block_t master_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_pool[total_metadata_pool_blocks];
 int free_metadata_blocks = total_metadata_pool_blocks;
+unsigned allocated_metadata_blocks;
+unsigned freed_metadata_blocks;
 
 pthread_mutex_t free_metadata_mutex; // Used to guard access to altering the free-list metadata information, etc.
 
@@ -215,6 +217,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
 	   printf("%d ", free_metadata_pool[i]);
 	 }
 	 printf("\n"));
+  allocated_metadata_blocks++;
   pthread_mutex_unlock(&free_metadata_mutex);
   
   return &(master_metadata_pool[bi]);
@@ -289,7 +292,7 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 	   printf("%d ", free_metadata_pool[i]);
 	 }
 	 printf("\n"));
-
+  freed_metadata_blocks++;
   pthread_mutex_unlock(&free_metadata_mutex);
 }
 
@@ -502,7 +505,10 @@ status_t initialize_scheduler()
     }
     master_metadata_pool[i].metadata.thread_id = metadata_threads[i];
   }
-  
+
+  allocated_metadata_blocks = 0;
+  freed_metadata_blocks = 0;
+
   // I'm hard-coding these for now.
   num_accelerators_of_type[cpu_accel_t] = 10;  // also tested with 1 -- works.
   num_accelerators_of_type[fft_hwr_accel_t] = 4;
@@ -789,6 +795,8 @@ void shutdown_scheduler()
     pthread_mutex_destroy(&metadata_mutex[i]);
     pthread_cond_destroy(&metadata_condv[i]);
   }
+
+  printf("\nDuring run, Scheduler allocated %u blocks and freed %u blocks\n\n", allocated_metadata_blocks, freed_metadata_blocks);
 
   // Clean up any hardware accelerator stuff
  #ifdef HW_VIT
