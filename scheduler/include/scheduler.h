@@ -63,7 +63,7 @@ extern const char* task_job_str[NUM_JOB_TYPES];
 extern const char* task_criticality_str[NUM_TASK_CRIT_LEVELS];
 extern const char* task_status_str[NUM_TASK_STATUS];
 extern const char* accel_type_str[NUM_ACCEL_TYPES];
-
+extern const char* scheduler_selection_policy_str[NUM_SELECTION_POLICIES];
 
 // This is a metatdata structure; it is used to hold all information for any job
 //  to be invoked through the scheduler.  This includes a description of the

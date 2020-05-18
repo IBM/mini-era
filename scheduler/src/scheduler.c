@@ -84,6 +84,8 @@ const char* accel_type_str[NUM_ACCEL_TYPES] = { "CPU-ACCELERATOR",
 						"VITERBI-HWR-ACCEL",
 						"NO-ACCELERATOR"};
 
+const char* scheduler_selection_policy_str[NUM_SELECTION_POLICIES] = { "Select_Accelerator_Type_and_Wait_Available",
+								       "Fastest_to_Slewest_First_Available" } ;
 
 int accelerator_in_use_by[NUM_ACCEL_TYPES-1][MAX_ACCEL_OF_EACH_TYPE];
 int num_accelerators_of_type[NUM_ACCEL_TYPES-1];

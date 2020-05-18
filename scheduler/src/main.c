@@ -300,6 +300,12 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  if (global_scheduler_selection_policy > NUM_SELECTION_POLICIES) {
+    printf("ERROR : Selected Scheduler Policy (%u) is larger than number of policies (%u)\n", global_scheduler_selection_policy, NUM_SELECTION_POLICIES);
+    exit(-1);
+  }
+  printf("Scheduler is using Policy %u : %s\n", global_scheduler_selection_policy, scheduler_selection_policy_str[global_scheduler_selection_policy]);
+  
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
    *  - Speed: 50 mph
