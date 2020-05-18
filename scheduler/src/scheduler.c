@@ -895,8 +895,7 @@ fastest_to_slowest_first_available(task_metadata_block_t* task_metadata_block)
 	  accel_id = i;
 	}
 	i++;
-	} // while (loop through HWR FFT accelerators)
-      }
+      } // while (loop through HWR FFT accelerators)
      #endif
       if (accel_id < 0) { // Didn't find one
 	i = 0;
@@ -915,7 +914,7 @@ fastest_to_slowest_first_available(task_metadata_block_t* task_metadata_block)
     do {
       int i = 0;
      #ifdef HW_VIT
-      proposed_accel = viterbi_hwr_accel_t;
+      proposed_accel = vit_hwr_accel_t;
       while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
 	if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
 	  accel_type = proposed_accel;
