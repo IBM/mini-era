@@ -55,6 +55,7 @@ typedef enum { cpu_accel_t = 0,
 	       NUM_ACCEL_TYPES} accelerator_type_t;
 
 typedef enum { SELECT_ACCEL_AND_WAIT_POLICY = 0,
+	       FAST_TO_SLOW_FIRST_AVAIL_POLICY,
                NUM_SELECTION_POLICIES } accel_selct_policy_t;
 
 

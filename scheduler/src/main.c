@@ -90,19 +90,13 @@ void print_usage(char * pname) {
   printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
   
   printf("    -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.\n");
-  printf("    -v <N>     : 0 = use chort Viterbi messages, 1 = use long Viterbi messages.\n");
+  printf("    -v <N>     : 0 = use short Viterbi messages, 1 = use long Viterbi messages.\n");
   printf("    -M <N>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.\n");
-  printf("    -v <N>     : Task-Size Variability: Varies the sizes of input tasks where appropriate\n");
+  printf("    -S <N>     : Task-Size Variability: Varies the sizes of input tasks where appropriate\n");
   printf("               :      0 = No variability (e.g. all messages same size, etc.)\n");
   printf("    -P <N>     : defines the Scheduler Accelerator Selection Policy:\n");
   printf("               :      0 = Select_Accelerator_Type_And_Wait\n");
-  //printf("    -v <N>     : defines Viterbi messaging behavior:\n");
-  //printf("               :      0 = One short message per time step\n");
-  //printf("               :      1 = One long  message per time step\n");
-  //printf("               :      2 = One short message per obstacle per time step\n");
-  //printf("               :      3 = One long  message per obstacle per time step\n");
-  //printf("               :      4 = One short msg per obstacle + 1 per time step\n");
-  //printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  printf("               :      1 = Fastest_to_Slewest_First_Available\n");
 }
 
 
@@ -194,6 +188,10 @@ int main(int argc, char *argv[])
 #endif
       break;
     case 'v':
+      vit_msgs_behavior = atoi(optarg);
+      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      break;
+    case 'S':
       task_size_variability = atoi(optarg);
       printf("Using task-size variability behavior %u\n", task_size_variability);
       break;
@@ -211,6 +209,7 @@ int main(int argc, char *argv[])
       break;
     case 'P':
       global_scheduler_selection_policy = atoi(optarg);
+      printf("Opting for Scheduler Policy %u\n", global_scheduler_selection_policy);
       break;
 
     case ':':
@@ -418,16 +417,6 @@ int main(int argc, char *argv[])
     iter_vit_usec += stop_iter_vit.tv_usec - start_iter_vit.tv_usec;
    #endif
 
-    // Here we will simulate multiple cases, based on global vit_msgs_behavior
-    int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
-    switch(vit_msgs_behavior) {
-    case 2: num_vit_msgs = total_obj; break;
-    case 3: num_vit_msgs = total_obj; break;
-    case 4: num_vit_msgs = total_obj + 1; break;
-    case 5: num_vit_msgs = total_obj + 1; break;
-    }
-
-
     // EXECUTE the kernels using the now known inputs 
    #ifdef TIME
     gettimeofday(&start_exec_cv, NULL);
@@ -513,9 +502,7 @@ int main(int argc, char *argv[])
     // POST-EXECUTE each kernel to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
     post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance);
-    for (int mi = 0; mi < num_vit_msgs; mi++) {
-      post_execute_vit_kernel(vdentry_p->msg_id, message);
-    }
+    post_execute_vit_kernel(vdentry_p->msg_id, message);
 
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new

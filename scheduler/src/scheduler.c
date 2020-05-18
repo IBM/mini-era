@@ -831,7 +831,6 @@ pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
   switch(task_metadata_block->metadata.job_type) {
   case FFT_TASK: {
     // Scheduler should now run this either on CPU or FFT:
-    task_metadata_block->metadata.status = TASK_RUNNING; // running
     int num = (rand() % (100)); // Return a value from [0,99]
     if (num >= FFT_HW_THRESHOLD) {
       // Execute on hardware
@@ -843,7 +842,6 @@ pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
   } break;
   case VITERBI_TASK: {
     // Scheduler should now run this either on CPU or VITERBI:
-    task_metadata_block->metadata.status = TASK_RUNNING; // running
     int num = (rand() % (100)); // Return a value from [0,99]
     if (num >= VITERBI_HW_THRESHOLD) {
       // Execute on hardware
@@ -875,6 +873,92 @@ pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
 }
 
 
+// This is a basic accelerator selection policy:
+//   This one selects a hardware (if implemented) and then if none available, 
+//   tries for a CPU, and then repeats this scan until one becomes available.
+void
+fastest_to_slowest_first_available(task_metadata_block_t* task_metadata_block)
+{
+  int proposed_accel = no_accelerator_t;
+  int accel_type     = no_accelerator_t;
+  int accel_id       = -1;
+  switch(task_metadata_block->metadata.job_type) {
+  case FFT_TASK: {
+    // Scheduler should now run this either on CPU or FFT:
+    do {
+      int i = 0;
+     #ifdef HW_FFT
+      proposed_accel = fft_hwr_accel_t;
+      while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
+	if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
+	  accel_type = proposed_accel;
+	  accel_id = i;
+	}
+	i++;
+	} // while (loop through HWR FFT accelerators)
+      }
+     #endif
+      if (accel_id < 0) { // Didn't find one
+	i = 0;
+	proposed_accel = cpu_accel_t;
+	while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
+	  if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
+	    accel_type = proposed_accel;
+	    accel_id = i;
+	  }
+	  i++;
+	} // while (loop through CPU FFT accelerators)
+      } // if (accel_id < 0) 
+    } while (accel_type == no_accelerator_t);
+  } break;
+  case VITERBI_TASK: {
+    do {
+      int i = 0;
+     #ifdef HW_VIT
+      proposed_accel = viterbi_hwr_accel_t;
+      while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
+	if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
+	  accel_type = proposed_accel;
+	  accel_id = i;
+	}
+	i++;
+      } // while (loop through HWR VITERBI accelerators)
+     #endif
+      if (accel_id < 0) { // Didn't find one
+	i = 0;
+	proposed_accel = cpu_accel_t;
+	while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
+	  if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
+	    accel_type = proposed_accel;
+	    accel_id = i;
+	  }
+	  i++;
+	} // while (loop through CPU VITERBI accelerators)
+      } // if (accel_id < 0) 
+    } while (accel_type == no_accelerator_t);
+  } break;
+ default:
+    printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+    exit(-15);
+  }
+  // Okay, here we should have a good task to schedule...
+  // Creating a "busy spin loop" where we constantly try to allocate
+  //  This metablock to an accelerator, until one gets free...
+  do {
+    int i = 0;
+    while ((i < num_accelerators_of_type[proposed_accel]) && (accel_id < 0)) {
+      if (accelerator_in_use_by[proposed_accel][i] == -1) { // Not in use -- available
+        accel_type = proposed_accel;
+        accel_id = i;
+      }
+      i++;
+    }
+  } while (accel_type == no_accelerator_t);
+  task_metadata_block->metadata.accelerator_type = accel_type;
+  task_metadata_block->metadata.accelerator_id = accel_id;
+}
+
+
 // This routine selects an available accelerator for the given job, 
 //  The accelerator is selected according to a policy
 //  The policies are implemented in separate functions.
@@ -885,6 +969,7 @@ select_target_accelerator(accel_selct_policy_t policy, task_metadata_block_t* ta
   case SELECT_ACCEL_AND_WAIT_POLICY:
     pick_accel_and_wait_for_available(task_metadata_block);
     break;
+  case FAST_TO_SLOW_FIRST_AVAIL_POLICY:
   default:
     printf("ERROR : unknown scheduler accelerator selection policy: %u\n", policy);
     exit(-15);
