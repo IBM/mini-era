@@ -752,6 +752,20 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
 
   reset();
 
+  //#define DUMP_DECODE_INPUTS
+#ifdef  DUMP_DECODE_INPUTS
+  {
+    printf("mnum mid\n");
+    printf("%u %u %u %u %u\n", ofdm->n_bpsc, ofdm->n_cbps, ofdm->n_dbps, ofdm->encoding, ofdm->rate_field);
+    printf("%u %u %u %u %u\n", frame->psdu_size, frame->n_sym, frame->n_pad, frame->n_encoded_bits, frame->n_data_bits);
+    int num_in_bits = frame->n_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
+    for (int ci = 0; ci < num_in_bits; ci++) { 
+      printf("%u ", in[ci]);
+    }
+    printf("\n");
+  }
+#endif
+  
 #ifdef INT_TIME
   gettimeofday(&depunc_start, NULL);
 #endif
