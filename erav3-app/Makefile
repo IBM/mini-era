@@ -42,8 +42,8 @@ SRC    = main.c kernels_api.c $(XMIT_SRC) $(RECV_SRC)
 OBJ    = $(SRC:%.c=$(OBJDIR)/%.o)
 OBJ_V  = $(SRC:%.c=$(V_OBJDIR)/%.o)
 
-$(info $$SRC is [${SRC}])
-$(info $$OBJ is [${OBJ}])
+#$(info $$SRC is [${SRC}])
+#$(info $$OBJ is [${OBJ}])
 
 
 all: $(TARGET) $(V_TARGET)
