@@ -34,6 +34,10 @@
 
 #include "scheduler.h"
 
+/* #undef DEBUG */
+/*  #define DEBUG(x) x */
+/* #undef DO_VERBOSE */
+/*  #define DO_VERBOSE(x) x */
 
 #ifdef INT_TIME
 struct timeval dodec_stop, dodec_start;
@@ -45,18 +49,22 @@ uint64_t depunc_sec  = 0LL;
 uint64_t depunc_usec = 0LL;
 #endif
 
-#undef  GENERATE_CHECK_VALUES
-//#define  GENERATE_CHECK_VALUES
-
 // GLOBAL VARIABLES
 t_branchtab27 d_branchtab27_generic[2];
-//unsigned char d_metric0_generic[64] __attribute__ ((aligned(16)));
-//unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
-//unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
-//unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
 
-// Position in circular buffer where the current decoded byte is stored
-// int d_store_pos = 0;
+ofdm_param ofdm = {   0,   //  encoding   : 0 = BPSK_1_2
+		     13,   //  rate_field : rate field ofSIGNAL header
+		      1,   //  n_bpsc     : coded bits per subcarrier
+		     48,   //  n_cbps     : coded bits per OFDM symbol
+		     24 }; //  n_dbps     : data bits per OFDM symbol
+
+frame_param frame = {  1528,    // psdu_size      : PSDU size in bytes 
+		        511,    // n_sym          : number of OFDM symbols
+		         18,    // n_pad          : number of padding bits in DATA field
+		      24528,    // n_encoded_bits : number of encoded bits
+		      12264 };  // n_data_bits    : number of data bits, including service and padding
+
+
 // Metrics for each state
 unsigned char d_mmresult[64] __attribute__((aligned(16)));
 // Paths for each state
@@ -154,12 +162,12 @@ void reset() {
 //    in     : INPUT  : uint8_t Array [ MAX_ENCODED_BITS == 24780 ]
 //  <return> : OUTPUT : uint8_t Array [ MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
-
+//uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
+void
+start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_param *frame, uint8_t *in)
+{
   d_ofdm = ofdm;
   d_frame = frame;
-
-  *n_dec_char = 0; // We don't return this from do_decoding -- but we could?
 
   reset();
 
@@ -184,36 +192,83 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
       printf("\n");
     });
 
-  {
-    // Copy inputs into the inMemory for esp-interface version
-    uint8_t inMemory[70];  // This is "minimally sized for max entries"
-    uint8_t inData[MAX_ENCODED_BITS];
-    // Copy some multi-block stuff into a single memory (cleaner transport)
+  // Set up the task_metadata scope block
+  vit_metadata_block->metadata.data_size = 43365; // MAX size?
+  // Copy over our task data to the MetaData Block
+  // Get a viterbi_data_struct_t "View" of the metablock data pointer.
+  // Copy inputs into the vdsptr data view of the metadata_block metadata data segment
+  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)vit_metadata_block->metadata.data;
+  vdsptr->n_data_bits = frame->n_data_bits;
+  vdsptr->n_cbps      = ofdm->n_cbps;
+  vdsptr->n_traceback = d_ntraceback;
+  vdsptr->psdu_size   = frame->psdu_size;
+  vdsptr->inMem_size = 72; // fixed -- always (add the 2 padding bytes)
+  vdsptr->inData_size = MAX_ENCODED_BITS; // Using the max value here for now/safety
+  vdsptr->outData_size = (MAX_ENCODED_BITS * 3/4); //  Using the max value here for now/safety
+  uint8_t* in_Mem   = &(vdsptr->theData[0]);
+  uint8_t* in_Data  = &(vdsptr->theData[vdsptr->inMem_size]);
+  uint8_t* out_Data = &(vdsptr->theData[vdsptr->inMem_size + vdsptr->inData_size]);
+  // Copy some multi-block stuff into a single memory (cleaner transport)
+  DEBUG(printf("SET UP VITERBI TASK: \n");
+	print_viterbi_metadata_block_contents(vit_metadata_block);
+	printf("      in_Mem   @ %p\n",  in_Mem);
+	printf("      in_Data  @ %p\n",  in_Data);
+	printf("      out_Data @ %p\n",  out_Data));
+  { // scope block for definition of imi
     int imi = 0;
     for (int ti = 0; ti < 2; ti ++) {
       for (int tj = 0; tj < 32; tj++) {
-	inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
+	in_Mem[imi++]= d_branchtab27_generic[ti].c[tj];
       }
     }
     if (imi != 64) { printf("ERROR : imi = %u and should be 64\n", imi); }
     // imi = 64;
     for (int ti = 0; ti < 6; ti ++) {
-      inMemory[imi++] = d_depuncture_pattern[ti];
+      vdsptr->theData[imi++] = d_depuncture_pattern[ti];
     }
     if (imi != 70) { printf("ERROR : imi = %u and should be 70\n", imi); }
-
-    // Call the do_decoding routine
-    //  NOTE: We are sending addresses in our space -- the accelerator should xfer the data in this model.
-    DEBUG(printf("Calling schedule_viterbit with nDb %u nCb %u nTrb %u\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback));
-    schedule_viterbi(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, depunctured, d_decoded);
-    DEBUG(for (int i = 0; i < 32; i++) {
-		    printf("VIT_OUT %3u : %3u \n", i, d_decoded[i]);
-	    });
+  } // scpoe block for defn of imi
+    
+  for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) { // This is over-kill for messages that are not max size
+    in_Data[ti] = depunctured[ti];
+    DEBUG(if (ti < 32) { printf("HERE : in_Data %3u : %u\n", ti, in_Data[ti]); });
   }
- #ifdef GENERATE_CHECK_VALUES
-  printf("LAST-OUTPUT\n\n");
- #endif
-  return d_decoded;
+
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) { // This zeros out the full-size OUTPUT area
+    out_Data[ti] = 0;
+    //vdsptr->theData[imi++] = 0;
+  }
+  // Call the do_decoding routine
+  //  NOTE: We are sending addresses in our space -- the accelerator should xfer the data in this model.
+  DEBUG(printf("Calling schedule_task for viterbi_task with nDb %u nCb %u nTrb %u\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback));
+  //schedule_viterbi(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, depunctured, d_decoded);
+  request_execution(vit_metadata_block);
 }
 
 
+//uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
+uint8_t* finish_decode(task_metadata_block_t* vit_metadata_block, int* psdu_size_out)
+{
+  // Set up the Viterbit Data view of the metatdata block data
+  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)vit_metadata_block->metadata.data;
+  uint8_t* in_Mem   = &(vdsptr->theData[0]);
+  uint8_t* in_Data  = &(vdsptr->theData[vdsptr->inMem_size]);
+  uint8_t* out_Data = &(vdsptr->theData[vdsptr->inMem_size + vdsptr->inData_size]);
+
+  *psdu_size_out = vdsptr->psdu_size;
+
+  DEBUG(printf("BACK FROM EXECUTION OF VITERBI TASK:\n");
+	  print_viterbi_metadata_block_contents(vit_metadata_block);//);
+	  printf("MB%u OUTPUT: ", vit_metadata_block->metadata.block_id));
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) { // This covers the full-size OUTPUT area
+    d_decoded[ti] = out_Data[ti];
+    //DEBUG(if (ti < 31) { printf("FIN_VIT_OUT %3u : %3u @ %p \n", ti, out_Data[ti], &(out_Data[ti]));});
+    DEBUG(if (ti < 80) { printf("%u", out_Data[ti]); });
+  }
+  DEBUG(printf("\n\n"));
+  DEBUG(for (int i = 0; i < 32; i++) {
+      printf("VIT_OUT %3u : %3u \n", i, d_decoded[i]);
+    });
+
+  return d_decoded;
+}

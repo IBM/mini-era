@@ -24,6 +24,12 @@
  #define DEBUG(x)
 #endif
 
+#ifdef DBG_THREADS
+ #define TDEBUG(x) x
+#else
+ #define TDEBUG(x)
+#endif
+
 #ifdef SUPER_VERBOSE
  #define SDEBUG(x) x
  #define DO_VERBOSE(x) x

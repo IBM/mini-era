@@ -36,6 +36,7 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 #endif
 
 extern unsigned time_step;
+extern unsigned task_size_variability;
 
 char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
@@ -112,6 +113,9 @@ unsigned radar_total_calc = 0;
 unsigned hist_pct_errs[MAX_RDICT_ENTRIES][5];// = {0, 0, 0, 0, 0}; // One per distance, plus global?
 unsigned hist_distances[MAX_RDICT_ENTRIES];
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
+
+#define VITERBI_LENGTHS  2
+unsigned viterbi_messages_histogram[VITERBI_LENGTHS][NUM_MESSAGES];
 
 /* These are some top-level defines needed for VITERBI */
 /* typedef struct { */
@@ -230,7 +234,6 @@ status_t init_vit_kernel(char* dict_fn)
     printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
     return error;
   }
-
   // Read in each dictionary item
   for (int i = 0; i < num_viterbi_dictionary_items; i++) 
   {
@@ -244,7 +247,7 @@ status_t init_vit_kernel(char* dict_fn)
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
       exit(-5);
     }
-    the_viterbi_trace_dict[i].msg_id = mnum;
+    the_viterbi_trace_dict[i].msg_num = mnum;
     the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
@@ -281,6 +284,14 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("\n"));
   }
   fclose(dictF);
+
+
+  //Clear the messages (injected) histogram
+  for (int i = 0; i < VITERBI_LENGTHS; i++) {
+    for (int j = 0; j < NUM_MESSAGES; j++) {
+      viterbi_messages_histogram[i][j] = 0;
+    }
+  }
 
   for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
     hist_total_objs[i] = 0;
@@ -489,20 +500,29 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   DEBUG(printf("In iterate_rad_kernel\n"));
 
   unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
-
+  
   return &(the_radar_return_dict[tr_val]);
 }
   
 
-distance_t execute_rad_kernel(float * inputs)
+void start_execution_of_rad_kernel(task_metadata_block_t* mb_ptr, float * inputs)
 {
-  DEBUG(printf("In execute_rad_kernel\n"));
+  DEBUG(printf("In start_execution_of_rad_kernel\n"));
+  DEBUG(printf("  Calling start_calculate_peak_dist_from_fmcw\n"));
+  start_calculate_peak_dist_from_fmcw(mb_ptr, inputs);
+}
 
-  /* 2) Conduct distance estimation on the waveform */
-  DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
-  distance_t dist = calculate_peak_dist_from_fmcw(inputs);
+
+distance_t finish_execution_of_rad_kernel(task_metadata_block_t* mb_ptr)
+{
+  DEBUG(printf("In finish_execution_of_rad_kernel\n"));
+  DEBUG(printf("  Calling finalize_calculate_peak_dist_from_fmcw\n"));
+  distance_t dist = finish_calculate_peak_dist_from_fmcw(mb_ptr);
+
+  // We've finished the execution and lifetime for this task; free its metadata
+  free_task_metadata_block(mb_ptr);
+  
   DEBUG(printf("  Returning distance = %.1f\n", dist));
-
   return dist;
 }
 
@@ -612,12 +632,13 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   switch(vit_msgs_behavior) {
   case 0: break;
   case 1: msg_offset = 4; break;
-  case 2: break;
-  case 3: msg_offset = 4; break;
-  case 4: break;
-  case 5: msg_offset = 4; break;
+  /* case 2: viterbi_messages_histogram[msg_offset]++; break; */
+  /* case 3: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break; */
+  /* case 4: viterbi_messages_histogram[msg_offset]++; break; */
+  /* case 5: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break; */
   }
 
+  viterbi_messages_histogram[vit_msgs_behavior][tr_val]++; 
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
     trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);
@@ -636,42 +657,65 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   return trace_msg;
 }
 
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
+// This routine is used to select a random (non-critical?) Viterbi message input
+//  to support variable message sizes per iteration
+vit_dict_entry_t* select_specific_vit_input(int l_num, int m_num)
+{
+  viterbi_messages_histogram[l_num][m_num]++;
+  return&(the_viterbi_trace_dict[NUM_MESSAGES*l_num + m_num]);
+}
+
+vit_dict_entry_t* select_random_vit_input()
+{
+  int l_num = (rand() % (VITERBI_LENGTHS)); // Return a value from [0,VITERBI_LENGTHS)
+  int m_num = (rand() % (NUM_MESSAGES)); // Return a value from [0,NUM_MESSAGES)
+  viterbi_messages_histogram[l_num][m_num]++;
+  return&(the_viterbi_trace_dict[NUM_MESSAGES*l_num + m_num]);
+}
+
+void start_execution_of_vit_kernel(task_metadata_block_t*  mb_ptr, vit_dict_entry_t* trace_msg)
+{
+  // Send each message (here they are all the same) through the viterbi decoder
+  DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
+  start_decode(mb_ptr, &(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]));
+}
+
+message_t finish_execution_of_vit_kernel(task_metadata_block_t* mb_ptr)
 {
   // Send each message (here they are all the same) through the viterbi decoder
   message_t msg = num_message_t;
   uint8_t *result;
   char     msg_text[1600]; // Big enough to hold largest message (1500?)
-  for (int mi = 0; mi < num_msgs; mi++) {
-    DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
-    int n_res_char;
-    result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]), &n_res_char);
-    // descramble the output - put it in result
-    int psdusize = trace_msg->frame_p.psdu_size;
-    DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-    descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
 
-   #if(0)
-    printf(" PSDU %u : Msg : = `", psdusize);
-    for (int ci = 0; ci < (psdusize - 26); ci++) {
-      printf("%c", msg_text[ci]);
-    }
-    printf("'\n");
-   #endif
-    // Here we look at the message string and select proper message_t
-    switch(msg_text[3]) {
-    case '0' : msg = safe_to_move_right_or_left; break;
-    case '1' : msg = safe_to_move_right_only; break;
-    case '2' : msg = safe_to_move_left_only; break;
-    case '3' : msg = unsafe_to_move_left_or_right; break;
-    default  : msg = num_message_t; break;
-    }
+  int psdusize; // set by finish_decode call...
+  result = finish_decode(mb_ptr, &psdusize);
+  // descramble the output - put it in result
+  DEBUG(printf("  Calling the viterbi descrambler routine; psdusize = %u\n", psdusize));
+  descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
+ 
+ #if(0)
+  printf("MB%u PSDU %u : Msg : = `", mb_ptr->metadata.block_id, psdusize);
+  for (int ci = 0; ci < (psdusize - 26); ci++) {
+    printf("%c", msg_text[ci]);
+  }
+  printf("'\n");
+ #endif
+  // Here we look at the message string and select proper message_t
+  switch(msg_text[3]) {
+  case '0' : msg = safe_to_move_right_or_left; break;
+  case '1' : msg = safe_to_move_right_only; break;
+  case '2' : msg = safe_to_move_left_only; break;
+  case '3' : msg = unsafe_to_move_left_or_right; break;
+  default  : msg = num_message_t; break;
   }
 
+  // We've finished the execution and lifetime for this task; free its metadata
+  free_task_metadata_block(mb_ptr);
+  
   DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
-
   return msg;
 }
+
 
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
 {
@@ -715,19 +759,19 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
       case safe_to_move_right_or_left   :
 	/* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
 	if (vehicle_state.lane < right) { 
-	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state.lane]));
+		DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state.lane]));
 	  new_vehicle_state.lane += 1;
 	} else {
-	  DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state.lane]));
+		DEBUG(printf("   In %s with Safe_L_or_R : Moving Left\n", lane_names[vehicle_state.lane]));
 	  new_vehicle_state.lane -= 1;
 	}	  
 	break; // prefer right lane
       case safe_to_move_right_only      :
-	DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state.lane]));
+	      DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane += 1;
 	break;
       case safe_to_move_left_only       :
-	DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state.lane]));
+	      DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state.lane]));
 	new_vehicle_state.lane -= 1;
 	break;
       case unsafe_to_move_left_or_right :
@@ -736,7 +780,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 	  new_vehicle_state.speed = vehicle_state.speed - car_decel_rate; // was / 2.0;
 	  DEBUG(printf("   In %s with No_Safe_Move -- SLOWING DOWN from %.2f to %.2f\n", lane_names[vehicle_state.lane], vehicle_state.speed, new_vehicle_state.speed));
 	} else {
-	  DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
+		DEBUG(printf("   In %s with No_Safe_Move -- Going < 15.0 so STOPPING!\n", lane_names[vehicle_state.lane]));
 	  new_vehicle_state.speed = 0.0;
 	}
 	#else
@@ -860,6 +904,15 @@ void closeout_vit_kernel()
   double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
+
+  printf("\nHistogram of Viterbi Messages:\n");
+  printf("    %3s | %3s | %9s \n", "Len", "Msg", "NumOccurs");
+  for (int li = 0; li < VITERBI_LENGTHS; li++) {
+    for (int mi = 0; mi < NUM_MESSAGES; mi++) {
+      printf("    %3u | %3u | %9u \n", li, mi, viterbi_messages_histogram[li][mi]);
+    }
+  }
+  printf("\n");
 }
 
 

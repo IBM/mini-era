@@ -20,7 +20,7 @@
 
 #include "base.h"
 #include "utils.h"
-#include "viterbi_standalone.h"
+#include "viterbi_parms.h"
 
 typedef unsigned char   uint8_t;
 

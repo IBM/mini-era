@@ -32,7 +32,7 @@
 #include <sys/time.h>
 #include "base.h"
 #include "viterbi_decoder_generic.h"
-#include "viterbi_standalone.h"
+#include "viterbi_parms.h"
 
 #ifdef INT_TIME
 struct timeval dodec_stop, dodec_start;
@@ -51,6 +51,10 @@ uint64_t depunc_usec = 0LL;
 
 #undef GENERATE_TEST_DATA
 
+
+#ifdef  DO_RUN_TIME_CHECKING
+#include "viterbi_dec_verif.h"
+#endif
 
 // GLOBAL VARIABLES
 

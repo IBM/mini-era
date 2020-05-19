@@ -26,8 +26,8 @@ float    RADAR_alpha   = 0.0; // Chirp rate (saw-tooth)
 #define RADAR_c          300000000.0  // Speed of Light in Meters/Sec
 #define RADAR_threshold -100;
 
-float   RADAR_psd_threshold = 1e-10*pow(8192,2);  // ~= 0.006711 and 450 ~= 0.163635 in 16K
-
+//float   RADAR_psd_threshold = 1e-10*pow(8192,2);  // ~= 0.006711 and 450 ~= 0.163635 in 16K
+float   RADAR_psd_threshold = 0.0067108864;
 
 
 void init_calculate_peak_dist(unsigned fft_logn_samples)
@@ -43,7 +43,8 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
     RADAR_LOGN  = 14;
     RADAR_fs    = 32768000.0;
     RADAR_alpha = 4800000000000.0;
-    RADAR_psd_threshold = 1e-10*pow(8192,2);
+    //RADAR_psd_threshold = 1e-10*pow(8192,2);
+    RADAR_psd_threshold = 0.0067108864;
     break;
   default:
     printf("ERROR : Unsupported Log-N FFT Samples Value: %u\n", fft_logn_samples);

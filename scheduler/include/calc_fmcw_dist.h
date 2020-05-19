@@ -3,6 +3,7 @@
 #define INCLUDED_CALC_FMCW_DIST_H
 
 #include <stdint.h>
+#include "scheduler.h"
 
 /* Some global FFT Radar definitions */
 #define MAX_RADAR_N  (1<<14) // Max we allow is 16k samples
@@ -13,7 +14,9 @@ extern float    RADAR_alpha; // Chirp rate (saw-tooth)
 
 /* Some function declarations */
 extern void  init_calculate_peak_dist();
-extern float calculate_peak_dist_from_fmcw(float* data);
+
+void start_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_block, float* data);
+extern float finish_calculate_peak_dist_from_fmcw(task_metadata_block_t* metatask_block_ptr);
 
 #ifdef INT_TIME
 extern uint64_t calc_sec;

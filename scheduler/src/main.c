@@ -68,11 +68,12 @@ char vit_dict[256];
 
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
+unsigned task_size_variability;
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
-  printf("    -h         : print this helpfule usage info\n");
+  printf("    -h         : print this helpful usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
   printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
@@ -87,16 +88,34 @@ void print_usage(char * pname) {
 #endif
   printf("    -f <N>     : defines Log2 number of FFT samples\n");
   printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
-  printf("    -v <N>     : defines Viterbi messaging behavior:\n");
-  printf("               :      0 = One short message per time step\n");
-  printf("               :      1 = One long  message per time step\n");
-  printf("               :      2 = One short message per obstacle per time step\n");
-  printf("               :      3 = One long  message per obstacle per time step\n");
-  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
-  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  
+  printf("    -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.\n");
+  printf("    -v <N>     : 0 = use short Viterbi messages, 1 = use long Viterbi messages.\n");
+  printf("    -M <N>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.\n");
+  printf("    -S <N>     : Task-Size Variability: Varies the sizes of input tasks where appropriate\n");
+  printf("               :      0 = No variability (e.g. all messages same size, etc.)\n");
+  printf("    -P <N>     : defines the Scheduler Accelerator Selection Policy:\n");
+  printf("               :      0 = Select_Accelerator_Type_And_Wait\n");
+  printf("               :      1 = Fastest_to_Slewest_First_Available\n");
 }
 
 
+// This is just a call-through to the scheduler routine, but we can also print a message here...
+//  This SHOULD be a routine that "does the right work" for a given task, and then releases the MetaData Block
+void base_release_metadata_block(task_metadata_block_t* mb)
+{
+  TDEBUG(printf("Releasing Metadata Block %u : Task %s %s from Accel %s %u\n", mb->metadata.block_id, task_job_str[mb->metadata.job_type], task_criticality_str[mb->metadata.crit_level], accel_type_str[mb->metadata.accelerator_type], mb->metadata.accelerator_id));
+  free_task_metadata_block(mb);
+  // Thread is done
+  //  We shouldn't need to do anything else -- when it returns from its starting function it should exit.
+  // -- do a pthread_join to "clean up" the thread?
+  //pthread_join(mb->metadata.thread_id, NULL);
+  // Do a pthread_exitso thread dies (commits suicide?)
+  //  pthread_exit(NULL);
+}
+
+
+	 
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
@@ -114,10 +133,15 @@ int main(int argc, char *argv[])
   vit_dict[0] = '\0';
   cv_dict[0] = '\0';
 
+  unsigned additional_fft_tasks_per_time_step = 0;
+  unsigned additional_vit_tasks_per_time_step = 0;
+
+  //printf("SIZEOF pthread_t : %lu\n", sizeof(pthread_t));
+  
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:p:S:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -167,12 +191,27 @@ int main(int argc, char *argv[])
       vit_msgs_behavior = atoi(optarg);
       printf("Using viterbi behavior %u\n", vit_msgs_behavior);
       break;
+    case 'S':
+      task_size_variability = atoi(optarg);
+      printf("Using task-size variability behavior %u\n", task_size_variability);
+      break;
     case 'W':
 #ifdef USE_SIM_ENVIRON
       world_desc_file_name = optarg;
       printf("Using world description file: %s\n", world_desc_file_name);
 #endif
       break;
+    case 'F':
+      additional_fft_tasks_per_time_step = atoi(optarg);
+      break;
+    case 'M':
+      additional_vit_tasks_per_time_step = atoi(optarg);
+      break;
+    case 'P':
+      global_scheduler_selection_policy = atoi(optarg);
+      printf("Opting for Scheduler Policy %u\n", global_scheduler_selection_policy);
+      break;
+
     case ':':
       printf("option needs a value\n");
       break;
@@ -204,6 +243,8 @@ int main(int argc, char *argv[])
   printf("   Radar  : %s\n", rad_dict);
   printf("   Viterbi: %s\n", vit_dict);
 
+  printf("\n There are %u additional FFT and %u addtional Viterbi tasks per time step\n", additional_fft_tasks_per_time_step, additional_vit_tasks_per_time_step);
+  
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
    * are required to have the same base name, using the file extension to indicate
@@ -259,6 +300,12 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  if (global_scheduler_selection_policy > NUM_SELECTION_POLICIES) {
+    printf("ERROR : Selected Scheduler Policy (%u) is larger than number of policies (%u)\n", global_scheduler_selection_policy, NUM_SELECTION_POLICIES);
+    exit(-1);
+  }
+  printf("Scheduler is using Policy %u : %s\n", global_scheduler_selection_policy, scheduler_selection_policy_str[global_scheduler_selection_policy]);
+  
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
    *  - Speed: 50 mph
@@ -301,7 +348,12 @@ int main(int argc, char *argv[])
   uint64_t exec_rad_usec = 0LL;
   uint64_t exec_vit_usec = 0LL;
   uint64_t exec_cv_usec  = 0LL;
-  //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+
+  struct timeval stop_wait_all_crit, start_wait_all_crit;
+  uint64_t wait_all_crit_sec = 0LL;
+  uint64_t wait_all_crit_usec = 0LL;
+
+//printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
  #endif // TIME
 
   printf("Starting the main loop...\n");
@@ -371,16 +423,6 @@ int main(int argc, char *argv[])
     iter_vit_usec += stop_iter_vit.tv_usec - start_iter_vit.tv_usec;
    #endif
 
-    // Here we will simulate multiple cases, based on global vit_msgs_behavior
-    int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
-    switch(vit_msgs_behavior) {
-    case 2: num_vit_msgs = total_obj; break;
-    case 3: num_vit_msgs = total_obj; break;
-    case 4: num_vit_msgs = total_obj + 1; break;
-    case 5: num_vit_msgs = total_obj + 1; break;
-    }
-
-
     // EXECUTE the kernels using the now known inputs 
    #ifdef TIME
     gettimeofday(&start_exec_cv, NULL);
@@ -393,33 +435,98 @@ int main(int argc, char *argv[])
 
     gettimeofday(&start_exec_rad, NULL);
    #endif
-    distance = execute_rad_kernel(radar_inputs);
-   #ifdef TIME
-    gettimeofday(&stop_exec_rad, NULL);
-    exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
-    exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
+    // Request a MetadataBlock (for an FFT_TASK at Critical Level)
+    task_metadata_block_t* fft_mb_ptr = get_task_metadata_block(FFT_TASK, CRITICAL_TASK);
+    if (fft_mb_ptr == NULL) {
+      // We ran out of metadata blocks -- PANIC!
+      printf("Out of metadata blocks for FFT -- PANIC Quit the run (for now)\n");
+      exit (-4);
+    }
+    fft_mb_ptr->metadata.atFinish = NULL; // Just to ensure it is NULL
+    start_execution_of_rad_kernel(fft_mb_ptr, radar_inputs); // Critical RADAR task
+    for (int i = 0; i < additional_fft_tasks_per_time_step; i++) {
+      task_metadata_block_t* fft_mb_ptr_2 = get_task_metadata_block(FFT_TASK, BASE_TASK);
+      if (fft_mb_ptr_2 == NULL) {
+	printf("Out of metadata blocks for Non-Critical FFT -- PANIC Quit the run (for now)\n");
+	exit (-5);
+      }
+      fft_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
+      start_execution_of_rad_kernel(fft_mb_ptr_2, radar_inputs); // Critical RADAR task
+    }
 
+    DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id));
+   #ifdef TIME
     gettimeofday(&start_exec_vit, NULL);
    #endif
-    message = execute_vit_kernel(vdentry_p, num_vit_msgs);
+    //NOTE Removed the num_messages stuff -- need to do this differently (separate invocations of this process per message)
+    // Request a MetadataBlock (for an VITERBI_TASK at Critical Level)
+    task_metadata_block_t* vit_mb_ptr = get_task_metadata_block(VITERBI_TASK, 3);
+    if (vit_mb_ptr == NULL) {
+      // We ran out of metadata blocks -- PANIC!
+      printf("Out of metadata blocks for VITERBI -- PANIC Quit the run (for now)\n");
+      exit (-4);
+    }
+    vit_mb_ptr->metadata.atFinish = NULL; // Just to ensure it is NULL
+    start_execution_of_vit_kernel(vit_mb_ptr, vdentry_p); // Critical VITERBI task
+    DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id));
+    for (int i = 0; i < additional_vit_tasks_per_time_step; i++) {
+      task_metadata_block_t* vit_mb_ptr_2 = get_task_metadata_block(VITERBI_TASK, BASE_TASK);
+      if (vit_mb_ptr_2 == NULL) {
+	printf("Out of metadata blocks for Non-Critical VIT -- PANIC Quit the run (for now)\n");
+	exit (-5);
+      }
+      vit_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
+      vit_dict_entry_t* vdentry2_p;
+      if (task_size_variability == 0) {
+	int lnum = vdentry_p->msg_num / NUM_MESSAGES;
+	int m_id = vdentry_p->msg_num % NUM_MESSAGES;
+	if (m_id != vdentry_p->msg_id) {
+	  printf("WARNING: MSG_NUM %u : LNUM %u M_ID %u MSG_ID %u\n", vdentry_p->msg_num, lnum, m_id, vdentry_p->msg_id);
+	}
+	vdentry2_p = select_specific_vit_input(lnum, m_id);
+      } else {
+	DEBUG(printf("Note: electing a random Vit Message for base-task %u\n", vit_mb_ptr_2->metadata.block_id));
+	vdentry2_p = select_random_vit_input();
+      }
+      start_execution_of_vit_kernel(vit_mb_ptr_2, vdentry2_p); // Non-Critical VITERBI task
+    }
    #ifdef TIME
     gettimeofday(&stop_exec_vit, NULL);
     exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
     exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
    #endif
 
-    // POST-EXECUTE each kernels to gather stats, etc.
+   #ifdef TIME
+    gettimeofday(&start_wait_all_crit, NULL);
+   #endif
+
+    TDEBUG(printf("MAIN: Calling wait_all_critical\n"));
+    wait_all_critical();
+
+   #ifdef TIME
+    gettimeofday(&stop_wait_all_crit, NULL);
+    wait_all_crit_sec  += stop_wait_all_crit.tv_sec  - start_wait_all_crit.tv_sec;
+    wait_all_crit_usec += stop_wait_all_crit.tv_usec - start_wait_all_crit.tv_usec;
+   #endif
+    
+    distance = finish_execution_of_rad_kernel(fft_mb_ptr);
+    message = finish_execution_of_vit_kernel(vit_mb_ptr);
+   #ifdef TIME
+    gettimeofday(&stop_exec_rad, NULL);
+    exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
+    exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
+   #endif
+
+    // POST-EXECUTE each kernel to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
     post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance);
-    for (int mi = 0; mi < num_vit_msgs; mi++) {
-      post_execute_vit_kernel(vdentry_p->msg_id, message);
-    }
+    post_execute_vit_kernel(vdentry_p->msg_id, message);
 
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    printf("Time Step %3u : Calling Plan and Control with message %u and distane %.1f\n", time_step, message, distance);
+    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance));
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
@@ -430,11 +537,18 @@ int main(int argc, char *argv[])
     }
     #endif
 
+    // TEST - trying this here.
+    //wait_all_tasks_finish();
+    
     #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
     #endif
   }
 
+  // This is the end of time steps... wait for all tasks to be finished (?)
+  // Adding this results in never completing...  not sure why.
+  // wait_all_tasks_finish();
+  
   #ifdef TIME
   	gettimeofday(&stop, NULL);
   #endif
@@ -453,6 +567,7 @@ int main(int argc, char *argv[])
     uint64_t exec_rad   = (uint64_t) (exec_rad_sec) * 1000000 + (uint64_t) (exec_rad_usec);
     uint64_t exec_vit   = (uint64_t) (exec_vit_sec) * 1000000 + (uint64_t) (exec_vit_usec);
     uint64_t exec_cv    = (uint64_t) (exec_cv_sec)  * 1000000 + (uint64_t) (exec_cv_usec);
+    uint64_t wait_all_crit   = (uint64_t) (wait_all_crit_sec) * 1000000 + (uint64_t) (wait_all_crit_usec);
     printf("\nProgram total execution time     %lu usec\n", total_exec);
     printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
     printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
@@ -460,6 +575,7 @@ int main(int argc, char *argv[])
     printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
     printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
     printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
+    printf("  wait_all_critical run time     %lu usec\n", wait_all_crit);
   }
  #endif // TIME
  #ifdef INT_TIME

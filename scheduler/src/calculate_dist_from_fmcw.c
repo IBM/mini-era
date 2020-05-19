@@ -70,9 +70,27 @@ void init_calculate_peak_dist(unsigned fft_logn_samples)
 
 
 
+// This now illustrates the use of the "task metadata" to transfer information for an FFT operation.
+//  NOTE: We request a metadata block form the scheduler -- if one is not currently available, then what?
+//     OPTIONS: 1. Wait for one to become available
+//              2. Purge a lower-criticality task (if there is one), else wait
+//              3. Drop task if this is lowest-criticality (?), else wait
+//   To make the task independent of the calling program, we need to copy over the data into the metadata block
+//      This treats the scheduler like an off-load accelerator, in many ways.
+//   Then we should try to make thes CPU accelerators run in independent threads (pthreads, I think)?
+//      This will let us refine the non-blocking behavior, and start the more detailed behavior of the
+//        scheduler implementation (i.e. ranking, queue management, etc.)
 
-float calculate_peak_dist_from_fmcw(float* data)
+void start_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_block, float* data)
 {
+  fft_metadata_block->metadata.data_size = 2 * RADAR_N * sizeof(float);
+  // Copy over our task data to the MetaData Block
+  //fft_metadata_block->metadata.data = (uint8_t*)data;
+  float* mdataptr = (float*)fft_metadata_block->metadata.data;
+  for (int i = 0; i < 2*RADAR_N; i++) {
+    mdataptr[i] = data[i];
+  }
+
  #ifdef INT_TIME
   gettimeofday(&calc_start, NULL);
  #endif
@@ -80,7 +98,20 @@ float calculate_peak_dist_from_fmcw(float* data)
  #ifdef INT_TIME
   gettimeofday(&fft_start, NULL);
  #endif // INT_TIME
-  schedule_fft(data);
+  //  schedule_fft(data);
+  request_execution(fft_metadata_block);
+  // This now ends this block -- we've kicked off execution
+};
+
+// NOTE: This routine DOES NOT copy out the data results -- a call to
+//   calculate_peak_distance_from_fmcw now results in alteration ONLY
+//   of the metadata task data; we could send in the data pointer and
+//   over-write the original input data with the FFT results (As we used to)
+//   but this seems un-necessary since we only want the final "distance" really.
+float
+finish_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_block)
+{
+  float* mdataptr = (float*)fft_metadata_block->metadata.data;
  #ifdef INT_TIME
   gettimeofday(&fft_stop, NULL);
   fft_sec  += fft_stop.tv_sec  - fft_start.tv_sec;
@@ -94,6 +125,12 @@ float calculate_peak_dist_from_fmcw(float* data)
 
   gettimeofday(&cdfmcw_start, NULL);
  #endif // INT_TIME
+
+  float* data = mdataptr;
+  /* // Now we need to copy out the results (from the executed, accelerator task) */
+  /* for (int i = 0; i < 2*RADAR_N; i++) { */
+  /*   data[i] = mdataptr[i]; */
+  /* } */
 
   float max_psd = 0;
   unsigned int max_index = 0;

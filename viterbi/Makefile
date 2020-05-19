@@ -28,19 +28,19 @@ OBJDIR_FEG = obj_f_esp_gp
 OBJDIR_FET = obj_f_esp_t
 OBJDIR_FCK = obj_fck
 
-L_SRC = viterbi_standalone.c viterbi_decoder_generic.c descrambler_function.c
+L_SRC = viterbi_parms.c viterbi_decoder_generic.c descrambler_function.c
 L_OBJ = $(L_SRC:%.c=$(OBJDIR)/%.o)
 L_OBJ_E = $(L_SRC:%.c=$(OBJDIR_E)/%.o)
 L_OBJ_G = $(L_SRC:%.c=$(OBJDIR_G)/%.o)
 L_OBJ_T = $(L_SRC:%.c=$(OBJDIR_T)/%.o)
 
-LF_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
+LF_SRC = viterbi_parms.c viterbi_flat.c descrambler_function.c
 LF_OBJ = $(LF_SRC:%.c=$(OBJDIR_F)/%.o)
 LF_OBJ_E = $(LF_SRC:%.c=$(OBJDIR_FE)/%.o)
 LF_OBJ_G = $(LF_SRC:%.c=$(OBJDIR_FG)/%.o)
 LF_OBJ_T = $(LF_SRC:%.c=$(OBJDIR_FT)/%.o)
 
-LFV_SRC = viterbi_standalone.c viterbi_flat.c descrambler_function.c
+LFV_SRC = viterbi_parms.c viterbi_flat.c descrambler_function.c
 LFV_OBJ = $(LFV_SRC:%.c=$(OBJDIR_FV)/%.o)
 LFV_OBJ_E = $(LFV_SRC:%.c=$(OBJDIR_FVE)/%.o)
 LFV_OBJ_G = $(LFV_SRC:%.c=$(OBJDIR_FVG)/%.o)
@@ -55,7 +55,7 @@ LCK_OBJ_T = $(L_SRC:%.c=$(OBJDIR_TCK)/%.o)
 #A_OBJ = $(A_SRC:%.c=obj/%.o)
 
 
-T_SRC   = vtest.c
+T_SRC   = vtest.c viterbi_parms.c
 T_OBJ   = $(T_SRC:%.c=obj/%.o)
 T_OBJ_E = $(T_SRC:%.c=$(OBJDIR_E)/%.o)
 T_OBJ_G = $(T_SRC:%.c=$(OBJDIR_G)/%.o)
@@ -292,26 +292,34 @@ clean:
 	-rm viterbi_ftest_t $(FT_OBJ_T)
 	-rm viterbi_fvtest $(FTV_OBJ)
 	-rm viterbi_fvtest_esp $(FTV_OBJ_E)
-	-rm viterbi_fvtest_gp $(FTV_$BJ_G)
-	-rm viterbi_fvtest_t $(FTV_$BJ_T)
+	-rm viterbi_fvtest_gp $(FTV_OBJ_G)
+	-rm viterbi_fvtest_t $(FTV_OBJ_T)
 
 allclean: clean
 	$(RM) -r $(OBJDIR)
 	$(RM) -r $(OBJDIR_E)
 	$(RM) -r $(OBJDIR_G)
+	$(RM) -r $(OBJDIR_T)
 	$(RM) -r $(OBJDIR_CK)
 	$(RM) -r $(OBJDIR_ECK)
 	$(RM) -r $(OBJDIR_GCK)
+	$(RM) -r $(OBJDIR_TCK)
 	$(RM) -r $(OBJDIR_EGCK)
+	$(RM) -r $(OBJDIR_ETCK)
 	$(RM) -r $(OBJDIR_F)
 	$(RM) -r $(OBJDIR_FE)
 	$(RM) -r $(OBJDIR_FG)
+	$(RM) -r $(OBJDIR_FT)
 	$(RM) -r $(OBJDIR_FV)
 	$(RM) -r $(OBJDIR_FVE)
 	$(RM) -r $(OBJDIR_FVG)
 	$(RM) -r $(OBJDIR_FVEG)
+	$(RM) -r $(OBJDIR_FVET)
 	$(RM) -r $(OBJDIR_FEG)
+	$(RM) -r $(OBJDIR_FET)
 	$(RM) -r $(OBJDIR_FCK)
+
+clobber: allclean
 
 
 obj/%.o: %.c
@@ -388,109 +396,109 @@ $(OBJDIR_FVET)/%.o: %.c
 
 
 
-$(OBJDIR)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR)/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR)/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR)/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR)/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR)/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR)/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR)/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR)/atest.o: viterbi_standalone.h utils.h
+$(OBJDIR)/atest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_CK)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR_CK)/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_CK)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR_CK)/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR_CK)/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR_CK)/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR_CK)/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR_CK)/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR_CK)/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR_F)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_F)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_F)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_F)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_F)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_F)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_F)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FV)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FV)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FV)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FV)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FV)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FV)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FV)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_E)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR_E)/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_E)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR_E)/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR_E)/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR_E)/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR_E)/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR_E)/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR_E)/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR_CK)_esp/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR_CK)_esp/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_CK)_esp/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR_CK)_esp/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR_CK)_esp/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR_CK)_esp/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR_CK)_esp/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR_CK)_esp/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR_CK)_esp/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR_F)_esp/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_F)_esp/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_F)_esp/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_F)_esp/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_F)_esp/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_F)_esp/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_F)_esp/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FVE)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FVE)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FVE)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FVE)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FVE)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FVE)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FVE)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_G)/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR_G)/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_G)/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR_G)/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR_G)/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR_G)/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR_G)/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR_G)/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR_G)/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR_CK)_gp/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR_CK)_gp/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_CK)_gp/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR_CK)_gp/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR_CK)_gp/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR_CK)_gp/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR_CK)_gp/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR_CK)_gp/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR_CK)_gp/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR_F)_gp/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_F)_gp/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_F)_gp/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_F)_gp/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_F)_gp/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_F)_gp/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_F)_gp/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FVG)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FVG)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FVG)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FVG)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FVG)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FVG)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FVG)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_CK)_t/viterbi_standalone.o: viterbi_decoder_generic.h base.h utils.h
+$(OBJDIR_CK)_t/viterbi_parms.o: viterbi_decoder_generic.h base.h utils.h
 $(OBJDIR_CK)_t/viterbi_decoder_generic.o: viterbi_decoder_generic.h base.h utils.h
-$(OBJDIR_CK)_t/viterbi_decoder_generic.o: viterbi_standalone.h
-$(OBJDIR_CK)_t/vtest.o: viterbi_standalone.h utils.h
-$(OBJDIR_CK)_t/viterbi_test.o: viterbi_standalone.h utils.h
+$(OBJDIR_CK)_t/viterbi_decoder_generic.o: viterbi_parms.h
+$(OBJDIR_CK)_t/vtest.o: viterbi_parms.h utils.h
+$(OBJDIR_CK)_t/viterbi_test.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FT)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FT)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FT)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FT)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FT)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FT)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FT)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FVT)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FVT)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FVT)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FVT)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FVT)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FVT)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FVT)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FVEG)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FVEG)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FVEG)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FVEG)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FVEG)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FVEG)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FVEG)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FVET)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FVET)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FVET)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FVET)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FVET)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FVET)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FVET)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FEG)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FEG)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FEG)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FEG)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FEG)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FEG)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FEG)/viterbi_ftest.o: viterbi_parms.h utils.h
 
-$(OBJDIR_FET)/viterbi_standalone.o: viterbi_flat.h base.h utils.h
+$(OBJDIR_FET)/viterbi_parms.o: viterbi_flat.h base.h utils.h
 $(OBJDIR_FET)/viterbi_flat.o: viterbi_flat.h base.h utils.h
-$(OBJDIR_FET)/viterbi_flat.o: viterbi_standalone.h
-$(OBJDIR_FET)/viterbi_ftest.o: viterbi_standalone.h utils.h
+$(OBJDIR_FET)/viterbi_flat.o: viterbi_parms.h
+$(OBJDIR_FET)/viterbi_ftest.o: viterbi_parms.h utils.h
 
 
 depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(L_SRC) $(T_SRC)

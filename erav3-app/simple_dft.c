@@ -10,10 +10,7 @@
 #include <math.h>
 
 #include "debug.h"
-
-#ifndef M_PI
-  #define M_PI 3.14159265358979323846
-#endif 
+#include "simple_dft.h"
 
 void simple_dft(const float *inreal, const float *inimag,
 		float *outreal, float *outimag,
@@ -32,16 +29,17 @@ void simple_dft(const float *inreal, const float *inimag,
     outimag[k] = sumimag;
   }
 
-  float swap_r, swap_i;
+  /* shift: */
   if (shift) {
-    /* shift: */
-    for(unsigned i = 0; i < (n/2); i++) {
+    float swap_r, swap_i;
+    int M = (n/2);
+    for(unsigned i = 0; i < M; i++) {
       swap_r = outreal[i];
       swap_i = outimag[i];
-      outreal[i] = outreal[32+i];
-      outimag[i] = outimag[32+i];
-      outreal[32+i] = swap_r;
-      outimag[32+i] = swap_i;
+      outreal[i] = outreal[M+i];
+      outimag[i] = outimag[M+i];
+      outreal[M+i] = swap_r;
+      outimag[M+i] = swap_i;
     }
   }
 

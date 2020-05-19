@@ -46,7 +46,7 @@
 
 #include "base.h"
 #include "viterbi_flat.h"
-#include "viterbi_standalone.h"
+#include "viterbi_parms.h"
 
 #ifdef HW_VIT
 extern int vitHW_fd;

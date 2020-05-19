@@ -22,13 +22,15 @@
 #include <sys/time.h>
 #include "base.h"
 #include "verbose.h"
+#include "scheduler.h"
 
 /* This Viterbi decoder was taken from the gr-dvbt module of
  * GNU Radio. It is an SSE2 version of the Viterbi Decoder
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char);
+void start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_param *frame, uint8_t *in);
+uint8_t* finish_decode(task_metadata_block_t* mb_ptr, int* n_dec_char);
 
 typedef union branchtab27_u {
 	unsigned char c[32];
