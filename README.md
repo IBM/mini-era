@@ -48,13 +48,15 @@ Usage: ./cmain.exe <OPTIONS>
     -t <trace> : defines the input trace file <trace> to use
     -f <N>     : defines Log2 number of FFT samples
                :      14 = 2^14 = 16k samples (default); 10 = 1k samples
-    -v <N>     : defines Viterbi messaging behavior:
-               :      0 = One short message per time step
-               :      1 = One long  message per time step
-               :      2 = One short message per obstacle per time step
-               :      3 = One long  message per obstacle per time step
-               :      4 = One short msg per obstacle + 1 per time step
-               :      5 = One long  msg per obstacle + 1 per time step
+    -n <N>     : defines number of Viterbi messages per time step behavior:
+               :      0 = One message per time step
+               :      1 = One message per obstacle per time step
+               :      2 = One msg per obstacle + 1 per time step
+    -v <N>     : defines Viterbi message size:
+               :      0 = Short messages (4 characters)
+               :      1 = Medium messages (500 characters)
+               :      2 = Long messages (1000 characters)
+               :      3 = Max-sized messages (1500 characters)
 ```
 
 #### Other Targets
@@ -120,13 +122,15 @@ Usage: ./csim_main.exe <OPTIONS>
     -W <wfile> : defines the world environment parameters description file <wfile> to use
     -f <N>     : defines Log2 number of FFT samples
                :      14 = 2^14 = 16k samples (default); 10 = 1k samples
-    -v <N>     : defines Viterbi messaging behavior:
-               :      0 = One short message per time step
-               :      1 = One long  message per time step
-               :      2 = One short message per obstacle per time step
-               :      3 = One long  message per obstacle per time step
-               :      4 = One short msg per obstacle + 1 per time step
-               :      5 = One long  msg per obstacle + 1 per time step
+    -n <N>     : defines number of Viterbi messages per time step behavior:
+               :      0 = One message per time step
+               :      1 = One message per obstacle per time step
+               :      2 = One msg per obstacle + 1 per time step
+    -v <N>     : defines Viterbi message size:
+               :      0 = Short messages (4 characters)
+               :      1 = Medium messages (500 characters)
+               :      2 = Long messages (1000 characters)
+               :      3 = Max-sized messages (1500 characters)
 ```
 
 Note that in simulation mode, there is no option to specify a trace (the '-t' of trace-mode) as there is no need for or use of a trace.  There are four additional options in simulation-mode: the '-s' which indicates the number of time steps to simulate (which is analogous to the trace length) and '-r' which sets the seed value (and unsigned int) for the C ```rand()``` function used in the simulation.  Both modes support the '-v' and '-o' options.  

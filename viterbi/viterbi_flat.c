@@ -241,7 +241,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   }
 #endif
   
-  VERBOSE({
+  SHOW_VERBOSE({
       printf("\nVBS: in_cbps        = %u\n", in_cbps);
       printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
       printf("VBS: in_n_data_bits = %u\n", in_n_data_bits);
@@ -604,7 +604,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
     in_count++;
   }
 
-  /* VERBOSE({ */
+  /* SHOW_VERBOSE({ */
   /*     printf("\nVBS: FINAL l_decoded = [\n"); */
   /*     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
   /* 	///if (ti > 0) { printf(", "); } */
@@ -642,7 +642,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 
 // Initialize starting metrics to prefer 0 state
 void viterbi_chunks_init_generic() {
-  int i, j;
+  int i;
 
   int polys[2] = { 0x6d, 0x4f };
   for(i=0; i < 32; i++) {
@@ -711,7 +711,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
   depunc_usec += depunc_stop.tv_usec - depunc_start.tv_usec;
 #endif
 
-  VERBOSE({
+  SHOW_VERBOSE({
       printf("VBS: depunctured = [\n");
       for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
 	if (ti > 0) { printf(", "); }

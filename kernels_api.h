@@ -52,6 +52,9 @@ typedef struct {
 } vit_dict_entry_t;
 
 
+#define VITERBI_MSG_LENGTHS     4
+#define VITERBI_MSGS_PER_STEP   3
+
 /* These are GLOBAL and affect the underlying world, etc. */
 #define NUM_LANES     5
 #define NUM_OBJECTS   5
@@ -123,7 +126,10 @@ extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
 
-extern unsigned vit_msgs_behavior;
+extern unsigned vit_msgs_size;
+extern unsigned vit_msgs_per_step;
+extern const char* vit_msgs_size_str[VITERBI_MSG_LENGTHS];
+extern const char* vit_msgs_per_step_str[VITERBI_MSGS_PER_STEP];
 
 extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')

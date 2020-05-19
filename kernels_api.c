@@ -125,7 +125,14 @@ uint8_t actual_msg[1600];
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
-unsigned vit_msgs_behavior = 0; // 0 = default
+unsigned vit_msgs_size;
+unsigned vit_msgs_per_step;
+const char* vit_msgs_size_str[VITERBI_MSG_LENGTHS] = {"SHORT", "MEDIUM", "LONG", "MAXIMUM"};
+const char* vit_msgs_per_step_str[VITERBI_MSGS_PER_STEP] = {"One message per time step",
+							    "One message per obstacle per time step",
+							    "One msg per obstacle + 1 per time step" };
+unsigned viterbi_messages_histogram[VITERBI_MSG_LENGTHS][NUM_MESSAGES];
+
 unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
 
@@ -285,6 +292,13 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("\n"));
   }
   fclose(dictF);
+
+  //Clear the messages (injected) histogram
+  for (int i = 0; i < VITERBI_MSG_LENGTHS; i++) {
+    for (int j = 0; j < NUM_MESSAGES; j++) {
+      viterbi_messages_histogram[i][j] = 0;
+    }
+  }
 
   for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
     hist_total_objs[i] = 0;
@@ -613,16 +627,8 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
 
   vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
 
-  // Here we determine short or long messages, based on global vit_msgs_behavior
-  int msg_offset = 0; // 0 = short messages, 4 = long messages
-  switch(vit_msgs_behavior) {
-  case 0: break;
-  case 1: msg_offset = 4; break;
-  case 2: break;
-  case 3: msg_offset = 4; break;
-  case 4: break;
-  case 5: msg_offset = 4; break;
-  }
+  // Here we determine short or long messages, based on global vit_msgs_size; offset is into the Dictionary
+  int msg_offset = vit_msgs_size * NUM_MESSAGES; // 0 = short messages, 4 = long messages
 
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
@@ -650,6 +656,7 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
   char     msg_text[1600]; // Big enough to hold largest message (1500?)
   for (int mi = 0; mi < num_msgs; mi++) {
     DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
+    viterbi_messages_histogram[vit_msgs_size][trace_msg->msg_id]++; 
     int n_res_char;
     result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]), &n_res_char);
     // descramble the output - put it in result
@@ -664,18 +671,19 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
     }
     printf("'\n");
    #endif
-    // Here we look at the message string and select proper message_t
-    switch(msg_text[3]) {
-    case '0' : msg = safe_to_move_right_or_left; break;
-    case '1' : msg = safe_to_move_right_only; break;
-    case '2' : msg = safe_to_move_left_only; break;
-    case '3' : msg = unsafe_to_move_left_or_right; break;
-    default  : msg = num_message_t; break;
-    }
+    if (mi == 0) { 
+      // Here we look at the message string and select proper message_t out (just for the first message)
+      switch(msg_text[3]) {
+      case '0' : msg = safe_to_move_right_or_left; break;
+      case '1' : msg = safe_to_move_right_only; break;
+      case '2' : msg = safe_to_move_left_only; break;
+      case '3' : msg = unsafe_to_move_left_or_right; break;
+      default  : msg = num_message_t; break;
+      }
+    } // if (mi == 0)
   }
-
   DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
-
+    
   return msg;
 }
 
@@ -867,6 +875,14 @@ void closeout_vit_kernel()
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
 
+  printf("\nHistogram of Viterbi Messages:\n");
+  printf("    %3s | %3s | %9s \n", "Len", "Msg", "NumOccurs");
+  for (int li = 0; li < VITERBI_MSG_LENGTHS; li++) {
+    for (int mi = 0; mi < NUM_MESSAGES; mi++) {
+      printf("    %3u | %3u | %9u \n", li, mi, viterbi_messages_histogram[li][mi]);
+    }
+  }
+  printf("\n");
 }
 
 

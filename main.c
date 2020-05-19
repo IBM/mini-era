@@ -73,13 +73,15 @@ void print_usage(char * pname) {
 #endif
   printf("    -f <N>     : defines Log2 number of FFT samples\n");
   printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
-  printf("    -v <N>     : defines Viterbi messaging behavior:\n");
-  printf("               :      0 = One short message per time step\n");
-  printf("               :      1 = One long  message per time step\n");
-  printf("               :      2 = One short message per obstacle per time step\n");
-  printf("               :      3 = One long  message per obstacle per time step\n");
-  printf("               :      4 = One short msg per obstacle + 1 per time step\n");
-  printf("               :      5 = One long  msg per obstacle + 1 per time step\n");
+  printf("    -n <N>     : defines number of Viterbi messages per time step behavior:\n");
+  printf("               :      0 = One message per time step\n");
+  printf("               :      1 = One message per obstacle per time step\n");
+  printf("               :      2 = One msg per obstacle + 1 per time step\n");
+  printf("    -v <N>     : defines Viterbi message size:\n");
+  printf("               :      0 = Short messages (4 characters)\n");
+  printf("               :      1 = Medium messages (500 characters)\n");
+  printf("               :      2 = Long messages (1000 characters)\n");
+  printf("               :      3 = Max-sized messages (1500 characters)\n");
 }
 
 
@@ -92,7 +94,7 @@ int main(int argc, char *argv[])
 #ifdef USE_SIM_ENVIRON
   char* world_desc_file_name = "default_world.desc";
 #else
-  char* trace_file;
+  char* trace_file = "";
 #endif
   int opt;
 
@@ -103,7 +105,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:f:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -151,8 +153,22 @@ int main(int argc, char *argv[])
 #endif
       break;
     case 'v':
-      vit_msgs_behavior = atoi(optarg);
-      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      vit_msgs_size = atoi(optarg);
+      if (vit_msgs_size >= VITERBI_MSG_LENGTHS) {
+	printf("ERROR: Specified viterbi message size (%u) is larger than max (%u) : from the -v option\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
+	exit(-1);
+      } else {
+	printf("Using viterbi message size %u = %s\n", vit_msgs_size, vit_msgs_size_str[vit_msgs_size]);
+      }
+      break;
+    case 'n':
+      vit_msgs_per_step = atoi(optarg);
+      if (vit_msgs_size >= VITERBI_MSG_LENGTHS) {
+	printf("ERROR: Specified viterbi messages per time step behavior (%u) is larger than max (%u) : from the -n option\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
+	exit(-1);
+      } else {
+	printf("Using viterbi messages per step behavior %u = %s\n", vit_msgs_per_step, vit_msgs_per_step_str[vit_msgs_per_step]);
+      }
       break;
     case 'W':
 #ifdef USE_SIM_ENVIRON
@@ -352,13 +368,10 @@ int main(int argc, char *argv[])
 
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
     int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
-    switch(vit_msgs_behavior) {
-    case 2: num_vit_msgs = total_obj; break;
-    case 3: num_vit_msgs = total_obj; break;
-    case 4: num_vit_msgs = total_obj + 1; break;
-    case 5: num_vit_msgs = total_obj + 1; break;
+    switch(vit_msgs_per_step) {
+    case 1: num_vit_msgs = total_obj; break;
+    case 2: num_vit_msgs = total_obj + 1; break;
     }
-
 
     // EXECUTE the kernels using the now known inputs 
    #ifdef TIME
