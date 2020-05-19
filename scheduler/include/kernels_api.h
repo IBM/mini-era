@@ -120,7 +120,7 @@ extern char* lane_names[NUM_LANES];
 extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
 
-extern unsigned vit_msgs_behavior;
+extern unsigned vit_msgs_size;
 
 extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')

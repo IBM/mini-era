@@ -114,7 +114,7 @@ unsigned hist_pct_errs[MAX_RDICT_ENTRIES][5];// = {0, 0, 0, 0, 0}; // One per di
 unsigned hist_distances[MAX_RDICT_ENTRIES];
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
-#define VITERBI_LENGTHS  2
+#define VITERBI_LENGTHS  4
 unsigned viterbi_messages_histogram[VITERBI_LENGTHS][NUM_MESSAGES];
 
 /* These are some top-level defines needed for VITERBI */
@@ -132,7 +132,7 @@ uint8_t actual_msg[1600];
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
-unsigned vit_msgs_behavior = 0; // 0 = default
+unsigned vit_msgs_size = 0; // 0 = default
 unsigned total_msgs = 0; // Total messages decoded during the full run
 unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
 
@@ -215,6 +215,10 @@ status_t init_rad_kernel(char* dict_fn)
 status_t init_vit_kernel(char* dict_fn)
 {
   DEBUG(printf("In init_vit_kernel...\n"));
+  if (vit_msgs_size >= VITERBI_LENGTHS) {
+    printf("ERROR: Specified too large a vit_msgs_size (-v option): %u but max is %u\n", vit_msgs_size, VITERBI_LENGTHS);
+    exit(-1);
+  }
   // Read in the object images dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
@@ -284,7 +288,6 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("\n"));
   }
   fclose(dictF);
-
 
   //Clear the messages (injected) histogram
   for (int i = 0; i < VITERBI_LENGTHS; i++) {
@@ -627,18 +630,10 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
 
   vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
 
-  // Here we determine short or long messages, based on global vit_msgs_behavior
-  int msg_offset = 0; // 0 = short messages, 4 = long messages
-  switch(vit_msgs_behavior) {
-  case 0: break;
-  case 1: msg_offset = 4; break;
-  /* case 2: viterbi_messages_histogram[msg_offset]++; break; */
-  /* case 3: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break; */
-  /* case 4: viterbi_messages_histogram[msg_offset]++; break; */
-  /* case 5: msg_offset = 4; viterbi_messages_histogram[msg_offset]++; break; */
-  }
+  // Here we determine short or long messages, based on global vit_msgs_size
+  int msg_offset = vit_msgs_size * NUM_MESSAGES; // messages offset picks a "size" category
 
-  viterbi_messages_histogram[vit_msgs_behavior][tr_val]++; 
+  viterbi_messages_histogram[vit_msgs_size][tr_val]++; 
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
     trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);

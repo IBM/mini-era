@@ -188,8 +188,8 @@ int main(int argc, char *argv[])
 #endif
       break;
     case 'v':
-      vit_msgs_behavior = atoi(optarg);
-      printf("Using viterbi behavior %u\n", vit_msgs_behavior);
+      vit_msgs_size = atoi(optarg);
+      printf("Using viterbi size %u\n", vit_msgs_size);
       break;
     case 'S':
       task_size_variability = atoi(optarg);
