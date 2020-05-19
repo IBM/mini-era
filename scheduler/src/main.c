@@ -90,7 +90,11 @@ void print_usage(char * pname) {
   printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
   
   printf("    -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.\n");
-  printf("    -v <N>     : 0 = use short Viterbi messages, 1 = use long Viterbi messages.\n");
+  printf("    -v <N>     : defines Viterbi message size:\n");
+  printf("               :      0 = Short messages (4 characters)\n");
+  printf("               :      1 = Medium messages (500 characters)\n");
+  printf("               :      2 = Long messages (1000 characters)\n");
+  printf("               :      3 = Max-sized messages (1500 characters)\n");
   printf("    -M <N>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.\n");
   printf("    -S <N>     : Task-Size Variability: Varies the sizes of input tasks where appropriate\n");
   printf("               :      0 = No variability (e.g. all messages same size, etc.)\n");

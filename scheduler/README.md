@@ -88,8 +88,17 @@ Usage: ./cmain.exe <OPTIONS>
     -f <N>     : defines Log2 number of FFT samples
                :      14 = 2^14 = 16k samples (default); 10 = 1k samples
     -F <N>     : Adds <N> additional (non-critical) FFT tasks per time step.
-    -v <N>     : 0 = use chort Viterbi messages, 1 = use long Viterbi messages.
-    -M <M>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.
+    -v <N>     : defines Viterbi message size:
+               :      0 = Short messages (4 characters)
+               :      1 = Medium messages (500 characters)
+               :      2 = Long messages (1000 characters)
+               :      3 = Max-sized messages (1500 characters)
+    -M <N>     : Adds <N> additional (non-critical) Viterbi message tasks per time step.
+    -S <N>     : Task-Size Variability: Varies the sizes of input tasks where appropriate
+               :      0 = No variability (e.g. all messages same size, etc.)
+    -P <N>     : defines the Scheduler Accelerator Selection Policy:
+               :      0 = Select_Accelerator_Type_And_Wait
+               :      1 = Fastest_to_Slewest_First_Available
 ```
 
 To actually execute a trace, one must point to the trace repository.  The scheduler sub-directoyr does not include a trace directory itself, but instead uses the one from Mini-ERA.  One can do this in several ways:
