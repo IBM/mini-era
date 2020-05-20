@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:p:S:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:s:r:W:R:V:C:f:F:M:P:S:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
