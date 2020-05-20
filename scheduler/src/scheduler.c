@@ -979,6 +979,8 @@ select_target_accelerator(accel_selct_policy_t policy, task_metadata_block_t* ta
     pick_accel_and_wait_for_available(task_metadata_block);
     break;
   case FAST_TO_SLOW_FIRST_AVAIL_POLICY:
+    fastest_to_slowest_first_available(task_metadata_block);
+    break;
   default:
     printf("ERROR : unknown scheduler accelerator selection policy: %u\n", policy);
     exit(-15);
