@@ -698,7 +698,7 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
   int fn = task_metadata_block->accelerator_id;
   TDEBUG(printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->block_id, task_metadata_block->crit_level));
 #ifdef HW_FFT
-  float * data = (float*)(task_metadata_block->data);
+  float * data = (float*)(task_metadata_block->data_view.fft_data);
   // convert input from float to fixed point
   for (int j = 0; j < 2 * (1 << fft_logn_samples); j++) {
     fftHW_lmem[fn][j] = float2fx(data[j], FX_IL);
