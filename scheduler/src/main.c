@@ -30,34 +30,6 @@
 
 #define TIME
 
-#ifdef INT_TIME
-extern uint64_t calc_sec;
-extern uint64_t calc_usec;
-
-extern uint64_t fft_sec;
-extern uint64_t fft_usec;
-
-extern uint64_t bitrev_sec;
-extern uint64_t bitrev_usec;
-
-extern uint64_t fft_br_sec;
-extern uint64_t fft_br_usec;
-
-extern uint64_t fft_cvtin_sec;
-extern uint64_t fft_cvtin_usec;
-
-extern uint64_t fft_cvtout_sec;
-extern uint64_t fft_cvtout_usec;
-
-extern uint64_t cdfmcw_sec;
-extern uint64_t cdfmcw_usec;
-
-extern uint64_t dodec_sec;
-extern uint64_t dodec_usec;
-
-extern uint64_t depunc_sec;
-extern uint64_t depunc_usec;
-#endif
 
 char cv_dict[256]; 
 char rad_dict[256];
@@ -110,12 +82,7 @@ void base_release_metadata_block(task_metadata_block_t* mb)
 {
   TDEBUG(printf("Releasing Metadata Block %u : Task %s %s from Accel %s %u\n", mb->block_id, task_job_str[mb->job_type], task_criticality_str[mb->crit_level], accel_type_str[mb->accelerator_type], mb->accelerator_id));
   free_task_metadata_block(mb);
-  // Thread is done
-  //  We shouldn't need to do anything else -- when it returns from its starting function it should exit.
-  // -- do a pthread_join to "clean up" the thread?
-  //pthread_join(mb->thread_id, NULL);
-  // Do a pthread_exitso thread dies (commits suicide?)
-  //  pthread_exit(NULL);
+  // Thread is done -- We shouldn't need to do anything else -- when it returns from its starting function it should exit.
 }
 
 
@@ -572,17 +539,18 @@ int main(int argc, char *argv[])
     uint64_t exec_vit   = (uint64_t) (exec_vit_sec) * 1000000 + (uint64_t) (exec_vit_usec);
     uint64_t exec_cv    = (uint64_t) (exec_cv_sec)  * 1000000 + (uint64_t) (exec_cv_usec);
     uint64_t wait_all_crit   = (uint64_t) (wait_all_crit_sec) * 1000000 + (uint64_t) (wait_all_crit_usec);
-    printf("\nProgram total execution time     %lu usec\n", total_exec);
-    printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
-    printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
-    printf("  iterate_cv_kernel run time     %lu usec\n", iter_cv);
-    printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
-    printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
-    printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
-    printf("  wait_all_critical run time     %lu usec\n", wait_all_crit);
+    printf("\nProgram total execution time      %lu usec\n", total_exec);
+    printf("  iterate_rad_kernel run time       %lu usec\n", iter_rad);
+    printf("  iterate_vit_kernel run time       %lu usec\n", iter_vit);
+    printf("  iterate_cv_kernel run time        %lu usec\n", iter_cv);
+    printf("  Crit execute_rad_kernel run time  %lu usec\n", exec_rad);
+    printf("  Crit execute_vit_kernel run time  %lu usec\n", exec_vit);
+    printf("  Crit execute_cv_kernel run time   %lu usec\n", exec_cv);
+    printf("  wait_all_critical run time        %lu usec\n", wait_all_crit);
   }
  #endif // TIME
- #ifdef INT_TIME
+  /***
+#ifdef INT_TIME
   // These are timings taken from called routines...
   printf("\n");
   uint64_t fft_tot = (uint64_t) (calc_sec)  * 1000000 + (uint64_t) (calc_usec);
@@ -609,7 +577,7 @@ int main(int argc, char *argv[])
   uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
   printf("  do-decoding run time    %lu usec\n", dodec);
  #endif // INT_TIME
-
+  ***/
 
   shutdown_scheduler();
   printf("\nDone.\n");
