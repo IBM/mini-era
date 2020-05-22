@@ -29,26 +29,23 @@ void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block)
   float * data = (float*)(task_metadata_block->data_view.fft_data);
 
 #ifdef INT_TIME
-  gettimeofday(&calc_start, NULL);
+  gettimeofday(&(task_metadata_block->fft_timings.calc_start), NULL);
  #endif
 
  #ifdef INT_TIME
-  gettimeofday(&fft_start, NULL);
+  gettimeofday(&(task_metadata_block->fft_timings.fft_start), NULL);
  #endif // INT_TIME
-  fft(data, 1<<fft_logn_samples, fft_logn_samples, -1);
+  fft(task_metadata_block, data, 1<<fft_logn_samples, fft_logn_samples, -1);
   /* for (int j = 0; j < 2 * RADAR_N; j++) { */
   /*   printf("%u,%f\n", j, data[j]); */
   /* } */
  #ifdef INT_TIME
-  gettimeofday(&fft_stop, NULL);
-  fft_sec  += fft_stop.tv_sec  - fft_start.tv_sec;
-  fft_usec += fft_stop.tv_usec - fft_start.tv_usec;
- #endif // INT_TIME
-
- #ifdef INT_TIME
-  gettimeofday(&calc_stop, NULL);
-  calc_sec  += calc_stop.tv_sec  - calc_start.tv_sec;
-  calc_usec += calc_stop.tv_usec - calc_start.tv_usec;
+  struct timeval stop_time;
+  gettimeofday(&stop_time, NULL);
+  task_metadata_block->fft_timings.fft_sec  += stop_time.tv_sec  - task_metadata_block->fft_timings.fft_start.tv_sec;
+  task_metadata_block->fft_timings.fft_usec += stop_time.tv_usec - task_metadata_block->fft_timings.fft_start.tv_usec;
+  task_metadata_block->fft_timings.calc_sec  += stop_time.tv_sec  - task_metadata_block->fft_timings.calc_start.tv_sec;
+  task_metadata_block->fft_timings.calc_usec += stop_time.tv_usec - task_metadata_block->fft_timings.calc_start.tv_usec;
  #endif
 
   TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));

@@ -442,7 +442,7 @@ void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
     });
   **/
 #ifdef INT_TIME
-  gettimeofday(&dodec_start, NULL);
+  gettimeofday(&(task_metadata_block->vit_timings.dodec_start), NULL);
 #endif
 
   DEBUG(for (int i = 0; i < 20; i++) {
@@ -454,9 +454,10 @@ void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
     });
 
 #ifdef INT_TIME
-  gettimeofday(&dodec_stop, NULL);
-  dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
-  dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
+  struct timeval dodec_stop;
+  gettimeofday(&(dodec_stop), NULL);
+  task_metadata_block->vit_timings.dodec_sec  += dodec_stop.tv_sec  - task_metadata_block->vit_timings.dodec_start.tv_sec;
+  task_metadata_block->vit_timings.dodec_usec += dodec_stop.tv_usec - task_metadata_block->vit_timings.dodec_start.tv_usec;
 #endif
 
   TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));

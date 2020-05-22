@@ -66,15 +66,13 @@
  *
  **EndCopyright*************************************************************/
 
-#include "fft-1d.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include "fft-1d.h"
 
-#ifdef INT_TIME
-struct timeval bitrev_stop, bitrev_start;
-uint64_t bitrev_sec  = 0LL;
-uint64_t bitrev_usec = 0LL;
+#ifndef M_PI
+ #define M_PI 3.14159265358979323846
 #endif
 
 static unsigned int
@@ -123,7 +121,7 @@ bit_reverse (float * w, unsigned int N, unsigned int bits)
 
 
 int
-fft(float * data, unsigned int N, unsigned int logn, int sign)
+fft(task_metadata_block_t* task_metadata_block, float * data, unsigned int N, unsigned int logn, int sign)
 {
   unsigned int transform_length;
   unsigned int a, b, i, j, bit;
@@ -133,13 +131,14 @@ fft(float * data, unsigned int N, unsigned int logn, int sign)
 
   /* bit reversal */
 #ifdef INT_TIME
-  gettimeofday(&bitrev_start, NULL);
+  gettimeofday(&(task_metadata_block->fft_timings.bitrev_start), NULL);
 #endif
   bit_reverse (data, N, logn);
 #ifdef INT_TIME
+  struct timeval bitrev_stop;
   gettimeofday(&bitrev_stop, NULL);
-  bitrev_sec  += bitrev_stop.tv_sec  - bitrev_start.tv_sec;
-  bitrev_usec += bitrev_stop.tv_usec - bitrev_start.tv_usec;
+  task_metadata_block->fft_timings.bitrev_sec  += bitrev_stop.tv_sec  - task_metadata_block->fft_timings.bitrev_start.tv_sec;
+  task_metadata_block->fft_timings.bitrev_usec += bitrev_stop.tv_usec - task_metadata_block->fft_timings.bitrev_start.tv_usec;
 #endif
 
   /* calculation */

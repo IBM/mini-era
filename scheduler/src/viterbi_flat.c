@@ -39,16 +39,6 @@
 /* #undef DO_VERBOSE */
 /*  #define DO_VERBOSE(x) x */
 
-#ifdef INT_TIME
-struct timeval dodec_stop, dodec_start;
-uint64_t dodec_sec  = 0LL;
-uint64_t dodec_usec = 0LL;
-
-struct timeval depunc_stop, depunc_start;
-uint64_t depunc_sec  = 0LL;
-uint64_t depunc_usec = 0LL;
-#endif
-
 // GLOBAL VARIABLES
 t_branchtab27 d_branchtab27_generic[2];
 
@@ -172,13 +162,14 @@ start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_
   reset();
 
 #ifdef INT_TIME
-  gettimeofday(&depunc_start, NULL);
+  gettimeofday(&vit_metadata_block->vit_timings.depunc_start, NULL);
 #endif
   uint8_t *depunctured = depuncture(in);
 #ifdef INT_TIME
+  struct timeval depunc_stop;
   gettimeofday(&depunc_stop, NULL);
-  depunc_sec  += depunc_stop.tv_sec  - depunc_start.tv_sec;
-  depunc_usec += depunc_stop.tv_usec - depunc_start.tv_usec;
+  vit_metadata_block->vit_timings.depunc_sec  += depunc_stop.tv_sec  - vit_metadata_block->vit_timings.depunc_start.tv_sec;
+  vit_metadata_block->vit_timings.depunc_usec += depunc_stop.tv_usec - vit_metadata_block->vit_timings.depunc_start.tv_usec;
 #endif
 
   DO_VERBOSE({

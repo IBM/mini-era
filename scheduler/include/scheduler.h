@@ -102,6 +102,8 @@ typedef struct {
   uint64_t fft_sec, fft_usec;
   struct timeval fft_br_start;
   uint64_t fft_br_sec, fft_br_usec;
+  struct timeval bitrev_start;
+  uint64_t bitrev_sec, bitrev_usec;
   struct timeval fft_cvtin_start;
   uint64_t fft_cvtin_sec, fft_cvtin_usec;
   struct timeval fft_cvtout_start;

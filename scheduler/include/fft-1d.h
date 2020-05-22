@@ -74,8 +74,10 @@
 #include <math.h>
 #include <limits.h>
 
+#include "scheduler.h"
+
 int write_array_to_octave (float * data, unsigned int len, char * filename, char * name);
-int fft (float * data, unsigned int N, unsigned int logn, int sign);
+int fft(task_metadata_block_t* mb, float * data, unsigned int N, unsigned int logn, int sign);
 
 #ifdef INT_TIME
 extern uint64_t bitrev_sec;
