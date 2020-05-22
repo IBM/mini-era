@@ -86,7 +86,7 @@ void start_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_blo
   fft_metadata_block->metadata.data_size = 2 * RADAR_N * sizeof(float);
   // Copy over our task data to the MetaData Block
   //fft_metadata_block->metadata.data = (uint8_t*)data;
-  float* mdataptr = (float*)fft_metadata_block->metadata.data;
+  float* mdataptr = (float*)fft_metadata_block->metadata.data_view.fft_data;
   for (int i = 0; i < 2*RADAR_N; i++) {
     mdataptr[i] = data[i];
   }
@@ -111,7 +111,7 @@ void start_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_blo
 float
 finish_calculate_peak_dist_from_fmcw(task_metadata_block_t* fft_metadata_block)
 {
-  float* mdataptr = (float*)fft_metadata_block->metadata.data;
+  float* mdataptr = (float*)fft_metadata_block->metadata.data_view.fft_data;
  #ifdef INT_TIME
   gettimeofday(&fft_stop, NULL);
   fft_sec  += fft_stop.tv_sec  - fft_start.tv_sec;

@@ -65,6 +65,21 @@ extern const char* task_status_str[NUM_TASK_STATUS];
 extern const char* accel_type_str[NUM_ACCEL_TYPES];
 extern const char* scheduler_selection_policy_str[NUM_SELECTION_POLICIES];
 
+
+// This is a struutre that defines the "Viterbi" job's "view" of the data (in the metadata structure)
+//  Each job can define a specific "view" of data, and use that in interpreting the data space.
+typedef struct { // The "Viterbi" view of "data"
+  int32_t n_data_bits;
+  int32_t n_cbps;
+  int32_t n_traceback;
+  int32_t psdu_size;
+  int32_t inMem_size;    // The first inMem_size bytes of theData are the inMem (input memories)
+  int32_t inData_size;   // The next inData_size bytes of theData are the inData (input data)
+  int32_t outData_size;  // The next outData_size bytes of theData are the outData (output data)
+  uint8_t theData[64*1024]; // This is larger than needed (~24780 + 18585) but less than FFT requires (so okay)
+}  viterbi_data_struct_t;
+
+
 // This is a metatdata structure; it is used to hold all information for any job
 //  to be invoked through the scheduler.  This includes a description of the
 //  job type, and all input/output data space for the task
@@ -84,24 +99,17 @@ typedef union task_metadata_entry_union {
     task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
     void (*atFinish)(union task_metadata_entry_union *); //  +8?Bytes : Call-back Finish-time function		  
     int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
-    uint8_t  data[128*1024];       // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
+    union { // This union holds job-specific "views" of the data (input/ouput memory for job accelerators)
+      uint8_t  raw_data[128*1024];       // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
+      float    fft_data[1<<15];          // FFT view of data -- 16k-samples (max) complex float
+      viterbi_data_struct_t vit_data;    // Viterbi view of data -- see strucutre typedef above
+    } data_view;
   } metadata;
-  uint8_t rawBytes[128*1024 + 64]; // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
+  //uint8_t rawBytes[128*1024 + 64]; // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
 } task_metadata_block_t;
 
 // This is a typedef for the call-back function, called by the scheduler at finish time for a task
 typedef void (*task_finish_callback_t)(task_metadata_block_t*);
-
-typedef struct {
-  int32_t n_data_bits;
-  int32_t n_cbps;
-  int32_t n_traceback;
-  int32_t psdu_size;
-  int32_t inMem_size;    // The first inMem_size bytes of theData are the inMem (input memories)
-  int32_t inData_size;   // The next inData_size bytes of theData are the inData (input data)
-  int32_t outData_size;  // The next outData_size bytes of theData are the outData (output data)
-  uint8_t theData[64*1024]; // This is larger than needed (~24780 + 18585) but less than FFT requires (so okay)
-}  viterbi_data_struct_t;
 
 // This is the accelerator selection policy used by the scheduler
 extern accel_selct_policy_t global_scheduler_selection_policy;

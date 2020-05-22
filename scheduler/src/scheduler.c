@@ -114,7 +114,7 @@ void print_base_metadata_block_contents(task_metadata_block_t* mb)
     printf(" ** crit_level = %d <= NOT a legal value!\n",  mb->metadata.crit_level);
   }
   printf("    data_size  = %d\n",  mb->metadata.data_size);
-  printf("    data @ %p\n", mb->metadata.data);
+  printf("    data_view  @ %p\n", &(mb->metadata.data_view));
 }
 
 void print_fft_metadata_block_contents(task_metadata_block_t* mb) {
@@ -124,7 +124,7 @@ void print_fft_metadata_block_contents(task_metadata_block_t* mb) {
 void print_viterbi_metadata_block_contents(task_metadata_block_t* mb)
 {  
   print_base_metadata_block_contents(mb);
-  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(mb->metadata.data);
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(mb->metadata.data_view.vit_data);
   int32_t  inMem_offset = 0;
   int32_t  inData_offset = vdata->inMem_size;
   int32_t  outData_offset = inData_offset + vdata->inData_size;
@@ -704,7 +704,7 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
   int vn = task_metadata_block->metadata.accelerator_id;
   TDEBUG(printf("In execute_hwr_viterbi_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", vn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
-  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)(task_metadata_block->metadata.data);
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(task_metadata_block->metadata.data_view.vit_data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
   int32_t  in_data_bits = vdata->n_data_bits;
@@ -1019,24 +1019,6 @@ request_execution(task_metadata_block_t* task_metadata_block)
     // And now we unlock because we are done here...
     pthread_mutex_unlock(&metadata_mutex[bi]);
     
-    /* int pcrv; */
-    /* int pcrv_count = 0; */
-    /* do { */
-    /*   pcrv = pthread_create(&(task_metadata_block->metadata.thread_id), NULL, execute_task_on_accelerator, task_metadata_block); */
-    /*   if (pcrv != 0) { */
-    /* 	if (pcrv == EAGAIN) { */
-    /* 	  printf("NOTE: pthread_create for MB %d returned EAGAIN (count %u) : wait one second and retry...\n", task_metadata_block->metadata.block_id, pcrv_count); */
-    /* 	  sleep(1); */
-    /* 	  pcrv_count++; */
-    /* 	} else { */
-    /* 	  printf("ERROR: Scheduler failed to create thread for execute_task_on_accelerator for metadata block: %d\n", pcrv); */
-    /* 	  printf("     : RVAL %d vs ENOMEM %d  EINVAL %d  EPERM %d\n", pcrv, ENOMEM, EINVAL, EPERM); */
-    /* 	  printf("     : RVAL %d vs EAGAIN %d  EDEADLK %d \n", pcrv, EAGAIN, EDEADLK); */
-    /* 	  print_base_metadata_block_contents(task_metadata_block); */
-    /* 	  exit(-10); */
-    /* 	} */
-    /*   } */
-    /* } while (pcrv == EAGAIN); */
   } else {
     printf("Cannot allocate execution resources for metadata block:\n");
     print_base_metadata_block_contents(task_metadata_block);

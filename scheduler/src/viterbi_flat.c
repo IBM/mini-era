@@ -197,7 +197,7 @@ start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_
   // Copy over our task data to the MetaData Block
   // Get a viterbi_data_struct_t "View" of the metablock data pointer.
   // Copy inputs into the vdsptr data view of the metadata_block metadata data segment
-  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)vit_metadata_block->metadata.data;
+  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)&(vit_metadata_block->metadata.data_view.vit_data);
   vdsptr->n_data_bits = frame->n_data_bits;
   vdsptr->n_cbps      = ofdm->n_cbps;
   vdsptr->n_traceback = d_ntraceback;
@@ -250,7 +250,7 @@ start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_
 uint8_t* finish_decode(task_metadata_block_t* vit_metadata_block, int* psdu_size_out)
 {
   // Set up the Viterbit Data view of the metatdata block data
-  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)vit_metadata_block->metadata.data;
+  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)&(vit_metadata_block->metadata.data_view.vit_data);
   uint8_t* in_Mem   = &(vdsptr->theData[0]);
   uint8_t* in_Data  = &(vdsptr->theData[vdsptr->inMem_size]);
   uint8_t* out_Data = &(vdsptr->theData[vdsptr->inMem_size + vdsptr->inData_size]);
