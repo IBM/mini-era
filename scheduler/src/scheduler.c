@@ -94,27 +94,27 @@ int num_accelerators_of_type[NUM_ACCEL_TYPES-1];
 
 void print_base_metadata_block_contents(task_metadata_block_t* mb)
 {
-  printf("block_id = %d @ %p\n", mb->metadata.block_id, mb);
-  unsigned status = mb->metadata.status;
+  printf("block_id = %d @ %p\n", mb->block_id, mb);
+  unsigned status = mb->status;
   if (status < NUM_TASK_STATUS) {
     printf(" ** status = %s\n", task_status_str[status]);
   } else {
-    printf(" ** status = %d <= NOT a legal value!\n",  mb->metadata.status);
+    printf(" ** status = %d <= NOT a legal value!\n",  mb->status);
   }
-  unsigned job_type = mb->metadata.job_type;
+  unsigned job_type = mb->job_type;
   if (job_type < NUM_JOB_TYPES) {
     printf("    job_type = %s\n", task_job_str[job_type]);
   } else {
-    printf(" ** job_type = %d <= NOT a legal value!\n", mb->metadata.job_type);
+    printf(" ** job_type = %d <= NOT a legal value!\n", mb->job_type);
   }
-  unsigned crit_level = mb->metadata.crit_level;
+  unsigned crit_level = mb->crit_level;
   if (crit_level < NUM_TASK_CRIT_LEVELS) {
     printf("    crit_level = %s\n",  task_criticality_str[crit_level]);
   } else {
-    printf(" ** crit_level = %d <= NOT a legal value!\n",  mb->metadata.crit_level);
+    printf(" ** crit_level = %d <= NOT a legal value!\n",  mb->crit_level);
   }
-  printf("    data_size  = %d\n",  mb->metadata.data_size);
-  printf("    data_view  @ %p\n", &(mb->metadata.data_view));
+  printf("    data_size  = %d\n",  mb->data_size);
+  printf("    data_view  @ %p\n", &(mb->data_view));
 }
 
 void print_fft_metadata_block_contents(task_metadata_block_t* mb) {
@@ -124,7 +124,7 @@ void print_fft_metadata_block_contents(task_metadata_block_t* mb) {
 void print_viterbi_metadata_block_contents(task_metadata_block_t* mb)
 {  
   print_base_metadata_block_contents(mb);
-  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(mb->metadata.data_view.vit_data);
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(mb->data_view.vit_data);
   int32_t  inMem_offset = 0;
   int32_t  inData_offset = vdata->inMem_size;
   int32_t  outData_offset = inData_offset + vdata->inData_size;
@@ -188,13 +188,13 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   free_metadata_pool[free_metadata_blocks - 1] = -1;
   free_metadata_blocks -= 1;
   // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
-  master_metadata_pool[bi].metadata.job_type = task_type;
-  master_metadata_pool[bi].metadata.status = TASK_ALLOCATED;
-  master_metadata_pool[bi].metadata.crit_level = crit_level;
-  master_metadata_pool[bi].metadata.data_size = 0;
-  master_metadata_pool[bi].metadata.accelerator_type = no_accelerator_t;
-  master_metadata_pool[bi].metadata.accelerator_id   = -1;
-  master_metadata_pool[bi].metadata.atFinish = NULL;  // NO finish call-back function
+  master_metadata_pool[bi].job_type = task_type;
+  master_metadata_pool[bi].status = TASK_ALLOCATED;
+  master_metadata_pool[bi].crit_level = crit_level;
+  master_metadata_pool[bi].data_size = 0;
+  master_metadata_pool[bi].accelerator_type = no_accelerator_t;
+  master_metadata_pool[bi].accelerator_id   = -1;
+  master_metadata_pool[bi].atFinish = NULL;  // NO finish call-back function
   
   if (crit_level > 1) { // is this a "critical task"
     /* int ci = total_critical_tasks; // Set index for crit_task block_id in pool */
@@ -231,7 +231,7 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 {
   pthread_mutex_lock(&free_metadata_mutex);
 
-  int bi = mb->metadata.block_id;
+  int bi = mb->block_id;
   //DEBUG(
   TDEBUG(printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);//);
 	 printf(" BEFORE_FREE : MB %u : free_metadata_pool : ", bi);
@@ -243,7 +243,7 @@ void free_task_metadata_block(task_metadata_block_t* mb)
   if (free_metadata_blocks < total_metadata_pool_blocks) {
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
-    if (master_metadata_pool[bi].metadata.crit_level > 1) { // is this a critical tasks?
+    if (master_metadata_pool[bi].crit_level > 1) { // is this a critical tasks?
       // Remove task form critical list, free critlist entry, etc.
       blockid_linked_list_t* lcli = NULL;
       blockid_linked_list_t* cli = critical_live_task_head;
@@ -273,10 +273,10 @@ void free_task_metadata_block(task_metadata_block_t* mb)
       total_critical_tasks -= 1;
     }
     // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
-    master_metadata_pool[bi].metadata.job_type = NO_TASK_JOB; // unset
-    master_metadata_pool[bi].metadata.status = TASK_FREE;   // free
-    master_metadata_pool[bi].metadata.crit_level = NO_TASK; // lowest/free?
-    master_metadata_pool[bi].metadata.data_size = 0;
+    master_metadata_pool[bi].job_type = NO_TASK_JOB; // unset
+    master_metadata_pool[bi].status = TASK_FREE;   // free
+    master_metadata_pool[bi].crit_level = NO_TASK; // lowest/free?
+    master_metadata_pool[bi].data_size = 0;
   } else {
     printf("ERROR : We are freeing a metadata block when we already have max metadata blocks free...\n");
     printf("   THE FREE Metadata Blocks list:\n");
@@ -300,23 +300,23 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 
 int
 get_task_status(int task_id) {
-  return master_metadata_pool[task_id].metadata.status;
+  return master_metadata_pool[task_id].status;
 }
 
 
 void mark_task_done(task_metadata_block_t* task_metadata_block)
 {
   // First, mark the task as "DONE" with execution
-  task_metadata_block->metadata.status = TASK_DONE;
+  task_metadata_block->status = TASK_DONE;
   // The release the accelerator
   release_accelerator_for_task(task_metadata_block);
-  task_metadata_block->metadata.status = TASK_DONE; // done
-  if (task_metadata_block->metadata.atFinish != NULL) {
+  task_metadata_block->status = TASK_DONE; // done
+  if (task_metadata_block->atFinish != NULL) {
     // And finally, call the atFinish call-back routine specified in the MetaData Block
-    task_metadata_block->metadata.atFinish(task_metadata_block);
+    task_metadata_block->atFinish(task_metadata_block);
   }
   // Now clear that function pointer (so it doesn't get called again).
-  task_metadata_block->metadata.atFinish = NULL;
+  task_metadata_block->atFinish = NULL;
 }
 
 static unsigned DMA_WORD_PER_BEAT(unsigned _st)
@@ -417,34 +417,34 @@ static void init_fft_parameters(unsigned n)
 void
 execute_task_on_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  TDEBUG(printf("In execute_task_on_accelerator for MB %d with Accel Type %s and Number %u\n", task_metadata_block->metadata.block_id, accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id));
-  switch(task_metadata_block->metadata.accelerator_type) {
+  TDEBUG(printf("In execute_task_on_accelerator for MB %d with Accel Type %s and Number %u\n", task_metadata_block->block_id, accel_type_str[task_metadata_block->accelerator_type], task_metadata_block->accelerator_id));
+  switch(task_metadata_block->accelerator_type) {
   case no_accelerator_t: {
     printf("ERROR -- called execute_task_on_accelerator for NO_ACCELERATOR_T with block:\n");
     print_base_metadata_block_contents(task_metadata_block);
     exit(-11);
   } break;
   case cpu_accel_t: {
-    switch(task_metadata_block->metadata.job_type) {
+    switch(task_metadata_block->job_type) {
     case FFT_TASK:
-      DEBUG(printf("Executing Task for MB %d on CPU_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id));
+      DEBUG(printf("Executing Task for MB %d on CPU_FFT_ACCELERATOR\n", task_metadata_block->block_id));
       execute_cpu_fft_accelerator(task_metadata_block);
       break;
     case VITERBI_TASK:
-      DEBUG(printf("Executing Task for MB %d on CPU_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id));
+      DEBUG(printf("Executing Task for MB %d on CPU_VITERBI_ACCELERATOR\n", task_metadata_block->block_id));
       execute_cpu_viterbi_accelerator(task_metadata_block);
       break;
     default:
-      printf("ERROR : execute_task_on_accelerator called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+      printf("ERROR : execute_task_on_accelerator called for unknown task type: %u\n", task_metadata_block->job_type);
       exit(-13);
     }
   } break;
   case fft_hwr_accel_t: {
-    DEBUG(printf("Executing Task for MB %d on HWR_FFT_ACCELERATOR\n", task_metadata_block->metadata.block_id));
+    DEBUG(printf("Executing Task for MB %d on HWR_FFT_ACCELERATOR\n", task_metadata_block->block_id));
     execute_hwr_fft_accelerator(task_metadata_block);
   } break;
   case vit_hwr_accel_t: {
-    DEBUG(printf("Executing Task for MB %d on HWR_VITERBI_ACCELERATOR\n", task_metadata_block->metadata.block_id));
+    DEBUG(printf("Executing Task for MB %d on HWR_VITERBI_ACCELERATOR\n", task_metadata_block->block_id));
     execute_hwr_viterbi_accelerator(task_metadata_block);
   } break;
   default:
@@ -452,7 +452,7 @@ execute_task_on_accelerator(task_metadata_block_t* task_metadata_block)
     print_base_metadata_block_contents(task_metadata_block);
     exit(-12);
   }
-  TDEBUG(printf("DONE Executing Task for MB %d\n", task_metadata_block->metadata.block_id));
+  TDEBUG(printf("DONE Executing Task for MB %d\n", task_metadata_block->block_id));
 }
 
 
@@ -460,7 +460,7 @@ void*
 metadata_thread_wait_for_task(void* void_parm_ptr)
 {
   task_metadata_block_t* task_metadata_block = (task_metadata_block_t*)void_parm_ptr;
-  int bi = task_metadata_block->metadata.block_id;
+  int bi = task_metadata_block->block_id;
   DEBUG(printf("In metadata_thread_wait_for_task for thread for metadata block %d\n", bi));
   // I think we do this once, then can wait_cond many times
   pthread_mutex_lock(&metadata_mutex[bi]);
@@ -485,7 +485,7 @@ status_t initialize_scheduler()
   DEBUG(printf("In initialize...\n"));
   pthread_mutex_init(&free_metadata_mutex, NULL);
   for (int i = 0; i < total_metadata_pool_blocks; i++) {
-    master_metadata_pool[i].metadata.block_id = i; // Set the master pool's block_ids
+    master_metadata_pool[i].block_id = i; // Set the master pool's block_ids
     free_metadata_pool[i] = i;    // Set up all blocks are free
     free_critlist_pool[i] = i;    // Set up all critlist blocks are free
 
@@ -503,7 +503,7 @@ status_t initialize_scheduler()
       printf("ERROR: Scheduler failed to create thread for metadata block: %d\n", i);
       exit(-10);
     }
-    master_metadata_pool[i].metadata.thread_id = metadata_threads[i];
+    master_metadata_pool[i].thread_id = metadata_threads[i];
   }
 
   allocated_metadata_blocks = 0;
@@ -652,10 +652,10 @@ static void fft_in_hw(int *fd, struct fftHW_access *desc)
 void
 execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  int fn = task_metadata_block->metadata.accelerator_id;
-  TDEBUG(printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
+  int fn = task_metadata_block->accelerator_id;
+  TDEBUG(printf("In execute_hwr_fft_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", fn, task_metadata_block->block_id, task_metadata_block->crit_level));
 #ifdef HW_FFT
-  float * data = (float*)(task_metadata_block->metadata.data);
+  float * data = (float*)(task_metadata_block->data);
   // convert input from float to fixed point
   for (int j = 0; j < 2 * (1 << fft_logn_samples); j++) {
     fftHW_lmem[fn][j] = float2fx(data[j], FX_IL);
@@ -670,7 +670,7 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
     data[j] = (float)fx2float(fftHW_lmem[fn][j], FX_IL);
   }
 
-  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 
 #else
@@ -702,9 +702,9 @@ extern uint64_t dodec_usec;
 void
 execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  int vn = task_metadata_block->metadata.accelerator_id;
-  TDEBUG(printf("In execute_hwr_viterbi_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", vn, task_metadata_block->metadata.block_id, task_metadata_block->metadata.crit_level));
-  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(task_metadata_block->metadata.data_view.vit_data);
+  int vn = task_metadata_block->accelerator_id;
+  TDEBUG(printf("In execute_hwr_viterbi_accelerator on FFT_HWR Accel %u : MB %d  CL %d\n", vn, task_metadata_block->block_id, task_metadata_block->crit_level));
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(task_metadata_block->data_view.vit_data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
   int32_t  in_data_bits = vdata->n_data_bits;
@@ -750,12 +750,12 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 
     out_Data[ti] = hwrOutMem[ti];
   }
-  DEBUG(printf("MB%u at end of HWR VITERBI:\n    out_Data : ", task_metadata_block->metadata.block_id);
+  DEBUG(printf("MB%u at end of HWR VITERBI:\n    out_Data : ", task_metadata_block->block_id);
   for (int ti = 0; ti < 80 /*(MAX_ENCODED_BITS * 3 / 4)*/; ti ++) {
     printf("%u ", out_Data[ti]);
   });
 
-  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 
 #else // HW_VIT
@@ -768,9 +768,9 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 void
 release_accelerator_for_task(task_metadata_block_t* task_metadata_block)
 {
-  unsigned mdb_id     = task_metadata_block->metadata.block_id;
-  unsigned accel_type = task_metadata_block->metadata.accelerator_type;
-  unsigned accel_id   = task_metadata_block->metadata.accelerator_id;
+  unsigned mdb_id     = task_metadata_block->block_id;
+  unsigned accel_type = task_metadata_block->accelerator_type;
+  unsigned accel_id   = task_metadata_block->accelerator_id;
   if (accelerator_in_use_by[accel_type][accel_id] != mdb_id) {
     printf("ERROR - in release_accelerator_for_task for ACCEL %s Num %d but BLOCK_ID Mismatch: %d vs %d\n", accel_type_str[accel_type], accel_id, accelerator_in_use_by[accel_type][accel_id], mdb_id);
     printf("  this occurred on finish of block:\n");
@@ -838,7 +838,7 @@ pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
   int proposed_accel = no_accelerator_t;
   int accel_type     = no_accelerator_t;
   int accel_id       = -1;
-  switch(task_metadata_block->metadata.job_type) {
+  switch(task_metadata_block->job_type) {
   case FFT_TASK: {
     // Scheduler should now run this either on CPU or FFT:
     int num = (rand() % (100)); // Return a value from [0,99]
@@ -862,7 +862,7 @@ pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
     }
   } break;
   default:
-    printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+    printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->job_type);
     exit(-15);
   }
   // Okay, here we should have a good task to schedule...
@@ -878,8 +878,8 @@ pick_accel_and_wait_for_available(task_metadata_block_t* task_metadata_block)
       i++;
     }
   } while (accel_type == no_accelerator_t);
-  task_metadata_block->metadata.accelerator_type = accel_type;
-  task_metadata_block->metadata.accelerator_id = accel_id;
+  task_metadata_block->accelerator_type = accel_type;
+  task_metadata_block->accelerator_id = accel_id;
 }
 
 
@@ -892,7 +892,7 @@ fastest_to_slowest_first_available(task_metadata_block_t* task_metadata_block)
   int proposed_accel = no_accelerator_t;
   int accel_type     = no_accelerator_t;
   int accel_id       = -1;
-  switch(task_metadata_block->metadata.job_type) {
+  switch(task_metadata_block->job_type) {
   case FFT_TASK: {
     // Scheduler should now run this either on CPU or FFT:
     do {
@@ -947,7 +947,7 @@ fastest_to_slowest_first_available(task_metadata_block_t* task_metadata_block)
     } while (accel_type == no_accelerator_t);
   } break;
  default:
-    printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->metadata.job_type);
+    printf("ERROR : request_execution called for unknown task type: %u\n", task_metadata_block->job_type);
     exit(-15);
   }
   // Okay, here we should have a good task to schedule...
@@ -963,8 +963,8 @@ fastest_to_slowest_first_available(task_metadata_block_t* task_metadata_block)
       i++;
     }
   } while (accel_type == no_accelerator_t);
-  task_metadata_block->metadata.accelerator_type = accel_type;
-  task_metadata_block->metadata.accelerator_id = accel_id;
+  task_metadata_block->accelerator_type = accel_type;
+  task_metadata_block->accelerator_id = accel_id;
 }
 
 
@@ -992,23 +992,23 @@ select_target_accelerator(accel_selct_policy_t policy, task_metadata_block_t* ta
 void
 request_execution(task_metadata_block_t* task_metadata_block)
 {
-  task_metadata_block->metadata.status = TASK_QUEUED; // queued
+  task_metadata_block->status = TASK_QUEUED; // queued
   // Select the target accelerator to execute the task
   select_target_accelerator(global_scheduler_selection_policy, task_metadata_block);
   
-  unsigned int accel_type = task_metadata_block->metadata.accelerator_type;
-  unsigned int accel_id = task_metadata_block->metadata.accelerator_id;
+  unsigned int accel_type = task_metadata_block->accelerator_type;
+  unsigned int accel_id = task_metadata_block->accelerator_id;
   if (accel_type < no_accelerator_t) {
     // Mark the requested accelerator as "In-USE" by this metadata block
     if (accelerator_in_use_by[accel_type][accel_id] != -1) {
       printf("ERROR : request_execution is trying to allocate ACCEL %s %u which is already allocated to Block %u\n", accel_type_str[accel_type], accel_id, accelerator_in_use_by[accel_type][accel_id]);
       exit(-14);
     }
-    int bi = task_metadata_block->metadata.block_id; // short name forhte block_id
+    int bi = task_metadata_block->block_id; // short name forhte block_id
     accelerator_in_use_by[accel_type][accel_id] = bi;
-    task_metadata_block->metadata.status = TASK_RUNNING; // running
+    task_metadata_block->status = TASK_RUNNING; // running
 
-    TDEBUG(printf("Kicking off accelerator task for Metadata Block %u : Task %s %s on Accel %s %u\n", bi, task_job_str[task_metadata_block->metadata.job_type], task_criticality_str[task_metadata_block->metadata.crit_level], accel_type_str[task_metadata_block->metadata.accelerator_type], task_metadata_block->metadata.accelerator_id));
+    TDEBUG(printf("Kicking off accelerator task for Metadata Block %u : Task %s %s on Accel %s %u\n", bi, task_job_str[task_metadata_block->job_type], task_criticality_str[task_metadata_block->crit_level], accel_type_str[task_metadata_block->accelerator_type], task_metadata_block->accelerator_id));
 
     // Lock the mutex associated to the conditional variable
     pthread_mutex_lock(&metadata_mutex[bi]);
@@ -1035,7 +1035,7 @@ request_execution(task_metadata_block_t* task_metadata_block)
 /*   // Loop through the critical tasks list and check whether they are all in status "done" */
 /*   blockid_linked_list_t* cli = critical_live_task_head; */
 /*   while (cli != NULL) { */
-/*     if (master_metadata_pool[cli->clt_block_id].metadata.status != TASK_DONE) { */
+/*     if (master_metadata_pool[cli->clt_block_id].status != TASK_DONE) { */
 /*       return false; */
 /*     } */
 /*     cli = cli->next; */
@@ -1059,7 +1059,7 @@ void wait_all_critical()
   // Loop through the critical tasks list and check whether they are all in status "done"
   blockid_linked_list_t* cli = critical_live_task_head;
   while (cli != NULL) {
-    if (master_metadata_pool[cli->clt_block_id].metadata.status != TASK_DONE) {
+    if (master_metadata_pool[cli->clt_block_id].status != TASK_DONE) {
       // This task is not finished yet.. wait for it
       //  So start polling from the start of the list again.
       cli = critical_live_task_head;

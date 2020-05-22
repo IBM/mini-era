@@ -405,7 +405,7 @@ void do_cpu_viterbi_function(int in_n_data_bits, int in_cbps, int in_ntraceback,
 void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
 {
   DEBUG(printf("In execute_cpu_viterbi_accelerator\n"));
-  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(task_metadata_block->metadata.data_view.vit_data);
+  viterbi_data_struct_t* vdata = (viterbi_data_struct_t*)&(task_metadata_block->data_view.vit_data);
   int32_t  in_cbps = vdata->n_cbps;
   int32_t  in_ntraceback = vdata->n_traceback;
   int32_t  in_data_bits = vdata->n_data_bits;
@@ -459,7 +459,7 @@ void execute_cpu_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
   dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
 
-  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 }
 

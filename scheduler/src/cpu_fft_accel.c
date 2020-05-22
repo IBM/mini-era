@@ -25,8 +25,8 @@ extern uint64_t fft_usec;
 // Putting this into a pthreads invocation mode...
 void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block)
 {
-  DEBUG(printf("In execute_cpu_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata.metadata_block_id, task_metadata_block->metadata.criticality_level ));
-  float * data = (float*)(task_metadata_block->metadata.data_view.fft_data);
+  DEBUG(printf("In execute_cpu_fft_accelerator: MB %d  CL %d\n", task_metadata_block->metadata_block_id, task_metadata_block->criticality_level ));
+  float * data = (float*)(task_metadata_block->data_view.fft_data);
 
 #ifdef INT_TIME
   gettimeofday(&calc_start, NULL);
@@ -51,7 +51,7 @@ void execute_cpu_fft_accelerator(task_metadata_block_t* task_metadata_block)
   calc_usec += calc_stop.tv_usec - calc_start.tv_usec;
  #endif
 
-  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->metadata.block_id));
+  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 }
 

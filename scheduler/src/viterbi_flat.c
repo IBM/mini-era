@@ -193,11 +193,11 @@ start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_
     });
 
   // Set up the task_metadata scope block
-  vit_metadata_block->metadata.data_size = 43365; // MAX size?
+  vit_metadata_block->data_size = 43365; // MAX size?
   // Copy over our task data to the MetaData Block
   // Get a viterbi_data_struct_t "View" of the metablock data pointer.
   // Copy inputs into the vdsptr data view of the metadata_block metadata data segment
-  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)&(vit_metadata_block->metadata.data_view.vit_data);
+  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)&(vit_metadata_block->data_view.vit_data);
   vdsptr->n_data_bits = frame->n_data_bits;
   vdsptr->n_cbps      = ofdm->n_cbps;
   vdsptr->n_traceback = d_ntraceback;
@@ -250,7 +250,7 @@ start_decode(task_metadata_block_t* vit_metadata_block, ofdm_param *ofdm, frame_
 uint8_t* finish_decode(task_metadata_block_t* vit_metadata_block, int* psdu_size_out)
 {
   // Set up the Viterbit Data view of the metatdata block data
-  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)&(vit_metadata_block->metadata.data_view.vit_data);
+  viterbi_data_struct_t* vdsptr = (viterbi_data_struct_t*)&(vit_metadata_block->data_view.vit_data);
   uint8_t* in_Mem   = &(vdsptr->theData[0]);
   uint8_t* in_Data  = &(vdsptr->theData[vdsptr->inMem_size]);
   uint8_t* out_Data = &(vdsptr->theData[vdsptr->inMem_size + vdsptr->inData_size]);
@@ -259,7 +259,7 @@ uint8_t* finish_decode(task_metadata_block_t* vit_metadata_block, int* psdu_size
 
   DEBUG(printf("BACK FROM EXECUTION OF VITERBI TASK:\n");
 	  print_viterbi_metadata_block_contents(vit_metadata_block);//);
-	  printf("MB%u OUTPUT: ", vit_metadata_block->metadata.block_id));
+	  printf("MB%u OUTPUT: ", vit_metadata_block->block_id));
   for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) { // This covers the full-size OUTPUT area
     d_decoded[ti] = out_Data[ti];
     //DEBUG(if (ti < 31) { printf("FIN_VIT_OUT %3u : %3u @ %p \n", ti, out_Data[ti], &(out_Data[ti]));});

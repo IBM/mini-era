@@ -88,24 +88,22 @@ typedef struct { // The "Viterbi" view of "data"
 //  memory (of abstract uint8_t or bytes) and a size.  The interpretation of this
 //  block of data is task-dependent, and can have an over-laid structure, etc.
 
-typedef union task_metadata_entry_union {
-  struct task_metadata_struct {
-    int32_t  block_id;             // +4 Bytes : master-pool-index; a unique ID per metadata task
-    task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
-    pthread_t       thread_id;     // +8?Bytes : set when we invoke pthread_create (at least for CPU)
-    accelerator_type_t  accelerator_type;     // +4 bytes : indicates which accelerator this task is executing on
-    int32_t  accelerator_id;       // +4 bytes : indicates which accelerator this task is executing on
-    scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
-    task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
-    void (*atFinish)(union task_metadata_entry_union *); //  +8?Bytes : Call-back Finish-time function		  
-    int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
-    union { // This union holds job-specific "views" of the data (input/ouput memory for job accelerators)
-      uint8_t  raw_data[128*1024];       // 128 KB (FFT 16k complex float) : All the data (in/out, etc.)
-      float    fft_data[1<<15];          // FFT view of data -- 16k-samples (max) complex float
-      viterbi_data_struct_t vit_data;    // Viterbi view of data -- see strucutre typedef above
-    } data_view;
-  } metadata;
-  //uint8_t rawBytes[128*1024 + 64]; // Max size of an entry -- 16k*2*32 entries (FFT) + MDB data fields + pad
+typedef struct task_metadata_entry_struct {
+  int32_t  block_id;             // +4 Bytes : master-pool-index; a unique ID per metadata task
+  task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
+  pthread_t       thread_id;     // +8?Bytes : set when we invoke pthread_create (at least for CPU)
+  accelerator_type_t  accelerator_type;     // +4 bytes : indicates which accelerator this task is executing on
+  int32_t  accelerator_id;       // +4 bytes : indicates which accelerator this task is executing on
+  scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
+  task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
+  void (*atFinish)(struct task_metadata_entry_struct *); //  +8?Bytes : Call-back Finish-time function
+  
+  int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
+  union { // This union holds job-specific "views" of the data (input/ouput memory for job accelerators)
+    uint8_t  raw_data[128*1024];       // 128 KB is the current MAX data size for all jobs
+    float    fft_data[1<<15];          // FFT view of data -- 16k-samples (max) complex float
+    viterbi_data_struct_t vit_data;    // Viterbi view of data -- see strucutre typedef above
+  } data_view;
 } task_metadata_block_t;
 
 // This is a typedef for the call-back function, called by the scheduler at finish time for a task

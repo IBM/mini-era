@@ -108,12 +108,12 @@ void print_usage(char * pname) {
 //  This SHOULD be a routine that "does the right work" for a given task, and then releases the MetaData Block
 void base_release_metadata_block(task_metadata_block_t* mb)
 {
-  TDEBUG(printf("Releasing Metadata Block %u : Task %s %s from Accel %s %u\n", mb->metadata.block_id, task_job_str[mb->metadata.job_type], task_criticality_str[mb->metadata.crit_level], accel_type_str[mb->metadata.accelerator_type], mb->metadata.accelerator_id));
+  TDEBUG(printf("Releasing Metadata Block %u : Task %s %s from Accel %s %u\n", mb->block_id, task_job_str[mb->job_type], task_criticality_str[mb->crit_level], accel_type_str[mb->accelerator_type], mb->accelerator_id));
   free_task_metadata_block(mb);
   // Thread is done
   //  We shouldn't need to do anything else -- when it returns from its starting function it should exit.
   // -- do a pthread_join to "clean up" the thread?
-  //pthread_join(mb->metadata.thread_id, NULL);
+  //pthread_join(mb->thread_id, NULL);
   // Do a pthread_exitso thread dies (commits suicide?)
   //  pthread_exit(NULL);
 }
@@ -446,7 +446,7 @@ int main(int argc, char *argv[])
       printf("Out of metadata blocks for FFT -- PANIC Quit the run (for now)\n");
       exit (-4);
     }
-    fft_mb_ptr->metadata.atFinish = NULL; // Just to ensure it is NULL
+    fft_mb_ptr->atFinish = NULL; // Just to ensure it is NULL
     start_execution_of_rad_kernel(fft_mb_ptr, radar_inputs); // Critical RADAR task
     for (int i = 0; i < additional_fft_tasks_per_time_step; i++) {
       task_metadata_block_t* fft_mb_ptr_2 = get_task_metadata_block(FFT_TASK, BASE_TASK);
@@ -454,11 +454,11 @@ int main(int argc, char *argv[])
 	printf("Out of metadata blocks for Non-Critical FFT -- PANIC Quit the run (for now)\n");
 	exit (-5);
       }
-      fft_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
+      fft_mb_ptr_2->atFinish = base_release_metadata_block;
       start_execution_of_rad_kernel(fft_mb_ptr_2, radar_inputs); // Critical RADAR task
     }
 
-    DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata.metadata_block_id));
+    DEBUG(printf("FFT_TASK_BLOCK: ID = %u\n", fft_mb_ptr->metadata_block_id));
    #ifdef TIME
     gettimeofday(&start_exec_vit, NULL);
    #endif
@@ -470,16 +470,16 @@ int main(int argc, char *argv[])
       printf("Out of metadata blocks for VITERBI -- PANIC Quit the run (for now)\n");
       exit (-4);
     }
-    vit_mb_ptr->metadata.atFinish = NULL; // Just to ensure it is NULL
+    vit_mb_ptr->atFinish = NULL; // Just to ensure it is NULL
     start_execution_of_vit_kernel(vit_mb_ptr, vdentry_p); // Critical VITERBI task
-    DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata.metadata_block_id));
+    DEBUG(printf("VIT_TASK_BLOCK: ID = %u\n", vit_mb_ptr->metadata_block_id));
     for (int i = 0; i < additional_vit_tasks_per_time_step; i++) {
       task_metadata_block_t* vit_mb_ptr_2 = get_task_metadata_block(VITERBI_TASK, BASE_TASK);
       if (vit_mb_ptr_2 == NULL) {
 	printf("Out of metadata blocks for Non-Critical VIT -- PANIC Quit the run (for now)\n");
 	exit (-5);
       }
-      vit_mb_ptr_2->metadata.atFinish = base_release_metadata_block;
+      vit_mb_ptr_2->atFinish = base_release_metadata_block;
       vit_dict_entry_t* vdentry2_p;
       if (task_size_variability == 0) {
 	int lnum = vdentry_p->msg_num / NUM_MESSAGES;
@@ -489,7 +489,7 @@ int main(int argc, char *argv[])
 	}
 	vdentry2_p = select_specific_vit_input(lnum, m_id);
       } else {
-	DEBUG(printf("Note: electing a random Vit Message for base-task %u\n", vit_mb_ptr_2->metadata.block_id));
+	DEBUG(printf("Note: electing a random Vit Message for base-task %u\n", vit_mb_ptr_2->block_id));
 	vdentry2_p = select_random_vit_input();
       }
       start_execution_of_vit_kernel(vit_mb_ptr_2, vdentry2_p); // Non-Critical VITERBI task
