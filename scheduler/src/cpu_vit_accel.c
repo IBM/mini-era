@@ -33,16 +33,6 @@
 #include "viterbi_flat.h"
 #include "viterbi_standalone.h"
 
-/* #undef DEBUG */
-/*  #define DEBUG(x) x */
-/* #undef DO_VERBOSE */
-/*  #define DO_VERBOSE(x) x */
-
-#ifdef INT_TIME
-extern struct timeval dodec_stop, dodec_start;
-extern uint64_t dodec_sec;
-extern uint64_t dodec_usec;
-#endif
 
 #undef  GENERATE_CHECK_VALUES
 //#define  GENERATE_CHECK_VALUES
