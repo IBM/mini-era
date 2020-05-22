@@ -196,6 +196,10 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   master_metadata_pool[bi].accelerator_id   = -1;
   master_metadata_pool[bi].atFinish = NULL;  // NO finish call-back function
   
+  gettimeofday(&master_metadata_pool[bi].sched_timings.get_start, NULL);
+  master_metadata_pool[bi].sched_timings.idle_sec += master_metadata_pool[bi].sched_timings.get_start.tv_sec - master_metadata_pool[bi].sched_timings.idle_start.tv_sec;
+  master_metadata_pool[bi].sched_timings.idle_usec += master_metadata_pool[bi].sched_timings.get_start.tv_usec - master_metadata_pool[bi].sched_timings.idle_start.tv_usec;
+  
   if (crit_level > 1) { // is this a "critical task"
     /* int ci = total_critical_tasks; // Set index for crit_task block_id in pool */
     /* critical_live_tasks_list[ci].clt_block_id = bi;  // Set the critical task block_id indication */
@@ -275,6 +279,9 @@ void free_task_metadata_block(task_metadata_block_t* mb)
     // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
     master_metadata_pool[bi].job_type = NO_TASK_JOB; // unset
     master_metadata_pool[bi].status = TASK_FREE;   // free
+    gettimeofday(&master_metadata_pool[bi].sched_timings.idle_start, NULL);
+    master_metadata_pool[bi].sched_timings.done_sec += master_metadata_pool[bi].sched_timings.idle_start.tv_sec - master_metadata_pool[bi].sched_timings.done_start.tv_sec;
+    master_metadata_pool[bi].sched_timings.done_usec += master_metadata_pool[bi].sched_timings.idle_start.tv_usec - master_metadata_pool[bi].sched_timings.done_start.tv_usec;
     master_metadata_pool[bi].crit_level = NO_TASK; // lowest/free?
     master_metadata_pool[bi].data_size = 0;
   } else {
@@ -308,9 +315,11 @@ void mark_task_done(task_metadata_block_t* task_metadata_block)
 {
   // First, mark the task as "DONE" with execution
   task_metadata_block->status = TASK_DONE;
+  gettimeofday(&task_metadata_block->sched_timings.done_start, NULL);
+  task_metadata_block->sched_timings.running_sec += task_metadata_block->sched_timings.done_start.tv_sec - task_metadata_block->sched_timings.running_start.tv_sec;
+  task_metadata_block->sched_timings.running_usec += task_metadata_block->sched_timings.done_start.tv_usec - task_metadata_block->sched_timings.queued_start.tv_usec;
   // The release the accelerator
   release_accelerator_for_task(task_metadata_block);
-  task_metadata_block->status = TASK_DONE; // done
   if (task_metadata_block->atFinish != NULL) {
     // And finally, call the atFinish call-back routine specified in the MetaData Block
     task_metadata_block->atFinish(task_metadata_block);
@@ -484,8 +493,42 @@ status_t initialize_scheduler()
 {
   DEBUG(printf("In initialize...\n"));
   pthread_mutex_init(&free_metadata_mutex, NULL);
+  struct timeval init_time;
+  gettimeofday(&init_time, NULL);
   for (int i = 0; i < total_metadata_pool_blocks; i++) {
     master_metadata_pool[i].block_id = i; // Set the master pool's block_ids
+    // Clear the (full-run, aggregate) timing data spaces
+    gettimeofday( &(master_metadata_pool[i].sched_timings.idle_start), NULL);
+    // Scheduler timings 
+    master_metadata_pool[i].sched_timings.idle_sec = 0;
+    master_metadata_pool[i].sched_timings.idle_usec = 0;
+    master_metadata_pool[i].sched_timings.get_sec = 0;
+    master_metadata_pool[i].sched_timings.get_usec = 0;
+    master_metadata_pool[i].sched_timings.queued_sec = 0;
+    master_metadata_pool[i].sched_timings.queued_usec = 0;
+    master_metadata_pool[i].sched_timings.running_sec = 0;
+    master_metadata_pool[i].sched_timings.running_usec = 0;
+    master_metadata_pool[i].sched_timings.done_sec = 0;
+    master_metadata_pool[i].sched_timings.done_usec = 0;
+    // FFT task timings
+    master_metadata_pool[i].fft_timings.calc_sec = 0;
+    master_metadata_pool[i].fft_timings.calc_usec = 0;
+    master_metadata_pool[i].fft_timings.fft_sec = 0;
+    master_metadata_pool[i].fft_timings.fft_usec = 0;
+    master_metadata_pool[i].fft_timings.fft_br_sec = 0;
+    master_metadata_pool[i].fft_timings.fft_br_usec = 0;
+    master_metadata_pool[i].fft_timings.fft_cvtin_sec = 0;
+    master_metadata_pool[i].fft_timings.fft_cvtin_usec = 0;
+    master_metadata_pool[i].fft_timings.fft_cvtout_sec = 0;
+    master_metadata_pool[i].fft_timings.fft_cvtout_usec = 0;
+    master_metadata_pool[i].fft_timings.cdfmcw_sec = 0;
+    master_metadata_pool[i].fft_timings.cdfmcw_usec = 0;
+    // Viterbi task timings
+    master_metadata_pool[i].vit_timings.dodec_sec = 0;
+    master_metadata_pool[i].vit_timings.dodec_usec = 0;
+    master_metadata_pool[i].vit_timings.depunc_sec = 0;
+    master_metadata_pool[i].vit_timings.depunc_usec = 0;
+    
     free_metadata_pool[i] = i;    // Set up all blocks are free
     free_critlist_pool[i] = i;    // Set up all critlist blocks are free
 
@@ -797,6 +840,41 @@ void shutdown_scheduler()
   }
 
   printf("\nDuring run, Scheduler allocated %u blocks and freed %u blocks\n\n", allocated_metadata_blocks, freed_metadata_blocks);
+  printf("\nPer-MetatData-Block Scheduler Timing Data:\n");
+  {
+    uint64_t total_idle_usec    = 0;
+    uint64_t total_get_usec     = 0;
+    uint64_t total_queued_usec  = 0;
+    uint64_t total_running_usec = 0;
+    uint64_t total_done_usec    = 0;
+    for (int bi = 0; bi < total_metadata_pool_blocks; bi++) {
+      uint64_t this_idle_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.idle_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.idle_usec);
+      uint64_t this_get_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.get_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.get_usec);
+      uint64_t this_queued_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.queued_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.queued_usec);
+      uint64_t this_running_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.running_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.running_usec);
+      uint64_t this_done_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.done_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.done_usec);
+      printf(" Block %3u : IDLE %15lu GET %15lu QUE %15lu RUN %15lu DONE %15lu usec\n", bi, this_idle_usec, this_get_usec, this_queued_usec, this_running_usec,  total_done_usec);
+
+      total_idle_usec    += this_idle_usec;
+      total_get_usec     += this_get_usec;
+      total_queued_usec  += this_queued_usec;
+      total_running_usec += this_running_usec;
+      total_done_usec    += this_done_usec;
+    }
+    double avg;
+    printf("\nScheduler Timings: Aggregate Across all Metadata Blocks\n");
+    avg = (double)total_idle_usec/(double)total_metadata_pool_blocks;
+    printf("  Metablocks_IDLE total run time:    %15lu usec : %16.2lf (average)\n", total_idle_usec, avg);
+    avg = (double)total_get_usec/(double)total_metadata_pool_blocks;
+    printf("  Metablocks_GET total run time:     %15lu usec : %16.2lf (average)\n", total_get_usec, avg);
+    avg = (double)total_queued_usec/(double)total_metadata_pool_blocks;
+    printf("  Metablocks_QUEUED total run time:  %15lu usec : %16.2lf (average)\n", total_queued_usec, avg);
+    avg = (double)total_running_usec/(double)total_metadata_pool_blocks;
+    printf("  Metablocks_RUNNING total run time: %15lu usec : %16.2lf (average)\n", total_running_usec, avg);
+    avg = (double)total_done_usec/(double)total_metadata_pool_blocks;
+    printf("  Metablocks_DONE total run time:    %15lu usec : %16.2lf (average)\n", total_done_usec, avg);
+  }
+
 
   // Clean up any hardware accelerator stuff
  #ifdef HW_VIT
@@ -993,6 +1071,10 @@ void
 request_execution(task_metadata_block_t* task_metadata_block)
 {
   task_metadata_block->status = TASK_QUEUED; // queued
+  gettimeofday(&task_metadata_block->sched_timings.queued_start, NULL);
+  task_metadata_block->sched_timings.get_sec += task_metadata_block->sched_timings.queued_start.tv_sec - task_metadata_block->sched_timings.get_start.tv_sec;
+  task_metadata_block->sched_timings.get_usec += task_metadata_block->sched_timings.queued_start.tv_usec - task_metadata_block->sched_timings.get_start.tv_usec;
+    
   // Select the target accelerator to execute the task
   select_target_accelerator(global_scheduler_selection_policy, task_metadata_block);
   
@@ -1007,7 +1089,11 @@ request_execution(task_metadata_block_t* task_metadata_block)
     int bi = task_metadata_block->block_id; // short name forhte block_id
     accelerator_in_use_by[accel_type][accel_id] = bi;
     task_metadata_block->status = TASK_RUNNING; // running
-
+    
+    gettimeofday(&master_metadata_pool[bi].sched_timings.running_start, NULL);
+    master_metadata_pool[bi].sched_timings.queued_sec += master_metadata_pool[bi].sched_timings.running_start.tv_sec - master_metadata_pool[bi].sched_timings.queued_start.tv_sec;
+    master_metadata_pool[bi].sched_timings.queued_usec += master_metadata_pool[bi].sched_timings.running_start.tv_usec - master_metadata_pool[bi].sched_timings.queued_start.tv_usec;
+    
     TDEBUG(printf("Kicking off accelerator task for Metadata Block %u : Task %s %s on Accel %s %u\n", bi, task_job_str[task_metadata_block->job_type], task_criticality_str[task_metadata_block->crit_level], accel_type_str[task_metadata_block->accelerator_type], task_metadata_block->accelerator_id));
 
     // Lock the mutex associated to the conditional variable
@@ -1025,31 +1111,6 @@ request_execution(task_metadata_block_t* task_metadata_block)
   }
 }
 
-/********************************************************************************
- * This is a non-pthreads version... with the pthreads, since we want to 
- * wait for all critical threads, we can "pthread_join" for the first 
- * non-done status thread we encounter...
- ********************************************************************************/
-/* int check_if_all_critical_tasks_are_done() */
-/* { */
-/*   // Loop through the critical tasks list and check whether they are all in status "done" */
-/*   blockid_linked_list_t* cli = critical_live_task_head; */
-/*   while (cli != NULL) { */
-/*     if (master_metadata_pool[cli->clt_block_id].status != TASK_DONE) { */
-/*       return false; */
-/*     } */
-/*     cli = cli->next; */
-/*   } */
-/*   return true; */
-/* } */
-
-
-/* void wait_all_critical() */
-/* { */
-/*   while (!check_if_all_critical_tasks_are_done()) { */
-/*     sleep(0.001); */
-/*   } */
-/* } */
 
 /********************************************************************************
  * Here are the wait routines -- for critical tasks or all tasks to finish

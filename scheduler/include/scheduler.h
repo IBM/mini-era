@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 //#include "verbose.h"
 
@@ -79,6 +80,42 @@ typedef struct { // The "Viterbi" view of "data"
   uint8_t theData[64*1024]; // This is larger than needed (~24780 + 18585) but less than FFT requires (so okay)
 }  viterbi_data_struct_t;
 
+// This is a timing analysis structure for the scheduler functions, etc.
+typedef struct {
+  struct timeval idle_start;
+  uint64_t idle_sec, idle_usec;
+  struct timeval get_start;
+  uint64_t get_sec, get_usec;
+  struct timeval queued_start;
+  uint64_t queued_sec, queued_usec;
+  struct timeval running_start;
+  uint64_t running_sec, running_usec;
+  struct timeval done_start;
+  uint64_t done_sec, done_usec;
+} sched_timing_data_t;
+
+// The following structures are for timing analysis (per job type)
+typedef struct {
+  struct timeval calc_start;
+  uint64_t calc_sec, calc_usec;
+  struct timeval fft_start;
+  uint64_t fft_sec, fft_usec;
+  struct timeval fft_br_start;
+  uint64_t fft_br_sec, fft_br_usec;
+  struct timeval fft_cvtin_start;
+  uint64_t fft_cvtin_sec, fft_cvtin_usec;
+  struct timeval fft_cvtout_start;
+  uint64_t fft_cvtout_sec, fft_cvtout_usec;
+  struct timeval cdfmcw_start;
+  uint64_t cdfmcw_sec, cdfmcw_usec;
+} fft_timing_data_t;
+
+typedef struct {
+  struct timeval dodec_start;
+  uint64_t dodec_sec,  dodec_usec;
+  struct timeval depunc_start;
+  uint64_t depunc_sec, depunc_usec;
+} vit_timing_data_t;
 
 // This is a metatdata structure; it is used to hold all information for any job
 //  to be invoked through the scheduler.  This includes a description of the
@@ -89,6 +126,7 @@ typedef struct { // The "Viterbi" view of "data"
 //  block of data is task-dependent, and can have an over-laid structure, etc.
 
 typedef struct task_metadata_entry_struct {
+  // This portion is management, control, and scheduler stuff...
   int32_t  block_id;             // +4 Bytes : master-pool-index; a unique ID per metadata task
   task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
   pthread_t       thread_id;     // +8?Bytes : set when we invoke pthread_create (at least for CPU)
@@ -97,7 +135,13 @@ typedef struct task_metadata_entry_struct {
   scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
   task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
   void (*atFinish)(struct task_metadata_entry_struct *); //  +8?Bytes : Call-back Finish-time function
-  
+
+  // These are timing-related storage; currently we keep per-job-type in each metadata to aggregate (per block) over the run
+  sched_timing_data_t sched_timings;
+  fft_timing_data_t   fft_timings; 
+  vit_timing_data_t   vit_timings;
+
+  // This is the segment for data for the jobs
   int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
   union { // This union holds job-specific "views" of the data (input/ouput memory for job accelerators)
     uint8_t  raw_data[128*1024];       // 128 KB is the current MAX data size for all jobs
