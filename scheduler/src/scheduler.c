@@ -91,7 +91,7 @@ const char* accel_type_str[NUM_ACCEL_TYPES] = { "CPU-ACCELERATOR",
 						"NO-ACCELERATOR"};
 
 const char* scheduler_selection_policy_str[NUM_SELECTION_POLICIES] = { "Select_Accelerator_Type_and_Wait_Available",
-								       "Fastest_to_Slewest_First_Available" } ;
+								       "Fastest_to_Slowest_First_Available" } ;
 
 int accelerator_in_use_by[NUM_ACCEL_TYPES-1][MAX_ACCEL_OF_EACH_TYPE];
 int num_accelerators_of_type[NUM_ACCEL_TYPES-1];
@@ -226,6 +226,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
 	 }
 	 printf("\n"));
   allocated_metadata_blocks[task_type]++;
+  //printf("MB%u got allocated : %u %u\n", bi, task_type, crit_level);
   pthread_mutex_unlock(&free_metadata_mutex);
   
   return &(master_metadata_pool[bi]);
@@ -240,7 +241,7 @@ void free_task_metadata_block(task_metadata_block_t* mb)
   pthread_mutex_lock(&free_metadata_mutex);
 
   int bi = mb->block_id;
-  //DEBUG(
+  //printf("MB%u getting freed : %u %u\n", bi, mb->job_type, mb->crit_level);
   TDEBUG(printf("in free_task_metadata_block for block %u with %u free_metadata_blocks\n", bi, free_metadata_blocks);//);
 	 printf(" BEFORE_FREE : MB %u : free_metadata_pool : ", bi);
 	 for (int i = 0; i < total_metadata_pool_blocks; i++) {
@@ -280,7 +281,8 @@ void free_task_metadata_block(task_metadata_block_t* mb)
       cli->next = NULL;
       total_critical_tasks -= 1;
     }
-    // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
+    master_metadata_pool[bi].atFinish = NULL; // Ensure this is now set to NULL (safety safety)
+    // For neatness (not "security") we'll clear the meta-data in the block (not the data data, though)
     freed_metadata_blocks[master_metadata_pool[bi].job_type]++;
     master_metadata_pool[bi].job_type = NO_TASK_JOB; // unset
     master_metadata_pool[bi].status = TASK_FREE;   // free
@@ -319,19 +321,20 @@ get_task_status(int task_id) {
 void mark_task_done(task_metadata_block_t* task_metadata_block)
 {
 	printf("MB%u in mark_task_done\n", task_metadata_block->block_id);
-  // First, mark the task as "DONE" with execution
+  // First release the accelerator
+  release_accelerator_for_task(task_metadata_block);
+
+  // Then, mark the task as "DONE" with execution
   task_metadata_block->status = TASK_DONE;
   gettimeofday(&task_metadata_block->sched_timings.done_start, NULL);
   task_metadata_block->sched_timings.running_sec += task_metadata_block->sched_timings.done_start.tv_sec - task_metadata_block->sched_timings.running_start.tv_sec;
   task_metadata_block->sched_timings.running_usec += task_metadata_block->sched_timings.done_start.tv_usec - task_metadata_block->sched_timings.queued_start.tv_usec;
-  // The release the accelerator
-  release_accelerator_for_task(task_metadata_block);
+
+  // And finally, call the call-back if there is one... (which might clear out the metadata_block entirely)
   if (task_metadata_block->atFinish != NULL) {
     // And finally, call the atFinish call-back routine specified in the MetaData Block
     task_metadata_block->atFinish(task_metadata_block);
   }
-  // Now clear that function pointer (so it doesn't get called again).
-  task_metadata_block->atFinish = NULL;
 }
 
 static unsigned DMA_WORD_PER_BEAT(unsigned _st)
@@ -822,7 +825,7 @@ release_accelerator_for_task(task_metadata_block_t* task_metadata_block)
   unsigned accel_id   = task_metadata_block->accelerator_id;
   pthread_mutex_lock(&accel_alloc_mutex);
 
-  printf("MB%u RELEASE accelerator %u  %u  = %d cl %u\n", mdb_id, accel_type, accel_id, accelerator_in_use_by[accel_type][accel_id], task_metadata_block->crit_level);
+  //printf("MB%u RELEASE  accelerator %u %u for %d cl %u\n", mdb_id, accel_type, accel_id, accelerator_in_use_by[accel_type][accel_id], task_metadata_block->crit_level);
   DEBUG(printf(" RELEASE accelerator %u  %u  = %d  : ", accel_type, accel_id, accelerator_in_use_by[accel_type][accel_id]);
 	  for (int ai = 0; ai < num_accelerators_of_type[fft_hwr_accel_t]; ai++) {
 		  printf("%u %d : ", ai, accelerator_in_use_by[accel_type][ai]);
@@ -1039,7 +1042,7 @@ request_execution(task_metadata_block_t* task_metadata_block)
     }
     int bi = task_metadata_block->block_id; // short name for the block_id
     accelerator_in_use_by[accel_type][accel_id] = bi;
-    printf("MB%u ALLOC accelerator %u %u to %d cl %u\n", bi, accel_type, accel_id, bi, task_metadata_block->crit_level);
+    //printf("MB%u ALLOCATE accelerator %u %u to  %d cl %u\n", bi, accel_type, accel_id, bi, task_metadata_block->crit_level);
     DEBUG(printf("MB%u ALLOC accelerator %u  %u to %d  : ", bi, accel_type, accel_id, bi);
 	    for (int ai = 0; ai < num_accelerators_of_type[fft_hwr_accel_t]; ai++) {
 		    printf("%u %d : ", ai, accelerator_in_use_by[accel_type][ai]);
