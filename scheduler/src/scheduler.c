@@ -342,9 +342,9 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
   return (sizeof(void *) / _st);
 }
 
+#define  NUM_VIT_ACCEL  4
 #ifdef HW_VIT
 // These are Viterbi Harware Accelerator Variables, etc.
-#define  NUM_VIT_ACCEL  4
 char*    vitAccelName[NUM_VIT_ACCEL] = {"/dev/vitdodec.0", "/dev/vitdodec.1", "/dev/vitdodec.2", "/dev/vitdodec.3"};
 
 int vitHW_fd[NUM_VIT_ACCEL];
@@ -387,9 +387,9 @@ static void init_vit_parameters(int vn)
 // Right now default to max of 16k-samples
 unsigned fft_logn_samples = 14; // Defaults to 16k samples
 
+#define NUM_FFT_ACCEL 4
 #ifdef HW_FFT
 // These are FFT Hardware Accelerator Variables, etc.
-#define NUM_FFT_ACCEL 4
 char* fftAccelName[NUM_FFT_ACCEL] = {"/dev/fft.0", "/dev/fft.1", "/dev/fft.2", "/dev/fft.3"};
 
 int fftHW_fd[NUM_FFT_ACCEL];
