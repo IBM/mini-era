@@ -129,14 +129,17 @@ typedef struct {
 
 typedef struct task_metadata_entry_struct {
   // This portion is management, control, and scheduler stuff...
-  int32_t  block_id;             // +4 Bytes : master-pool-index; a unique ID per metadata task
-  task_status_t  status;         // +4 Bytes : -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
-  pthread_t       thread_id;     // +8?Bytes : set when we invoke pthread_create (at least for CPU)
-  accelerator_type_t  accelerator_type;     // +4 bytes : indicates which accelerator this task is executing on
-  int32_t  accelerator_id;       // +4 bytes : indicates which accelerator this task is executing on
-  scheduler_jobs_t job_type;     // +4 Bytes : see above enumeration
-  task_criticality_t crit_level; // +4 Bytes : [0 .. ?] ?
-  void (*atFinish)(struct task_metadata_entry_struct *); //  +8?Bytes : Call-back Finish-time function
+  int32_t  block_id;              // master-pool-index; a unique ID per metadata task
+  task_status_t  status;          // -1 = free, 0 = allocated, 1 = queued, 2 = running, 3 = done ?
+  pthread_t       thread_id;      // set when we invoke pthread_create (at least for CPU)
+  pthread_mutex_t metadata_mutex; // Used to guard access to altering metadata conditional variables
+  pthread_cond_t  metadata_condv; // These phthreads conditional variables are used to "signal" a thread to do work
+
+  accelerator_type_t  accelerator_type; // indicates which accelerator this task is executing on
+  int32_t  accelerator_id;        // indicates which accelerator this task is executing on
+  scheduler_jobs_t job_type;      // see above enumeration
+  task_criticality_t crit_level;  // [0 .. ?] ?
+  void (*atFinish)(struct task_metadata_entry_struct *); // Call-back Finish-time function
 
   // These are timing-related storage; currently we keep per-job-type in each metadata to aggregate (per block) over the run
   sched_timing_data_t sched_timings;
@@ -144,11 +147,11 @@ typedef struct task_metadata_entry_struct {
   vit_timing_data_t   vit_timings;
 
   // This is the segment for data for the jobs
-  int32_t  data_size;            // +4 Bytes : Number of bytes occupied in data (NOT USED/NOT NEEDED?)
+  int32_t  data_size;                // Number of bytes occupied in data (NOT USED/NOT NEEDED?)
   union { // This union holds job-specific "views" of the data (input/ouput memory for job accelerators)
-    uint8_t  raw_data[128*1024];       // 128 KB is the current MAX data size for all jobs
-    float    fft_data[1<<15];          // FFT view of data -- 16k-samples (max) complex float
-    viterbi_data_struct_t vit_data;    // Viterbi view of data -- see strucutre typedef above
+    uint8_t  raw_data[128*1024];     // 128 KB is the current MAX data size for all jobs
+    float    fft_data[1<<15];        // FFT view of data -- 16k-samples (max) complex float
+    viterbi_data_struct_t vit_data;  // Viterbi view of data -- see strucutre typedef above
   } data_view;
 } task_metadata_block_t;
 
@@ -170,16 +173,11 @@ extern void request_execution(task_metadata_block_t* task_metadata_block);
 extern int get_task_status(int task_id);
 extern void wait_all_critical();
 extern void wait_all_tasks_finish();
-extern void release_accelerator_for_task(task_metadata_block_t* task_metadata_block);
 void mark_task_done(task_metadata_block_t* task_metadata_block);
 
 extern void print_base_metadata_block_contents(task_metadata_block_t* mb);
 extern void print_fft_metadata_block_contents(task_metadata_block_t* mb);
 extern void print_viterbi_metadata_block_contents(task_metadata_block_t* mb);
-
-//extern void schedule_fft(task_metadata_block_t* task_metadata_block);
-
-extern void schedule_viterbi(int n_cbps, int n_traceback, int n_data_bits, uint8_t* inMem, uint8_t* inData, uint8_t* outMem);
 
 extern void shutdown_scheduler();
 

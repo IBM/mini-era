@@ -40,6 +40,9 @@
 #include "scheduler.h"
 #include "accelerators.h" // include AFTER scheduler.h -- needs types form scheduler.h
 
+// Forward declarations
+void release_accelerator_for_task(task_metadata_block_t* task_metadata_block);
+
 accel_selct_policy_t global_scheduler_selection_policy;
 
 #define total_metadata_pool_blocks  32
@@ -50,9 +53,10 @@ unsigned allocated_metadata_blocks[NUM_JOB_TYPES];
 unsigned freed_metadata_blocks[NUM_JOB_TYPES];
 
 pthread_mutex_t free_metadata_mutex; // Used to guard access to altering the free-list metadata information, etc.
+pthread_mutex_t accel_alloc_mutex;   // Used to guard access to altering the accelerator allocations
 
-pthread_mutex_t metadata_mutex[total_metadata_pool_blocks]; // Used to guard access to altering metadata conditional variables
-pthread_cond_t  metadata_condv[total_metadata_pool_blocks]; // These phthreads conditional variables are used to "signal" a thread to do work
+//pthread_mutex_t metadata_mutex[total_metadata_pool_blocks]; // Used to guard access to altering metadata conditional variables
+//pthread_cond_t  metadata_condv[total_metadata_pool_blocks]; // These phthreads conditional variables are used to "signal" a thread to do work
 
 pthread_t metadata_threads[total_metadata_pool_blocks];
 
@@ -314,6 +318,7 @@ get_task_status(int task_id) {
 
 void mark_task_done(task_metadata_block_t* task_metadata_block)
 {
+	printf("MB%u in mark_task_done\n", task_metadata_block->block_id);
   // First, mark the task as "DONE" with execution
   task_metadata_block->status = TASK_DONE;
   gettimeofday(&task_metadata_block->sched_timings.done_start, NULL);
@@ -473,11 +478,11 @@ metadata_thread_wait_for_task(void* void_parm_ptr)
   int bi = task_metadata_block->block_id;
   DEBUG(printf("In metadata_thread_wait_for_task for thread for metadata block %d\n", bi));
   // I think we do this once, then can wait_cond many times
-  pthread_mutex_lock(&metadata_mutex[bi]);
+  pthread_mutex_lock(&(task_metadata_block->metadata_mutex));
   do {
     TDEBUG(printf("MB_THREAD %d calling pthread_cond_wait\n", bi));
     // This will cause the thread to wait for a triggering signal through metadata_condv[bi]
-    pthread_cond_wait(&metadata_condv[bi], &metadata_mutex[bi]);
+    pthread_cond_wait(&(task_metadata_block->metadata_condv), &(task_metadata_block->metadata_mutex));
 
     TDEBUG(printf("MB_THREAD %d calling execute_task_on_accelerator...\n", bi));
     // Now we have been "triggered" -- so we invoke the appropriate accelerator
@@ -485,7 +490,7 @@ metadata_thread_wait_for_task(void* void_parm_ptr)
   } while (1); // We will loop here forever, until the main program exits....
 
   // We should never fall out, but in case we do, clean up
-  pthread_mutex_unlock(&metadata_mutex[bi]);
+  pthread_mutex_unlock(&(task_metadata_block->metadata_mutex));
 }
 
 
@@ -494,6 +499,7 @@ status_t initialize_scheduler()
 {
   DEBUG(printf("In initialize...\n"));
   pthread_mutex_init(&free_metadata_mutex, NULL);
+  pthread_mutex_init(&accel_alloc_mutex, NULL);
   struct timeval init_time;
   gettimeofday(&init_time, NULL);
   for (int i = 0; i < total_metadata_pool_blocks; i++) {
@@ -529,12 +535,12 @@ status_t initialize_scheduler()
     master_metadata_pool[i].vit_timings.dodec_usec = 0;
     master_metadata_pool[i].vit_timings.depunc_sec = 0;
     master_metadata_pool[i].vit_timings.depunc_usec = 0;
-    
+
+    pthread_mutex_init(&(master_metadata_pool[i].metadata_mutex), NULL);
+    pthread_cond_init(&(master_metadata_pool[i].metadata_condv), NULL);
+
     free_metadata_pool[i] = i;    // Set up all blocks are free
     free_critlist_pool[i] = i;    // Set up all critlist blocks are free
-
-    pthread_mutex_init(&metadata_mutex[i], NULL);
-    pthread_cond_init(&metadata_condv[i], NULL);
   }
 
   // Now initialize the per-metablock threads
@@ -557,8 +563,8 @@ status_t initialize_scheduler()
   
   // I'm hard-coding these for now.
   num_accelerators_of_type[cpu_accel_t] = 10;  // also tested with 1 -- works.
-  num_accelerators_of_type[fft_hwr_accel_t] = 4;
-  num_accelerators_of_type[vit_hwr_accel_t] = 4;
+  num_accelerators_of_type[fft_hwr_accel_t] = NUM_FFT_ACCEL;
+  num_accelerators_of_type[vit_hwr_accel_t] = NUM_VIT_ACCEL;
 
   for (int i = 0; i < NUM_ACCEL_TYPES-1; i++) {
     for (int j = 0; j < MAX_ACCEL_OF_EACH_TYPE; j++) {
@@ -716,7 +722,8 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
     data[j] = (float)fx2float(fftHW_lmem[fn][j], FX_IL);
   }
 
-  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
+  //TDEBUG
+  (printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 
 #else
@@ -796,7 +803,8 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
     printf("%u ", out_Data[ti]);
   });
 
-  TDEBUG(printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
+  //TDEBUG
+  (printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 
 #else // HW_VIT
@@ -812,13 +820,26 @@ release_accelerator_for_task(task_metadata_block_t* task_metadata_block)
   unsigned mdb_id     = task_metadata_block->block_id;
   unsigned accel_type = task_metadata_block->accelerator_type;
   unsigned accel_id   = task_metadata_block->accelerator_id;
+  pthread_mutex_lock(&accel_alloc_mutex);
+
+  printf("MB%u RELEASE accelerator %u  %u  = %d cl %u\n", mdb_id, accel_type, accel_id, accelerator_in_use_by[accel_type][accel_id], task_metadata_block->crit_level);
+  DEBUG(printf(" RELEASE accelerator %u  %u  = %d  : ", accel_type, accel_id, accelerator_in_use_by[accel_type][accel_id]);
+	  for (int ai = 0; ai < num_accelerators_of_type[fft_hwr_accel_t]; ai++) {
+		  printf("%u %d : ", ai, accelerator_in_use_by[accel_type][ai]);
+	  }
+	  printf("\n"));
   if (accelerator_in_use_by[accel_type][accel_id] != mdb_id) {
     printf("ERROR - in release_accelerator_for_task for ACCEL %s Num %d but BLOCK_ID Mismatch: %d vs %d\n", accel_type_str[accel_type], accel_id, accelerator_in_use_by[accel_type][accel_id], mdb_id);
     printf("  this occurred on finish of block:\n");
     print_base_metadata_block_contents(task_metadata_block);
+    printf("Accelerators Info:\n");
+    for (int ai = 0; ai < num_accelerators_of_type[fft_hwr_accel_t]; ai++) {
+	    printf(" accelerator_in_use_by[ %u ][ %u ] = %d\n", accel_type, ai, accelerator_in_use_by[accel_type][ai]);
+    }
   } else {
     accelerator_in_use_by[accel_type][accel_id] = -1; // Indicates "Not in Use"
   }
+  pthread_mutex_unlock(&accel_alloc_mutex);
 }
 
 
@@ -1004,10 +1025,10 @@ request_execution(task_metadata_block_t* task_metadata_block)
   gettimeofday(&task_metadata_block->sched_timings.queued_start, NULL);
   task_metadata_block->sched_timings.get_sec += task_metadata_block->sched_timings.queued_start.tv_sec - task_metadata_block->sched_timings.get_start.tv_sec;
   task_metadata_block->sched_timings.get_usec += task_metadata_block->sched_timings.queued_start.tv_usec - task_metadata_block->sched_timings.get_start.tv_usec;
-    
+
   // Select the target accelerator to execute the task
   select_target_accelerator(global_scheduler_selection_policy, task_metadata_block);
-  
+
   unsigned int accel_type = task_metadata_block->accelerator_type;
   unsigned int accel_id = task_metadata_block->accelerator_id;
   if (accel_type < no_accelerator_t) {
@@ -1016,25 +1037,31 @@ request_execution(task_metadata_block_t* task_metadata_block)
       printf("ERROR : request_execution is trying to allocate ACCEL %s %u which is already allocated to Block %u\n", accel_type_str[accel_type], accel_id, accelerator_in_use_by[accel_type][accel_id]);
       exit(-14);
     }
-    int bi = task_metadata_block->block_id; // short name forhte block_id
+    int bi = task_metadata_block->block_id; // short name for the block_id
     accelerator_in_use_by[accel_type][accel_id] = bi;
+    printf("MB%u ALLOC accelerator %u %u to %d cl %u\n", bi, accel_type, accel_id, bi, task_metadata_block->crit_level);
+    DEBUG(printf("MB%u ALLOC accelerator %u  %u to %d  : ", bi, accel_type, accel_id, bi);
+	    for (int ai = 0; ai < num_accelerators_of_type[fft_hwr_accel_t]; ai++) {
+		    printf("%u %d : ", ai, accelerator_in_use_by[accel_type][ai]);
+	    }
+	    printf("\n"));
     task_metadata_block->status = TASK_RUNNING; // running
-    
+
     gettimeofday(&master_metadata_pool[bi].sched_timings.running_start, NULL);
     master_metadata_pool[bi].sched_timings.queued_sec += master_metadata_pool[bi].sched_timings.running_start.tv_sec - master_metadata_pool[bi].sched_timings.queued_start.tv_sec;
     master_metadata_pool[bi].sched_timings.queued_usec += master_metadata_pool[bi].sched_timings.running_start.tv_usec - master_metadata_pool[bi].sched_timings.queued_start.tv_usec;
-    
+
     TDEBUG(printf("Kicking off accelerator task for Metadata Block %u : Task %s %s on Accel %s %u\n", bi, task_job_str[task_metadata_block->job_type], task_criticality_str[task_metadata_block->crit_level], accel_type_str[task_metadata_block->accelerator_type], task_metadata_block->accelerator_id));
 
     // Lock the mutex associated to the conditional variable
-    pthread_mutex_lock(&metadata_mutex[bi]);
+    pthread_mutex_lock(&(task_metadata_block->metadata_mutex));
 
     // Signal the conditional variable -- triggers the target thread execution of accelerator
-    pthread_cond_signal(&metadata_condv[bi]);
+    pthread_cond_signal(&(task_metadata_block->metadata_condv));
 
     // And now we unlock because we are done here...
-    pthread_mutex_unlock(&metadata_mutex[bi]);
-    
+    pthread_mutex_unlock(&(task_metadata_block->metadata_mutex));
+
   } else {
     printf("Cannot allocate execution resources for metadata block:\n");
     print_base_metadata_block_contents(task_metadata_block);
@@ -1082,9 +1109,10 @@ void shutdown_scheduler()
   }
   // Clean out the pthread mutex and conditional variables
   pthread_mutex_destroy(&free_metadata_mutex);
+  pthread_mutex_destroy(&accel_alloc_mutex);
   for (int i = 0; i < total_metadata_pool_blocks; i++) {
-    pthread_mutex_destroy(&metadata_mutex[i]);
-    pthread_cond_destroy(&metadata_condv[i]);
+	  pthread_mutex_destroy(&(master_metadata_pool[i].metadata_mutex));
+	  pthread_cond_destroy(&(master_metadata_pool[i].metadata_condv));
   }
 
   printf("\nScheduler block allocation/free statistics:\n");
@@ -1200,7 +1228,7 @@ void shutdown_scheduler()
     contig_free(vitHW_mem[vi]);
     close(vitHW_fd[vi]);
   }
- #endif
+#endif
 
  #ifdef HW_FFT
   for (int fi = 0; fi < NUM_FFT_ACCEL; fi++) {
