@@ -320,7 +320,7 @@ get_task_status(int task_id) {
 
 void mark_task_done(task_metadata_block_t* task_metadata_block)
 {
-	printf("MB%u in mark_task_done\n", task_metadata_block->block_id);
+  //printf("MB%u in mark_task_done\n", task_metadata_block->block_id);
   // First release the accelerator
   release_accelerator_for_task(task_metadata_block);
 
@@ -725,8 +725,7 @@ execute_hwr_fft_accelerator(task_metadata_block_t* task_metadata_block)
     data[j] = (float)fx2float(fftHW_lmem[fn][j], FX_IL);
   }
 
-  //TDEBUG
-  (printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
+  TDEBUG(printf("MB%u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 
 #else
@@ -806,8 +805,7 @@ execute_hwr_viterbi_accelerator(task_metadata_block_t* task_metadata_block)
     printf("%u ", out_Data[ti]);
   });
 
-  //TDEBUG
-  (printf("MB_THREAD %u calling mark_task_done...\n", task_metadata_block->block_id));
+  TDEBUG(printf("MB%u calling mark_task_done...\n", task_metadata_block->block_id));
   mark_task_done(task_metadata_block);
 
 #else // HW_VIT
