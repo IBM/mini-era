@@ -193,6 +193,7 @@ task_metadata_block_t* get_task_metadata_block(scheduler_jobs_t task_type, task_
   free_metadata_blocks -= 1;
   // For neatness (not "security") we'll clear the meta-data in the block (not the data data,though)
   master_metadata_pool[bi].job_type = task_type;
+  master_metadata_pool[bi].gets_by_type[task_type]++;
   master_metadata_pool[bi].status = TASK_ALLOCATED;
   master_metadata_pool[bi].crit_level = crit_level;
   master_metadata_pool[bi].data_size = 0;
@@ -250,6 +251,7 @@ void free_task_metadata_block(task_metadata_block_t* mb)
 	 printf("\n"));
 
   if (free_metadata_blocks < total_metadata_pool_blocks) {
+    master_metadata_pool[bi].frees_by_type[mb->job_type]++;
     free_metadata_pool[free_metadata_blocks] = bi;
     free_metadata_blocks += 1;
     if (master_metadata_pool[bi].crit_level > 1) { // is this a critical tasks?
@@ -506,6 +508,11 @@ status_t initialize_scheduler()
   struct timeval init_time;
   gettimeofday(&init_time, NULL);
   for (int i = 0; i < total_metadata_pool_blocks; i++) {
+    master_metadata_pool[i].block_id = i; // Set the master pool's block_ids
+    for (int ji = 0; ji < NUM_JOB_TYPES; ji++) {
+      master_metadata_pool[i].gets_by_type[ji] = 0;
+      master_metadata_pool[i].frees_by_type[ji] = 0;
+    }
     master_metadata_pool[i].block_id = i; // Set the master pool's block_ids
     // Clear the (full-run, aggregate) timing data spaces
     gettimeofday( &(master_metadata_pool[i].sched_timings.idle_start), NULL);
@@ -1122,8 +1129,36 @@ void shutdown_scheduler()
   }
   printf(" During FULL run,  Scheduler allocated %9u blocks and freed %9u blocks in total\n", allocated_metadata_blocks[NO_TASK_JOB], freed_metadata_blocks[NO_TASK_JOB]);
   
+  printf("\nPer-MetaData-Block Scheduler Allocation/Frees by Job-Type Data:\n");
+  printf("%6s ", "Block");
+  for (int ji = 1; ji < NUM_JOB_TYPES; ji++) {
+    printf("%12s_G %12s_F ", task_job_str[ji], task_job_str[ji]);
+  }
+  printf("\n");
+  unsigned type_gets[NUM_JOB_TYPES];
+  unsigned type_frees[NUM_JOB_TYPES];
+  for (int ji = 0; ji < NUM_JOB_TYPES; ji++) {
+    type_gets[ji] = 0;
+    type_frees[ji] = 0;
+  }
+  for (int bi = 0; bi < total_metadata_pool_blocks; bi++) {
+    printf("%6u ", bi);
+    for (int ji = 1; ji < NUM_JOB_TYPES; ji++) {
+      type_gets[ji]  += master_metadata_pool[bi].gets_by_type[ji];
+      type_frees[ji] += master_metadata_pool[bi].frees_by_type[ji];
+      printf("%14u %14u ", master_metadata_pool[bi].gets_by_type[ji], master_metadata_pool[bi].frees_by_type[ji]);
+    }
+    printf("\n");
+  }
+  printf("%6s ", "Total");
+  for (int ji = 1; ji < NUM_JOB_TYPES; ji++) {
+    printf("%14u %14u ", type_gets[ji], type_frees[ji]);
+  }
+  printf("\n");
+  
   printf("\nPer-MetaData-Block Scheduler Timing Data:\n");
   {
+    unsigned total_blocks_used  = 0;
     uint64_t total_idle_usec    = 0;
     uint64_t total_get_usec     = 0;
     uint64_t total_queued_usec  = 0;
@@ -1136,7 +1171,8 @@ void shutdown_scheduler()
       uint64_t this_running_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.running_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.running_usec);
       uint64_t this_done_usec = (uint64_t)(master_metadata_pool[bi].sched_timings.done_sec) * 1000000 + (uint64_t)(master_metadata_pool[bi].sched_timings.done_usec);
       printf(" Block %3u : IDLE %15lu GET %15lu QUE %15lu RUN %15lu DONE %15lu usec\n", bi, this_idle_usec, this_get_usec, this_queued_usec, this_running_usec,  total_done_usec);
-
+      if (this_idle_usec != 0) { total_blocks_used++; }
+      
       total_idle_usec    += this_idle_usec;
       total_get_usec     += this_get_usec;
       total_queued_usec  += this_queued_usec;
@@ -1144,16 +1180,16 @@ void shutdown_scheduler()
       total_done_usec    += this_done_usec;
     }
     double avg;
-    printf("\nScheduler Timings: Aggregate Across all Metadata Blocks\n");
-    avg = (double)total_idle_usec/(double)total_metadata_pool_blocks;
+    printf("\nScheduler Timings: Aggregate Across all Metadata Blocks with %u used blocks\n", total_blocks_used);
+    avg = (double)total_idle_usec/(double)total_blocks_used;
     printf("  Metablocks_IDLE total run time:    %15lu usec : %16.2lf (average)\n", total_idle_usec, avg);
-    avg = (double)total_get_usec/(double)total_metadata_pool_blocks;
+    avg = (double)total_get_usec/(double)total_blocks_used;
     printf("  Metablocks_GET total run time:     %15lu usec : %16.2lf (average)\n", total_get_usec, avg);
-    avg = (double)total_queued_usec/(double)total_metadata_pool_blocks;
+    avg = (double)total_queued_usec/(double)total_blocks_used;
     printf("  Metablocks_QUEUED total run time:  %15lu usec : %16.2lf (average)\n", total_queued_usec, avg);
-    avg = (double)total_running_usec/(double)total_metadata_pool_blocks;
+    avg = (double)total_running_usec/(double)total_blocks_used;
     printf("  Metablocks_RUNNING total run time: %15lu usec : %16.2lf (average)\n", total_running_usec, avg);
-    avg = (double)total_done_usec/(double)total_metadata_pool_blocks;
+    avg = (double)total_done_usec/(double)total_blocks_used;
     printf("  Metablocks_DONE total run time:    %15lu usec : %16.2lf (average)\n", total_done_usec, avg);
   }
 

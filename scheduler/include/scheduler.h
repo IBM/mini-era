@@ -141,6 +141,9 @@ typedef struct task_metadata_entry_struct {
   task_criticality_t crit_level;  // [0 .. ?] ?
   void (*atFinish)(struct task_metadata_entry_struct *); // Call-back Finish-time function
 
+  unsigned gets_by_type[NUM_JOB_TYPES]; // Count of times this metadata block allocated per job type.
+  unsigned frees_by_type[NUM_JOB_TYPES]; // Count of times this metadata block allocated per job type.
+  
   // These are timing-related storage; currently we keep per-job-type in each metadata to aggregate (per block) over the run
   sched_timing_data_t sched_timings;
   fft_timing_data_t   fft_timings; 
