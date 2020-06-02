@@ -62,8 +62,9 @@ decode_signal_field(uint8_t *rx_bits) {
   //deinterleave(rx_bits);
   // void
   // frame_equalizer_impl::deinterleave(uint8_t *rx_bits) {
-  uint8_t d_deinterleaved[48];
+  uint8_t d_deinterleaved[24528]; // 48  // This should not require so much; but I don't know what to set the above to
   for(int ii = 0; ii < 48; ii++) {
+    DEBUG(printf("DSF: Setting d_deintlvd[%u] = rx_bits[%u] = %u\n", ii, interleaver_pattern[ii], rx_bits[interleaver_pattern[ii]]));
     d_deinterleaved[ii] = rx_bits[interleaver_pattern[ii]];
   }
   // }
@@ -72,26 +73,31 @@ decode_signal_field(uint8_t *rx_bits) {
   uint8_t decoded_bits[48];
   int n_bits;
   decode(&ofdm, &frame, d_deinterleaved, &n_bits, decoded_bits);
-  
-  //return parse_signal(decoded_bits);
-  // bool frame_equalizer_impl::parse_signal(uint8_t *decoded_bits) {
+  DEBUG(printf("\nDSF: Back from decode\n");
+	for (int i = 0; i < 48; i++) {
+	  printf("DSF: decoded_bits[%u] = %u\n", i, decoded_bits[i]);
+	});
 
+
+  DEBUG(printf("\nDSF: Starting analysis...\n"));
   int r = 0;
   d_frame_bytes = 0;
   bool parity = false;
   for(int i = 0; i < 17; i++) {
     parity ^= decoded_bits[i];
-
+    DEBUG(printf("  DSF : i %u :: parity ^ %u = %u\n", i, decoded_bits[i], parity));
     if((i < 4) && decoded_bits[i]) {
       r = r | (1 << i);
+      DEBUG(printf("  DSF: i %u :: r = %u\n", i, r));
     }
 
     if(decoded_bits[i] && (i > 4) && (i < 17)) {
       d_frame_bytes = d_frame_bytes | (1 << (i-5));
+      DEBUG(printf("  DSF I : %u :: d_frame_bytes = %u\n", i, d_frame_bytes));
     }
   }
 
-  if(parity != decoded_bits[17]) {
+  if (parity != decoded_bits[17]) {
     printf("SIGNAL: wrong parity -- bad message!\n");  fflush(stdout);
     return false;
   }
@@ -102,7 +108,7 @@ decode_signal_field(uint8_t *rx_bits) {
     d_frame_encoding = 0;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 24);
     //d_frame_mod = d_bpsk;
-    printf("Encoding: 3 Mbit/s   \n");
+    printf("Encoding: 3 Mbit/s with d_frame_enc %u d_frame_sym %u d_frame_bytes %u\n", d_frame_encoding, d_frame_symbols, d_frame_bytes);
     break;
   case 15:
     d_frame_encoding = 1;
@@ -160,6 +166,7 @@ decode_signal_field(uint8_t *rx_bits) {
 
   //   mylog(boost::format("encoding: %1% - length: %2% - symbols: %3%")
   // 	  % d_frame_encoding % d_frame_bytes % d_frame_symbols);
+  DEBUG(printf("\nDSF : RETURNING TRUE -- A GOOD RUN!\n"));
   return true;
 }
 
@@ -290,9 +297,10 @@ void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_I
     if(d_current_symbol == 2) {
       // ASSUME GOOD PARITY FOR NOW ?!?
       // Otherwise, I think we decode this frame, and do some checking, etc... in the decode_signal_field (above)
-      //if (!decode_signal_field(&(outputs[o * 48]))) {
-      //  return false;
-      //}
+      if (!decode_signal_field(&(outputs[out_sym * 48]))) {
+        printf("ERROR : Bad decode_signal_filed return value ...\n");
+	exit(-20); // return false;
+      }
     }
   
     if(d_current_symbol > 2) {
