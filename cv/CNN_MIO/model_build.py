@@ -49,7 +49,7 @@ tf.app.flags.DEFINE_integer('batch_size', 128,
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 
-# Global constants describing the CIFAR-10 data set.
+# Global constants describing the MIO data set.
 IMAGE_SIZE = mio_input.IMAGE_SIZE
 NUM_CLASSES = mio_input.NUM_CLASSES
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = mio_input.NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN

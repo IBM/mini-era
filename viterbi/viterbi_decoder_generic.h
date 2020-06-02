@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-//#include "base.h"
+#include "base.h"
 
 
 /* This Viterbi decoder was taken from the gr-dvbt module of
@@ -25,7 +25,7 @@
  * created by Phil Karn. The SSE2 version was made by Bogdan
  * Diaconescu. For more info see: gr-dvbt/lib/d_viterbi.h
  */
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char);
 
 union branchtab27 {
 	unsigned char c[32];
@@ -36,8 +36,8 @@ unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
 unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
 unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
 
-void reset();
-void viterbi_chunks_init_generic();
+void reset(void);
+void viterbi_chunks_init_generic(void);
 
 #ifdef USE_ESP_INTERFACE
 void viterbi_butterfly2_generic(unsigned char *inMemory);

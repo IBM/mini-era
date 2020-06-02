@@ -30,7 +30,32 @@ object_state_t* the_objects[5];
 // This represents my car.
 object_state_t my_car;		
 
+// This controls whether we can have multiple obstacles in a lane at a time
+bool_t   one_obstacle_per_lane = false; // false = unlimited
 
+#define NEW_OBJ_THRESHOLD 97     // RAND > this to create new obstacle object
+
+// These are a succession of checks:
+#define NEW_OBJ_CAR_THRESHOLD    45   // RAND < this -- it is a car
+#define NEW_OBJ_TRUCK_THRESHOLD  70   // RAND >= car and < this -- it is a truck
+#define NEW_OBJ_BIKE_THRESHOLD   95   // RAND >= truck and < this, it is a bike (else a person)
+
+#define NUM_CAR_SPEEDS      5
+#define NUM_TRUCK_SPEEDS    4
+#define NUM_BIKE_SPEEDS     3
+#define NUM_PERSON_SPEEDS   2
+
+unsigned car_speeds[NUM_CAR_SPEEDS]        = { 45, 40, 35, 30, 25 };  // The possible speeds
+unsigned car_sp_thds[NUM_CAR_SPEEDS]       = { 15, 75, 90, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
+
+unsigned truck_speeds[NUM_TRUCK_SPEEDS]    = { 40, 35, 30, 25 };
+unsigned truck_sp_thds[NUM_TRUCK_SPEEDS]   = { 50, 85, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
+
+unsigned bike_speeds[NUM_BIKE_SPEEDS]      = { 35, 30, 20 };
+unsigned bike_sp_thds[NUM_BIKE_SPEEDS]     = { 70, 95, 100 }; // The thresholds for each speed (RAND: 0-99)
+
+unsigned person_speeds[NUM_PERSON_SPEEDS]  = { 15, 10 };
+unsigned person_sp_thds[NUM_PERSON_SPEEDS] = { 50, 100 }; // The thresholds for each speed (RAND: 0-99)
 
 void
 print_object(object_state_t* st) {
@@ -133,22 +158,62 @@ iterate_sim_environs()
   //   whether to add a new object or not...
   for (int x = 1; x < 4; x++) {
     object_state_t * pobj = the_objects[x];
-    if ((pobj == NULL) || (pobj->distance < (MAX_DISTANCE - MAX_OBJECT_SIZE - MIN_OBJECT_DIST))) {
+    if ((pobj == NULL) ||
+	(!one_obstacle_per_lane && (pobj->distance < (MAX_DISTANCE - MAX_OBJECT_SIZE - MIN_OBJECT_DIST))) ) {
       // There is space for a new object to enter
       int num = (rand() % (100)); // Return a value from [0,99]
-      if (num > 90) {
+      if (num > NEW_OBJ_THRESHOLD) {
         // Create a new object (car) and add it to the lane at position [x][0]
         object_state_t* no_p = (object_state_t*)calloc(1, sizeof(object_state_t));
 	no_p->obj_id = global_object_id++;
 	no_p->lane = x;
 	//no_p->object = car; break;
-	int objn = (rand() % 4); // Return a value from [0,99]
-	switch(objn) { 
-	case 0: no_p->object = car;        no_p->speed = 40;  no_p->size =  5.0; break;
-	case 1: no_p->object = truck;      no_p->speed = 30;  no_p->size = 10.0; break;
-	case 2: no_p->object = pedestrian; no_p->speed = 10;  no_p->size =  2.0; break;
-	case 3: no_p->object = bicycle;    no_p->speed = 20;  no_p->size =  5.0; break;
+	int objn = (rand() % 100); // Return a value from [0,99]
+	int spdn = (rand() % 100); // Return a value from [0,99]
+	if (objn < NEW_OBJ_CAR_THRESHOLD) {
+	  no_p->object = car;
+	  no_p->size =  5.0; // UNUSED?
+	  for (int si = 0; si < NUM_CAR_SPEEDS; si++) {
+	    if (spdn < car_sp_thds[si]) {
+	      no_p->speed = car_speeds[si];
+	      si = NUM_CAR_SPEEDS;
+	    }
+	  }
+	} else if (objn < NEW_OBJ_TRUCK_THRESHOLD) { 
+	  no_p->object = truck;
+	  no_p->size =  5.0; // UNUSED?
+	  for (int si = 0; si < NUM_TRUCK_SPEEDS; si++) {
+	    if (spdn < truck_sp_thds[si]) {
+	      no_p->speed = truck_speeds[si];
+	      si = NUM_TRUCK_SPEEDS;
+	    }
+	  }
+	} else if (objn < NEW_OBJ_BIKE_THRESHOLD) {
+	  no_p->object = bicycle;
+	  no_p->size =  5.0; // UNUSED?
+	  for (int si = 0; si < NUM_BIKE_SPEEDS; si++) {
+	    if (spdn < bike_sp_thds[si]) {
+	      no_p->speed = bike_speeds[si];
+	      si = NUM_BIKE_SPEEDS;
+	    }
+	  }
 	}
+	else {
+	  no_p->object = pedestrian; 
+	  no_p->size =  5.0; // UNUSED?
+	  for (int si = 0; si < NUM_PERSON_SPEEDS; si++) {
+	    if (spdn < person_sp_thds[si]) {
+	      no_p->speed = person_speeds[si];
+	      si = NUM_PERSON_SPEEDS;
+	    }
+	  }
+	}
+	/* switch(objn) {  */
+	/* case 0: no_p->object = car;        no_p->speed = 40;  no_p->size =  5.0; break; */
+	/* case 1: no_p->object = truck;      no_p->speed = 30;  no_p->size = 10.0; break; */
+	/* case 2: no_p->object = pedestrian; no_p->speed = 10;  no_p->size =  2.0; break; */
+	/* case 3: no_p->object = bicycle;    no_p->speed = 20;  no_p->size =  5.0; break; */
+	/* } */
 	no_p->distance = MAX_DISTANCE;
 	no_p->previous = NULL;
 	no_p->next = the_objects[x];
@@ -164,59 +229,6 @@ iterate_sim_environs()
   DEBUG(visualize_world());
   dump_trace_record();
 
-  // Now we have the state for this (new) time step
-  //  Use this to determine my_car's input data, e.g. 
-  //  safe_to_move_L/R, etc.
-  // NOTE: Currently I am ignoring moving INTO the hazard lanes...
-  /**
-  message_t viterbi_in_state = -1;
-  switch (my_car.lane) {
-  case lhazard : 
-    if (the_world[1][10] == NULL) { 
-      viterbi_in_state = safe_to_move_right_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case left : 
-    if (the_world[2][10] == NULL) { 
-      viterbi_in_state = safe_to_move_right_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case center : 
-    if (the_world[3][10] == NULL) { 
-      if (the_world[1][10] == NULL) { 
-	viterbi_in_state = safe_to_move_right_or_left; 
-      } else {
-	viterbi_in_state = safe_to_move_right_only;
-      }
-    } else if (the_world[1][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only;      
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case right : 
-    if (the_world[2][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  case rhazard : 
-    if (the_world[3][10] == NULL) { 
-      viterbi_in_state = safe_to_move_left_only; 
-    } else { 
-      viterbi_in_state = unsafe_to_move_left_or_right;
-    }
-    break;
-  default: printf("ERROR "); 
-  }
-  printf(" viterbi_in_state = %d\n", viterbi_in_state);
-  do_viterbi_work(viterbi_in_state, false); // set "true" for debug output
-  **/
 }
 
 
@@ -247,11 +259,13 @@ dump_trace_record()
 {
   // For each lane
   DEBUG(printf("TRLN:"));
-  printf("%u", 2); // This is MY Car lane position
+#ifdef FOR_VIS
+  printf("%u,", 2); // This is MY Car lane position
+#endif
   for (int x = 1; x < 4; x++) {
     // List the objects in the lane
     object_state_t* pobj = the_objects[x];
-    printf(",");
+    if (x > 1) { printf(","); }
     if (pobj != NULL) {
       int num = 0;
       while (pobj != NULL) {
@@ -261,16 +275,20 @@ dump_trace_record()
 	case no_label   : printf("N:"); break;
 	case car        : printf("C:"); break;
 	case truck      : printf("T:"); break;
-	case pedestrian : printf("B:"); break;
+	case pedestrian : printf("P:"); break;
 	case bicycle    : printf("B:"); break;
 	default: printf("ERROR "); 
 	}
-	printf("%u", (int)pobj->distance);
+	if (pobj->object == no_label) {
+	  printf("11");
+	} else {
+	  printf("%u", (int)(pobj->distance));
+	}
 	pobj = pobj->next;
 	num++;
       }
     } else {
-      printf("N:0");
+      printf("N:%u", (int)INF_DISTANCE);
     }
   }
   printf("\n");

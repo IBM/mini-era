@@ -26,6 +26,8 @@
 
 /* Types definitions */
 #define MAX_DISTANCE     500.0  // Max resolution distance of radar is < 500.0m
+#define DIST_STEP_SIZE    50.0
+#define INF_DISTANCE     (MAX_DISTANCE + DIST_STEP_SIZE)
 #define MAX_OBJECT_SIZE   50.0  // Max size of an object
 #define MIN_OBJECT_DIST   MAX_OBJECT_SIZE
 

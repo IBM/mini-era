@@ -22,7 +22,7 @@ from __future__ import print_function
 import tensorflow as tf
 #import tensorflow_datasets as tfds
 import numpy as np
-IMAGE_SIZE = 24
+IMAGE_SIZE = 32
 
 NUM_CLASSES = 5
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 500
@@ -48,12 +48,12 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 1000
 # my function
 def _get_images_labels(dsplit,batch_size,distords):
   if dsplit == 'train':  
-    features = np.load("training_images.npy")
-    labels = np.load("training_labels.npy")
+    features = np.load("./NPY_FILES/training_images.npy")
+    labels = np.load("./NPY_FILES/training_labels.npy")
     shuffle_buffer_size = 6000
   else:  
-    features = np.load("test_images.npy")
-    labels = np.load("test_labels.npy")
+    features = np.load("./NPY_FILES/test_images.npy")
+    labels = np.load("./NPY_FILES/test_labels.npy")
     shuffle_buffer_size = 1000
   assert features.shape[0] == labels.shape[0]
   features_placeholder = tf.placeholder(tf.float32, features.shape)

@@ -83,8 +83,8 @@ def predict(imagetype):
   outputs = model.predict(test_image, batch_size=batch_size)
   predicted_labels_t=(outputs.argmax(1))
   predicted_labels=np.reshape(predicted_labels_t, [predicted_labels_t.size, 1])
-  print("Predicted Label:")
-  print(predicted_labels[0,0])
+  #print("Predicted Label:")
+  #print(predicted_labels[0,0])
   return predicted_labels[0,0]
     
   # translate_to_approxhpvm(model, "data/lenet_hpvm/", X_test, Y_test, num_classes)
@@ -99,7 +99,8 @@ def main(argv):
   args = parser.parse_args()
   global model
   loadmodel()
-  predict(args.objecttype)  
+  val = predict(args.objecttype)  
+  print("CNN Predicted Label: %u\n" % val);
 
 if __name__ == "__main__":   
   main(sys.argv[1:])

@@ -1,0 +1,3 @@
+[submodule "cv/tflite/third_party/tensorflow"]
+	path = cv/tflite/third_party/tensorflow
+	url = https://github.com/tensorflow/tensorflow.git

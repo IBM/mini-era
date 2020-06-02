@@ -5,7 +5,10 @@ int write_array_to_octave (float * data, unsigned int len, char * filename, char
 {
   FILE *fp = fopen(filename, "w");
   int i;
-
+  if (fp == NULL) {
+    printf("ERROR : Cannot open octave output file %s\n", filename);
+    exit(-2);
+  }
   fprintf(fp, "# Created by PERFECT 1D-FFT Benchmark\n");
   fprintf(fp, "# name: %s\n", name);
   fprintf(fp, "# type: complex matrix\n");
