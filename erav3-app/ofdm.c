@@ -19,6 +19,11 @@
 // typedef complex< fx_pt1_ext2 > fx_pt_ext2;
 
 
+extern int d_frame_bytes;
+extern int d_frame_encoding;
+extern int d_frame_symbols;
+extern int d_frame_mod;
+
 void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX], unsigned* num_outputs, uint8_t * output_data ) // hls::stream< ap_uint<1> > &output_data  )
 {
   // JDW : REPLACING ALL of this with our viterbi (library) version...
@@ -56,15 +61,15 @@ void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX]
   }
 
   DEBUG(printf("     at the call to our decode...\n"));
-  unsigned num_out_bits = num_inputs/2;
+  unsigned num_out_bits = num_inputs/2; // for BPSK_1_2
   {
-    ofdm_param ofdm = {   BPSK_1_2, //  encoding   : 0 = BPSK_1_2
+    ofdm_param ofdm = {   d_frame_encoding, //  encoding   : 0 = BPSK_1_2
 			  13,       //             : rate field of SIGNAL header //Taken constant
 			  1,        //  n_bpsc     : coded bits per subcarrier
 			  48,       //  n_cbps     : coded bits per OFDM symbol
 			  24 };     //  n_dbps     : data bits per OFDM symbol
 
-    frame_param frame = {  1528,     // psdu_size      : PSDU size in bytes
+    frame_param frame = {  d_frame_bytes, // 1528,     // psdu_size      : PSDU size in bytes
 			   (int)(num_sym),      // n_sym          : number of OFDM symbols
 			   18,       // n_pad          : number of padding bits in DATA field
 			   (int)num_inputs, // 24528,    // n_encoded_bits : number of encoded bits
