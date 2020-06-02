@@ -152,6 +152,7 @@ status_t init_rad_kernel(char* dict_fn)
   if (!dictF)
   {
     printf("Error: unable to open dictionary file %s\n", dict_fn);
+    fclose(dictF);
     return error;
   }
   // Read the number of definitions
@@ -239,6 +240,7 @@ status_t init_vit_kernel(char* dict_fn)
   if (the_viterbi_trace_dict == NULL) 
   {
     printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
+    fclose(dictF);
     return error;
   }
 
