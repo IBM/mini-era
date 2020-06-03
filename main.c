@@ -48,9 +48,6 @@ extern uint64_t depunc_usec;
 char cv_dict[256]; 
 char rad_dict[256];
 char vit_dict[256];
-//char * cv_dict  = "traces/objects_dictionary.dfn";
-//char * rad_dict = "traces/norm_radar_16k_dictionary.dfn";
-//char * vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
@@ -100,7 +97,7 @@ int main(int argc, char *argv[])
 
   rad_dict[0] = '\0';
   vit_dict[0] = '\0';
-  cv_dict[0] = '\0';
+  cv_dict[0]  = '\0';
 
   // put ':' in the starting of the
   // string so that program can
@@ -193,7 +190,7 @@ int main(int argc, char *argv[])
 
 
   if (rad_dict[0] == '\0') {
-    sprintf(rad_dict, "traces/radar_dictionary.dfn");
+    sprintf(rad_dict, "traces/norm_radar_16k_dictionary.dfn");
   }
   if (vit_dict[0] == '\0') {
     sprintf(vit_dict, "traces/vit_dictionary.dfn");
