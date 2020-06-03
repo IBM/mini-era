@@ -209,8 +209,10 @@ In this implementation, the objects include:
   N - nothing
 ```
 
-In concert, the distances currently implemented are values between 0 and 550 and represent some currently unspecified unit of distance (thoguh in truth they correspond to the radar kernel's distance measures, which span roughly zero to 500 meters, and 550 represents "infinitely far away" or "no obstale detected"). 
-The following image illustrates how a specific scenario at a given point in time is encoded in a trace entry, assuming we are using 50-metere steps of distance (though in fact the trace currently can contain arbitrary unsigned integer values for distance; these are converted to 50-meter "buckets" (i.e. ```floor(dist/50)``` when determining the radar input).:
+In concert, the distances currently implemented are values between 0 and 550 and represent some currently unspecified unit of distance (though in truth they correspond to the radar kernel's distance measures, which span roughly zero to 500 meters, where 550 represents "infinitely far away" or "no obstale detected"). 
+The actual radar inputs (dictionary values) are currently "bucketized" into 50-unit increments, therefore the rada will report distances of 0, 50, 100, 150, ..., 500 or 550 (infinite) for any detected objects.
+The following image illustrates how a specific scenario at a given point in time is could be encoded in a trace entry, assuming we are using 50-metere steps of distance (though the trace currently can specify non bucketized distances, e.g. 97, and these are 
+converted to the equivalent (currently 50-meter) bucket at run time (e.g. by using ```floor(dist/50)```) when selecting the effective radar input.:
 
 ```
   Distance| Left | Cntr | Right|
@@ -267,10 +269,10 @@ For each dictionary entry:
 
 ```
 4   	              - There are 4 messages in the dictionary
-1 48 24 0 13  	    - The OFDM paramteers for the first message (which is "Msg0")
+1 48 24 0 13  	    - The OFDM parameters for the first message (which is "Msg0")
 32 12 10 576 288    - The FRAME parameters for the first message (which is "Msg0")
 0 0 0 0 0 0 1 1 ... - The input bits for the first message (last bit ENDs this dictionary entry)
-1 48 24 0 13  	    - The OFDM paramteers for the second message (which is "Msg1")
+1 48 24 0 13  	    - The OFDM parameters for the second message (which is "Msg1")
 32 12 10 576 288    - The FRAME parameters for the second message (which is "Msg1")
 0 0 0 0 0 0 1 1 ... - The input bits for the second message (last bit ENDs this dictionary entry)
 ...
