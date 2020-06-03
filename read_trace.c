@@ -53,7 +53,10 @@ get_object_token(char c)
   //DEBUG(printf("  get_object_token TK %u c %c last_i %u for %s\n", in_tok, c, last_i, &in_line_buf[last_i]));
   if (in_tok == 0) { // 0 => the object character
     char objc; 
-    sscanf(&in_line_buf[last_i], "%c", &objc);
+    if (sscanf(&in_line_buf[last_i], "%c", &objc) != 1) {
+      printf("Error reading input trace object token\n");
+      exit(-7);
+    }
     lane_obj[in_lane][obj_in_lane[in_lane]] = objc;
     //if (obj_in_lane[in_lane] == 0) { // LAST is nearest -- but should be safer than that!
     nearest_obj[in_lane] = objc;
@@ -75,7 +78,10 @@ get_distance_token(char c)
   //DEBUG(printf("  get_distance_token TK %u c %c last_i %u for %s\n", in_tok, c, last_i, &in_line_buf[last_i]));
   if (in_tok == 1) { // 0 => the distance value
     unsigned distv;
-    sscanf(&in_line_buf[last_i], "%u", &distv);
+    if (sscanf(&in_line_buf[last_i], "%u", &distv) != 1) {
+      printf("Error reading input trace distance token\n");
+      exit(-7);
+    }
     lane_dist[in_lane][obj_in_lane[in_lane]] = distv;
     //if (obj_in_lane[in_lane] == 0) {
     nearest_dist[in_lane] = distv;

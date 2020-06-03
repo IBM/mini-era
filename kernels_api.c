@@ -156,8 +156,10 @@ status_t init_rad_kernel(char* dict_fn)
     return error;
   }
   // Read the number of definitions
-  if (fscanf(dictF, "%u\n", &num_radar_dictionary_items))
-    ;
+  if (fscanf(dictF, "%u\n", &num_radar_dictionary_items) != 1) {
+    printf("Error reading radar kernel dictionary number of entries\n");
+    exit(-6);
+  }
   if (num_radar_dictionary_items > MAX_RDICT_ENTRIES) {
     printf("ERROR : Dictionary contains %u entries, but %u is MAX_RDICT_ENTRIES\n", num_radar_dictionary_items, MAX_RDICT_ENTRIES);
     exit(-2);
@@ -176,8 +178,11 @@ status_t init_rad_kernel(char* dict_fn)
     unsigned entry_id;
     float entry_dist;
     unsigned entry_dict_values = 0;
-    if (fscanf(dictF, "%u %f", &entry_id, &entry_dist))
-      ;
+    if (fscanf(dictF, "%u %f", &entry_id, &entry_dist) != 2) {
+      printf("Error reading radar kernel dictionary entry_id and entry_dist\n");
+      exit(-6);
+    }
+
     DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
     the_radar_return_dict[di].index = di;
     the_radar_return_dict[di].return_id = entry_id;
@@ -185,9 +190,13 @@ status_t init_rad_kernel(char* dict_fn)
     DEBUG(printf("     Read rad dictionary entry %u : %u %f  : IDX %u\n", di, the_radar_return_dict[di].return_id, the_radar_return_dict[di].distance, the_radar_return_dict[di].index));
     for (int i = 0; i < 2*RADAR_N; i++) {
       float fin;
-      if (fscanf(dictF, "%f", &fin))
-	;
+      int rn = fscanf(dictF, "%f", &fin);
+      if (rn != 1) {
+	printf("Error reading radar kernel dictionary entry data : DI %u I %u %u (%u) %f\n", di, i, rn, EOF, fin);
+	exit(-6);
+      }
       the_radar_return_dict[di].return_data[i] = fin;
+      //printf("Set the_radar_return_dict[%2u].return_data[%6u] = %f\n", di, i, the_radar_return_dict[di].return_data[i]);
       tot_dict_values++;
       entry_dict_values++;
     }
@@ -233,8 +242,11 @@ status_t init_vit_kernel(char* dict_fn)
 
   // Read in the trace message dictionary from the trace file
   // Read the number of messages
-  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items))
-    ;
+  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items) != 1) {
+    printf("Error reading viterbi kernel dictionary number of entries\n");
+    exit(-6);
+  }
+
   DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
   the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
@@ -250,8 +262,11 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
 
     int mnum, mid;
-    if (fscanf(dictF, "%d %d\n", &mnum, &mid))
-      ;
+    if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
+      printf("Error reading viterbi kernel dictionary MEssage_number and Message_id\n");
+      exit(-6);
+    }
+
     DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
     if (mnum != i) {
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
@@ -261,8 +276,11 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate))
-      ;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate) != 5) {
+      printf("Error reading viterbi kernel dictionary bpsc, cbps, dbps, encoding and rate info\n");
+      exit(-6);
+    }
+
     DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
@@ -271,8 +289,11 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits))
-      ;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits) != 5) {
+      printf("Error reading viterbi kernel dictionary psdu num_sym, pad, n_encoded_bits and n_data_bits\n");
+      exit(-6);
+    }
+
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
     the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
     the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
@@ -284,8 +305,11 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
-      if (fscanf(dictF, "%u ", &c))
-	;
+      if (fscanf(dictF, "%u ", &c) != 1) {
+	printf("Error reading viterbi kernel dictionary entry data\n");
+	exit(-6);
+      }
+
       #ifdef SUPER_VERBOSE
       printf("%u ", c);
       #endif
@@ -322,7 +346,11 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     return error;
   }
   // Read the number of definitions
-  fscanf(dictF, "%u\n", &num_cv_dictionary_items);
+  if (fscanf(dictF, "%u\n", &num_cv_dictionary_items) != 1) {
+    printf("Error reading CV kernel dictionary number of entries\n");
+    exit(-6);
+  }
+
   DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
   the_cv_object_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
   if (the_cv_object_dict == NULL) 
@@ -334,13 +362,20 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
   for (int di = 0; di < num_cv_dictionary_items; di++) {
     unsigned entry_id;
     unsigned object_id;
-    fscanf(dictF, "%u %u", &entry_id, &object_id);
+    if (fscanf(dictF, "%u %u", &entry_id, &object_id) != 2) {
+    printf("Error reading CV kernel dictionary entry_id and object_id\n");
+    exit(-6);
+    }
+
     DEBUG(printf("  Reading cv dictionary entry %u : %u %u\n", di, entry_id, object_id));
     the_cv_object_dict[di].image_id = entry_id;
     the_cv_object_dict[di].object   = object_id;
     for (int i = 0; i < IMAGE_SIZE; i++) {
       unsigned fin;
-      fscanf(dictF, "%u", &fin);
+      if (fscanf(dictF, "%u", &fin) != 1) {
+      printf("Error reading CV kernel dictionary entry input data\n");
+      exit(-6);
+      }
       the_cv_object_dict[di].image_data[i] = fin;
     }
   }

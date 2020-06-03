@@ -49,7 +49,7 @@ char cv_dict[256];
 char rad_dict[256];
 char vit_dict[256];
 //char * cv_dict  = "traces/objects_dictionary.dfn";
-//char * rad_dict = "traces/radar_dictionary.dfn";
+//char * rad_dict = "traces/norm_radar_16k_dictionary.dfn";
 //char * vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
