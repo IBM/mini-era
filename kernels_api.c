@@ -179,7 +179,7 @@ status_t init_rad_kernel(char* dict_fn)
     float entry_dist;
     unsigned entry_dict_values = 0;
     if (fscanf(dictF, "%u %f", &entry_id, &entry_dist) != 2) {
-      printf("Error reading radar kernel dictionary entry_id and entry_dist\n");
+      printf("Error reading radar kernel dictionary entry %u entry_id and entry_dist\n", di);
       exit(-6);
     }
 
@@ -263,7 +263,7 @@ status_t init_vit_kernel(char* dict_fn)
 
     int mnum, mid;
     if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
-      printf("Error reading viterbi kernel dictionary MEssage_number and Message_id\n");
+      printf("Error reading viterbi kernel dictionary enry %u header: Message_number and Message_id\n", i);
       exit(-6);
     }
 
@@ -277,7 +277,7 @@ status_t init_vit_kernel(char* dict_fn)
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
     if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate) != 5) {
-      printf("Error reading viterbi kernel dictionary bpsc, cbps, dbps, encoding and rate info\n");
+      printf("Error reading viterbi kernel dictionary entry %u bpsc, cbps, dbps, encoding and rate info\n", i);
       exit(-6);
     }
 
@@ -290,7 +290,7 @@ status_t init_vit_kernel(char* dict_fn)
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
     if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits) != 5) {
-      printf("Error reading viterbi kernel dictionary psdu num_sym, pad, n_encoded_bits and n_data_bits\n");
+      printf("Error reading viterbi kernel dictionary entry %u psdu num_sym, pad, n_encoded_bits and n_data_bits\n", i);
       exit(-6);
     }
 
@@ -306,7 +306,7 @@ status_t init_vit_kernel(char* dict_fn)
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
       if (fscanf(dictF, "%u ", &c) != 1) {
-	printf("Error reading viterbi kernel dictionary entry data\n");
+	printf("Error reading viterbi kernel dictionary entry %u data\n", i);
 	exit(-6);
       }
 
@@ -363,7 +363,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     unsigned entry_id;
     unsigned object_id;
     if (fscanf(dictF, "%u %u", &entry_id, &object_id) != 2) {
-    printf("Error reading CV kernel dictionary entry_id and object_id\n");
+    printf("Error reading CV kernel dictionary entry %u entry_id and object_id\n", di);
     exit(-6);
     }
 
@@ -373,7 +373,7 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     for (int i = 0; i < IMAGE_SIZE; i++) {
       unsigned fin;
       if (fscanf(dictF, "%u", &fin) != 1) {
-      printf("Error reading CV kernel dictionary entry input data\n");
+      printf("Error reading CV kernel dictionary entry %u input data\n", di);
       exit(-6);
       }
       the_cv_object_dict[di].image_data[i] = fin;
