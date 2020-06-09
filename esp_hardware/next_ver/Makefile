@@ -55,9 +55,9 @@ endif
 
 LDFLAGS ?=
 LDFLAGS += -lm
-LDFLAGS += -lrt
 LDFLAGS += -lpthread
 ifdef COMPILE_TO_ESP
+LDFLAGS += -lrt
 LDFLAGS += -lesp
 LDFLAGS += -ltest
 LDFLAGS += -lcontig
