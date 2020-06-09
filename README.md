@@ -40,14 +40,14 @@ The ```make allclean``` is added just for surety that all code is re-built, i.e.
 ./main.exe -h
 Usage: ./cmain.exe <OPTIONS>
  OPTIONS:
-    -h         : print this helpfule usage info
+    -h         : print this helpful usage info
     -o         : print the Visualizer output traace information during the run
     -R <file>  : defines the input Radar dictionary file <file> to use
     -V <file>  : defines the input Viterbi dictionary file <file> to use
     -C <file>  : defines the input CV/CNN dictionary file <file> to use
     -t <trace> : defines the input trace file <trace> to use
-    -f <N>     : defines Log2 number of FFT samples
-               :      14 = 2^14 = 16k samples (default); 10 = 1k samples
+    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks
+               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.
     -n <N>     : defines number of Viterbi messages per time step behavior:
                :      0 = One message per time step
                :      1 = One message per obstacle per time step
@@ -111,7 +111,7 @@ The simulation-mode usage is:
 ```
 Usage: ./csim_main.exe <OPTIONS>
  OPTIONS:
-    -h         : print this helpfule usage info
+    -h         : print this helpful usage info
     -o         : print the Visualizer output traace information during the run
     -R <file>  : defines the input Radar dictionary file <file> to use
     -V <file>  : defines the input Viterbi dictionary file <file> to use
@@ -120,8 +120,8 @@ Usage: ./csim_main.exe <OPTIONS>
     -r <N>     : Sets the rand random number seed to N
     -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)
     -W <wfile> : defines the world environment parameters description file <wfile> to use
-    -f <N>     : defines Log2 number of FFT samples
-               :      14 = 2^14 = 16k samples (default); 10 = 1k samples
+    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks
+               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.
     -n <N>     : defines number of Viterbi messages per time step behavior:
                :      0 = One message per time step
                :      1 = One message per obstacle per time step
@@ -146,23 +146,22 @@ in order to define a legal (i.e. functionally correct) execution. These are deti
 
 #### FFT Samples and FFT Dictionary
 
-Mini-ERA defaults currenlty to a 16k-sample FFT, and to teh ```traces/radar_dictionary.dfn``` radar dictionary file.
-There are some additional radar dictionary files provided in the ```traces``` directory, and if one specified the 1K-sample size
-FFT for a given run, one must also indicate the proper dictionary file to use.
+Mini-ERA defaults currenlty to a 16k-sample FFT, and to the ```traces/norm_radar_16k_dictionary.dfn``` radar dictionary file.
+There are some additional radar dictionary files provided in the ```traces``` directory.  One of these contains multiple
+complete Radar input sets, one for 1k-sample sand one for 16k-samples in the same dictionary (the ```norm_radar_all_dictionary.dfn```).
+One can use this input dictionary, and then use the ```-f``` option to select input set 0 or 1
+(where set 0 is the 1k-sample inputs and set 1 is the 16k-sample inputs).  Specification of an input parametere
+value for ```-f``` which exceeds the number of sets in the dictionary file results in an error report.
 
 The radar dictionary files and their descriptions:
- - ```radar_dictionary.dfn``` this is really a link to the ```radar_16k_dictionary.dfn```
- - ```radar_16k_dictionary.dfn``` defines inputs, etc. for a 16k-sample FFT 
- - ```radar_01k_dictionary.dfn``` defines inputs, etc. for a 16k-sample FFT 
  - ```norm_radar_16k_dictionary.dfn``` defines normalized inputs, etc. for a 16k-sample FFT 
- - ```norm_radar_01k_dictionary.dfn``` defines normalized inputs, etc. for a 16k-sample FFT
+ - ```norm_radar_01k_dictionary.dfn``` defines normalized inputs, etc. for a  1k-sample FFT
 
 Thus, legal combinations of the ```-f``` and ```-R``` options are:
- - ```-f 14 -R traces/radar_dictionary``` which is the default
- - ```-f 14 -R traces/radar_16k_dictionary``` which is also the default
- - ```-f 14 -R traces/norm_radar_16k_dictionary``` which is 16k normalized samples
- - ```-f 10 -R traces/radar_01k_dictionary``` which is 1k-samples FFT with proper input
- - ```-f 10 -R traces/norm_radar_01k_dictionary``` which is 1k nromalized samples FFT
+ - ```-f 0 -R traces/norm_radar_16k_dictionary``` which is 16k normalized samples
+ - ```-f 0 -R traces/norm_radar_01k_dictionary``` which is  1k normalized samples
+ - ```-f 0 -R traces/norm_radar_all_dictionary``` which selects the  1k normalized samples set
+ - ```-f 1 -R traces/norm_radar_all_dictionary``` which selects the 16k normalized samples set
 
 
 ## Status
@@ -171,11 +170,20 @@ The trace version currently uses an input trace to drive the Mini-ERA behaviors,
  - ```test_trace1.new``` is a short trace (117 time steps) that illustrates the funciton of the Mini-ERA, is readable ASCII code, and fairly simple.
  - ```test_trace2.new``` is a slightly longer (1000 time steps) simple illustrative trace
  - ```tt00.new``` is a 5000 record illustrative trace
- - ```tt001new``` is a 5000 record illustrative trace
- - ```tt002new``` is a 5000 record trace that includes multiple obstacle vehicles per lane (at times)
- - ```tt003new``` is a 5000 record trace that includes multiple obstacle vehicles per lane (at times)
+ - ```tt01.new``` is a 5000 record illustrative trace
+ - ```tt02.new``` is a 5000 record trace that includes multiple obstacle vehicles per lane (at times)
+ - ```tt03.new``` is a 5000 record trace that includes multiple obstacle vehicles per lane (at times)
 
 There is an example trace (`test_trace.new`) to illustrate the function of the Mini-ERA, and a collection of dictionary files (e.g. `radar_dictionary.dfn`) which are used by the kernels in conjunction with the input trace to drive the proper kernel inputs (in response to the trace inputs).
+
+Notes that all these traces are simple ASCII format, with one time step per line in the file.  One can create a sset trace
+by taking the initial N lines of the file, e.g. to create a 500-time-step version of tt02.new one could use:
+
+```
+     head -n 500 traces/tt02.new > traces/tt02_0500.new
+```
+
+Currently our primary trace for analysis, testing, demos, etc. has been tt02.new (or a 100 or 500 time-step some sub-trace of that trace).
 
 
 ### Trace Format
@@ -286,13 +294,19 @@ This file describes the Radar dictionary format, as defined in `radar_dictionary
 The trace dictionary is defined as follows:
 
 ```
-<n>         - Number of dictionary entries
-<id> <dist> - the ID of this entry (sequential number?) and Distance it represents
+<S> <E>     - Number of dictionary Sets (```S```) and Entries per Set (```E```)
+<L>         - The Log2 of the number of samples (```L```) per entry in the set
+<I> <L> <D> - the ID of this entry (```I```), Log2 Samples (```L```) for this entry, ) and Distance (```D```) it represents
 <f>         - These are the input data values (float format)
-<f>         - There are RADAR_N of them (1<<14) per dictionary entry
+<f>         - There are (```1<<L```) or ```2^L``` per dictionary entry in this set
 ...
 <f>
-<id> <dist> - the ID of the next entry, and Distance it represents
+<I> <L> <D> - the ID of this entry (```I```), Log2 Samples (```L```) for this entry, ) and Distance (```D```) it represents
+...
+...
+<f>
+<L>         - The Log2 of the number of samples (```L```) per entry in the next set
+<I> <L> <D> - the ID of this entry (```I```), Log2 Samples (```L```) for this entry, ) and Distance (```D```) it represents
 ...
 ```
 

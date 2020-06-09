@@ -55,7 +55,7 @@ unsigned time_step;
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
-  printf("    -h         : print this helpfule usage info\n");
+  printf("    -h         : print this helpful usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
   printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
@@ -68,8 +68,8 @@ void print_usage(char * pname) {
 #else
   printf("    -t <trace> : defines the input trace file <trace> to use\n");
 #endif
-  printf("    -f <N>     : defines Log2 number of FFT samples\n");
-  printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
+  printf("    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks\n");
+  printf("               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.\n");
   printf("    -n <N>     : defines number of Viterbi messages per time step behavior:\n");
   printf("               :      0 = One message per time step\n");
   printf("               :      1 = One message per obstacle per time step\n");
@@ -82,6 +82,7 @@ void print_usage(char * pname) {
 }
 
 
+	 
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
@@ -122,7 +123,6 @@ int main(int argc, char *argv[])
     case 'V':
       snprintf(vit_dict, 255, "%s", optarg);
       break;
-
     case 's':
 #ifdef USE_SIM_ENVIRON
       max_time_steps = atoi(optarg);
@@ -130,13 +130,8 @@ int main(int argc, char *argv[])
 #endif
       break;
     case 'f':
-      fft_logn_samples = atoi(optarg);
-      if ((fft_logn_samples == 10) || (fft_logn_samples == 14)) {
-	printf("Using 2^%u = %u samples for the FFT\n", fft_logn_samples, (1<<fft_logn_samples));
-      } else {
-	printf("Cannot specify FFT logn samples value %u (Legal values are 10, 14)\n", fft_logn_samples);
-	exit(-1);
-      }
+      crit_fft_samples_set = atoi(optarg);
+      printf("Using Radar Dictionary samples set %u for the critical FFT tasks\n", crit_fft_samples_set);
       break;
     case 'r':
 #ifdef USE_SIM_ENVIRON
@@ -236,6 +231,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 #endif
+
   /* Kernels initialization */
   printf("Initializing the CV kernel...\n");
   if (!init_cv_kernel(cv_py_file, cv_dict))
@@ -256,6 +252,11 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  if (crit_fft_samples_set >= num_radar_samples_sets) {
+    printf("ERROR : Selected FFT Tasks from Radar Dictionary Set %u but there are only %u sets in the dictionary %s\n", crit_fft_samples_set, num_radar_samples_sets, rad_dict);
+    exit(-1);
+  }
+    
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
    *  - Speed: 50 mph
@@ -399,7 +400,7 @@ int main(int argc, char *argv[])
 
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
-    post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance);
+    post_execute_rad_kernel(rdentry_p->set, rdentry_p->index, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }
@@ -408,8 +409,7 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distane %.1f\n", time_step, message, distance));
-
+    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance));
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
