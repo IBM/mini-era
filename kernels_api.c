@@ -387,14 +387,15 @@ status_t init_h264_kernel(char* dict_fn)
     printf("Error: unable to open h264 dictionary definition file %s\n", dict_fn);
     return error;
   }
-  /**
   // Read in the trace message dictionary from the trace file
-  // Read the number of messages
-  if (fscanf(dictF, "%u\n", &num_h264_dictionary_items) != 1) {
-    printf("ERROR reading the number of H264 Dictionary items\n");
+  // Read the Entry ID
+  unsigned dict_entry_id;
+  if (fscanf(dictF, "%u\n", &dict_entry_id) != 1) {
+    printf("ERROR reading the H264 Dictionary ID\n");
     exit(-2);
   }    
-  DEBUG(printf("  There are %u dictionary entries\n", num_h264_dictionary_items));
+  DEBUG(printf("  The H264dictionary id is %u\n", dict_entry_id));
+  /**
   the_h264_trace_dict = (h264_dict_entry_t*)calloc(num_h264_dictionary_items, sizeof(h264_dict_entry_t));
   if (the_h264_trace_dict == NULL) 
   {
@@ -875,13 +876,17 @@ h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs)
   return NULL;
 }
 
-void eecute_h264_kernel(h264_dict_entry_t* trace_msg)
+void execute_h264_kernel(h264_dict_entry_t* trace_msg)
 {
   return;
 }
 
+extern void do_h264_decode(int argc, char **argv);
+int do_h264_argc = 3;
+char * do_h264_argv[3] = {"do_h264_decode", "traces/test.264", "traces/test_dec.yuv"};
 void post_execute_h264_kernel(message_t tr_msg, message_t dec_msg)
 {
+  do_h264_decode(do_h264_argc, do_h264_argv);
   return;
 }
 
@@ -995,6 +1000,11 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 /* #undef DEBUG */
 /* #define DEBUG(x) */
 
+
+void closeout_h264_kernel()
+{
+  ; // Nothing here yet.
+}
 
 void closeout_cv_kernel()
 {

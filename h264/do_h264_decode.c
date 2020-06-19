@@ -61,7 +61,7 @@ void write_out_pic(StorablePicture *pic,FILE * p_out)
 }
 
 
-int do_h264_decode(int argc, char **argv)
+void do_h264_decode(int argc, char **argv)
 {
   char AnnexbFileName[100];
 
@@ -153,5 +153,5 @@ int do_h264_decode(int argc, char **argv)
   else
     printf("FAILED\n");
 
-  return 0;
+  return;
 }

@@ -82,7 +82,6 @@ typedef struct {
 
 typedef struct {
   unsigned int entry_id;
-  uint8_t      in_bits[MAX_ENCODED_BITS];
 } h264_dict_entry_t;
 
 
@@ -169,6 +168,9 @@ status_t init_rad_kernel(char* dict_fn);
 status_t init_vit_kernel(char* dict_fn);
 status_t init_h264_kernel(char* dict_fn);
 
+h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
+void      execute_h264_kernel(h264_dict_entry_t* hdep);
+void      post_execute_h264_kernel();
 
 label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
@@ -183,15 +185,12 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
 message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
 void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
 
-h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
-void      execute_h264_kernel(h264_dict_entry_t* hdep);
-void      post_execute_h264_kernel();
-
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
 // These routines are used for any finalk, end-of-run operations/output
 void closeout_cv_kernel(void);
+void closeout_h264_kernel(void);
 void closeout_rad_kernel(void);
 void closeout_vit_kernel(void);
 

@@ -45,6 +45,7 @@ extern uint64_t depunc_sec;
 extern uint64_t depunc_usec;
 #endif
 
+char h264_dict[256]; 
 char cv_dict[256]; 
 char rad_dict[256];
 char vit_dict[256];
@@ -99,11 +100,12 @@ int main(int argc, char *argv[])
   rad_dict[0] = '\0';
   vit_dict[0] = '\0';
   cv_dict[0]  = '\0';
+  h264_dict[0]  = '\0';
 
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:H:f:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -119,6 +121,9 @@ int main(int argc, char *argv[])
       break;
     case 'C':
       snprintf(cv_dict, 255, "%s", optarg);
+      break;
+    case 'H':
+      snprintf(h264_dict, 255, "%s", optarg);
       break;
     case 'V':
       snprintf(vit_dict, 255, "%s", optarg);
@@ -193,6 +198,9 @@ int main(int argc, char *argv[])
   if (cv_dict[0] == '\0') {
     sprintf(cv_dict, "traces/objects_dictionary.dfn");
   }
+  if (h264_dict[0] == '\0') {
+    sprintf(h264_dict, "traces/h264_dictionary.dfn");
+  }
 
   printf("\nDictionaries:\n");
   printf("   CV/CNN : %s\n", cv_dict);
@@ -233,6 +241,13 @@ int main(int argc, char *argv[])
 #endif
 
   /* Kernels initialization */
+  printf("Initializing the H264 kernel...\n");
+  if (!init_h264_kernel(h264_dict))
+  {
+    printf("Error: the H264 decoding kernel couldn't be initialized properly.\n");
+    return 1;
+  }
+
   printf("Initializing the CV kernel...\n");
   if (!init_cv_kernel(cv_py_file, cv_dict))
   {
@@ -279,26 +294,32 @@ int main(int argc, char *argv[])
   struct timeval stop_iter_rad, start_iter_rad;
   struct timeval stop_iter_vit, start_iter_vit;
   struct timeval stop_iter_cv , start_iter_cv;
+  struct timeval stop_iter_h264 , start_iter_h264;
 
   uint64_t iter_rad_sec = 0LL;
   uint64_t iter_vit_sec = 0LL;
   uint64_t iter_cv_sec  = 0LL;
+  uint64_t iter_h264_sec  = 0LL;
 
   uint64_t iter_rad_usec = 0LL;
   uint64_t iter_vit_usec = 0LL;
   uint64_t iter_cv_usec  = 0LL;
+  uint64_t iter_h264_usec  = 0LL;
 
   struct timeval stop_exec_rad, start_exec_rad;
   struct timeval stop_exec_vit, start_exec_vit;
   struct timeval stop_exec_cv , start_exec_cv;
+  struct timeval stop_exec_h264 , start_exec_h264;
 
   uint64_t exec_rad_sec = 0LL;
   uint64_t exec_vit_sec = 0LL;
   uint64_t exec_cv_sec  = 0LL;
+  uint64_t exec_h264_sec  = 0LL;
 
   uint64_t exec_rad_usec = 0LL;
   uint64_t exec_vit_usec = 0LL;
   uint64_t exec_cv_usec  = 0LL;
+  uint64_t exec_h264_usec  = 0LL;
   //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
  #endif // TIME
 
@@ -313,6 +334,20 @@ int main(int argc, char *argv[])
 #endif
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
+
+    /* The computer vision kernel performs object recognition on the
+     * next image, and returns the corresponding label. 
+     * This process takes place locally (i.e. within this car).
+     */
+   #ifdef TIME
+    gettimeofday(&start_iter_h264, NULL);
+   #endif
+    h264_dict_entry_t* hdep = iterate_h264_kernel(vehicle_state);
+   #ifdef TIME
+    gettimeofday(&stop_iter_h264, NULL);
+    iter_h264_sec  += stop_iter_h264.tv_sec  - start_iter_h264.tv_sec;
+    iter_h264_usec += stop_iter_h264.tv_usec - start_iter_h264.tv_usec;
+   #endif
 
     /* The computer vision kernel performs object recognition on the
      * next image, and returns the corresponding label. 
@@ -373,6 +408,14 @@ int main(int argc, char *argv[])
 
     // EXECUTE the kernels using the now known inputs 
    #ifdef TIME
+    gettimeofday(&start_exec_h264, NULL);
+   #endif
+    execute_h264_kernel(hdep);
+   #ifdef TIME
+    gettimeofday(&stop_exec_h264, NULL);
+    exec_h264_sec  += stop_exec_h264.tv_sec  - start_exec_h264.tv_sec;
+    exec_h264_usec += stop_exec_h264.tv_usec - start_exec_h264.tv_usec;
+
     gettimeofday(&start_exec_cv, NULL);
    #endif
     label = execute_cv_kernel(cv_tr_label);
@@ -399,6 +442,7 @@ int main(int argc, char *argv[])
    #endif
 
     // POST-EXECUTE each kernels to gather stats, etc.
+    post_execute_h264_kernel();
     post_execute_cv_kernel(cv_tr_label, label);
     post_execute_rad_kernel(rdentry_p->set, rdentry_p->index, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
@@ -430,6 +474,7 @@ int main(int argc, char *argv[])
   #endif
 
   /* All the traces have been fully consumed. Quitting... */
+  closeout_h264_kernel();
   closeout_cv_kernel();
   closeout_rad_kernel();
   closeout_vit_kernel();
@@ -437,18 +482,22 @@ int main(int argc, char *argv[])
   #ifdef TIME
   {
     uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
-    uint64_t iter_rad   = (uint64_t) (iter_rad_sec) * 1000000 + (uint64_t) (iter_rad_usec);
-    uint64_t iter_vit   = (uint64_t) (iter_vit_sec) * 1000000 + (uint64_t) (iter_vit_usec);
-    uint64_t iter_cv    = (uint64_t) (iter_cv_sec)  * 1000000 + (uint64_t) (iter_cv_usec);
-    uint64_t exec_rad   = (uint64_t) (exec_rad_sec) * 1000000 + (uint64_t) (exec_rad_usec);
-    uint64_t exec_vit   = (uint64_t) (exec_vit_sec) * 1000000 + (uint64_t) (exec_vit_usec);
-    uint64_t exec_cv    = (uint64_t) (exec_cv_sec)  * 1000000 + (uint64_t) (exec_cv_usec);
+    uint64_t iter_rad   = (uint64_t) (iter_rad_sec)  * 1000000 + (uint64_t) (iter_rad_usec);
+    uint64_t iter_vit   = (uint64_t) (iter_vit_sec)  * 1000000 + (uint64_t) (iter_vit_usec);
+    uint64_t iter_cv    = (uint64_t) (iter_cv_sec)   * 1000000 + (uint64_t) (iter_cv_usec);
+    uint64_t iter_h264  = (uint64_t) (iter_h264_sec) * 1000000 + (uint64_t) (iter_h264_usec);
+    uint64_t exec_rad   = (uint64_t) (exec_rad_sec)  * 1000000 + (uint64_t) (exec_rad_usec);
+    uint64_t exec_vit   = (uint64_t) (exec_vit_sec)  * 1000000 + (uint64_t) (exec_vit_usec);
+    uint64_t exec_cv    = (uint64_t) (exec_cv_sec)   * 1000000 + (uint64_t) (exec_cv_usec);
+    uint64_t exec_h264  = (uint64_t) (exec_h264_sec) * 1000000 + (uint64_t) (exec_h264_usec);
     printf("\nProgram total execution time     %lu usec\n", total_exec);
     printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
     printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
+    printf("  iterate_h264_kernel run time   %lu usec\n", iter_h264);
     printf("  iterate_cv_kernel run time     %lu usec\n", iter_cv);
     printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
     printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
+    printf("  execute_h264_kernel run time   %lu usec\n", exec_h264);
     printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
   }
  #endif // TIME
