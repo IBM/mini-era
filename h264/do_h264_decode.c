@@ -36,6 +36,8 @@ StorablePicture Pic[MAX_REFERENCE_PICTURES];
 StorablePictureInfo Pic_info[MAX_REFERENCE_PICTURES];
 
 
+unsigned do_h264_decode_invokes = 0;
+
 NALU_t PINGPONGbuffer;
 
 void write_out_pic(StorablePicture *pic,FILE * p_out)
@@ -64,7 +66,7 @@ void write_out_pic(StorablePicture *pic,FILE * p_out)
 void do_h264_decode(int argc, char **argv)
 {
   char AnnexbFileName[100];
-
+  do_h264_decode_invokes++;
 
   if(argc != 3)
   {
@@ -108,11 +110,15 @@ void do_h264_decode(int argc, char **argv)
   int j;
   int poc=0;
 
-
+  printf("In do_h264_decode invocation %u\n", do_h264_decode_invokes);
+  unsigned while_iter = 0;
   while(1)
   {
-    if(GetAnnexbNALU (&PINGPONGbuffer,bitstr)==0)
+    printf(" do_h264_decode invocation %u while %u\n", do_h264_decode_invokes, while_iter);
+    if (GetAnnexbNALU (&PINGPONGbuffer,bitstr)==0) {
+      printf("  doing the break...\n");
       break;
+    }
 
     PINGPONGbuffer.len = EBSPtoRBSP (PINGPONGbuffer.buf, PINGPONGbuffer.len, 1);
     RBSPtoSODB(&PINGPONGbuffer,PINGPONGbuffer.len-1);
@@ -121,20 +127,23 @@ void do_h264_decode(int argc, char **argv)
     decode_main(&PINGPONGbuffer,Pic,Pic_info);
 
 
-    if(PINGPONGbuffer.nal_unit_type==5 || PINGPONGbuffer.nal_unit_type==1 )
-      for(j=0;j<MAX_REFERENCE_PICTURES;j++)
-        for(i=0;i<MAX_REFERENCE_PICTURES;i++)
-        {
-          if(Pic[i].memoccupied && Pic[i].Picorder_num==poc)
-          {
+    if (PINGPONGbuffer.nal_unit_type==5 || PINGPONGbuffer.nal_unit_type==1 ) {
+      printf(" ...Checking for writing...\n");
+      for(j=0;j<MAX_REFERENCE_PICTURES;j++) {
+        for(i=0;i<MAX_REFERENCE_PICTURES;i++) {
+          if(Pic[i].memoccupied && Pic[i].Picorder_num==poc) {
             write_out_pic(&Pic[i],p_out);
             printf("writing %d\n",poc );
             poc++;
           }
         }
+      }
+    }
+    while_iter++;
   }
 
 
+  do_h264_decode_invokes++;
 
 
 #if _N_HLS_
