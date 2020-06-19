@@ -80,6 +80,12 @@ typedef struct {
 #define VIT_CLEAR_THRESHOLD  THRESHOLD_1
 
 
+typedef struct {
+  unsigned int entry_id;
+  uint8_t      in_bits[MAX_ENCODED_BITS];
+} h264_dict_entry_t;
+
+
 /* Pre-defined labels used by the computer vision kernel */
 typedef enum {
   myself = -1,
@@ -161,6 +167,7 @@ void closeout_trace_reader(void);
 status_t init_cv_kernel(char* py_file, char* dict_fn);
 status_t init_rad_kernel(char* dict_fn);
 status_t init_vit_kernel(char* dict_fn);
+status_t init_h264_kernel(char* dict_fn);
 
 
 label_t run_object_classification(unsigned tr_val);
@@ -175,6 +182,10 @@ void       post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_d
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
 message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
 void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
+
+h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
+void      execute_h264_kernel(h264_dict_entry_t* hdep);
+void      post_execute_h264_kernel();
 
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);

@@ -171,12 +171,14 @@ status_t init_rad_kernel(char* dict_fn)
   the_radar_return_dict = (radar_dict_entry_t**)calloc(num_radar_samples_sets, sizeof(radar_dict_entry_t*));
   if (the_radar_return_dict == NULL) {
     printf("ERROR : Cannot allocate Radar Trace Dictionary memory space\n");
+    fclose(dictF);
     return error;
   }
   for (int si = 0; si < num_radar_samples_sets; si++) {
     the_radar_return_dict[si] = (radar_dict_entry_t*)calloc(radar_dict_items_per_set, sizeof(radar_dict_entry_t));
     if (the_radar_return_dict[si] == NULL) {
       printf("ERROR : Cannot allocate Radar Trace Dictionary memory space for set %u\n", si);
+    fclose(dictF);
       return error;
     }
   }
@@ -370,6 +372,99 @@ status_t init_vit_kernel(char* dict_fn)
   }
 
   DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
+  return success;
+}
+
+
+status_t init_h264_kernel(char* dict_fn)
+{
+  DEBUG(printf("In init_h264_kernel...\n"));
+
+  // Read in the object images dictionary file
+  FILE *dictF = fopen(dict_fn,"r");
+  if (!dictF)
+  {
+    printf("Error: unable to open h264 dictionary definition file %s\n", dict_fn);
+    return error;
+  }
+  /**
+  // Read in the trace message dictionary from the trace file
+  // Read the number of messages
+  if (fscanf(dictF, "%u\n", &num_h264_dictionary_items) != 1) {
+    printf("ERROR reading the number of H264 Dictionary items\n");
+    exit(-2);
+  }    
+  DEBUG(printf("  There are %u dictionary entries\n", num_h264_dictionary_items));
+  the_h264_trace_dict = (h264_dict_entry_t*)calloc(num_h264_dictionary_items, sizeof(h264_dict_entry_t));
+  if (the_h264_trace_dict == NULL) 
+  {
+    printf("ERROR : Cannot allocate H264 Trace Dictionary memory space\n");
+    fclose(dictF);
+    return error;
+  }
+
+  // Read in each dictionary item
+  for (int i = 0; i < num_h264_dictionary_items; i++) 
+  {
+    DEBUG(printf("  Reading h264 dictionary entry %u\n", i)); //the_h264_trace_dict[i].msg_id));
+
+    int mnum, mid;
+    if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
+      printf("Error reading h264 kernel dictionary enry %u header: Message_number and Message_id\n", i);
+      exit(-6);
+    }
+    DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
+    if (mnum != i) {
+      printf("ERROR : Check H264 Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
+      exit(-5);
+    }
+    the_h264_trace_dict[i].msg_num = mnum;
+    the_h264_trace_dict[i].msg_id = mid;
+
+    int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate) != 5) {
+      printf("Error reading h264 kernel dictionary entry %u bpsc, cbps, dbps, encoding and rate info\n", i);
+      exit(-2);
+    }
+
+    DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
+    the_h264_trace_dict[i].ofdm_p.encoding   = in_encoding;
+    the_h264_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
+    the_h264_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
+    the_h264_trace_dict[i].ofdm_p.n_dbps     = in_dbps;
+    the_h264_trace_dict[i].ofdm_p.rate_field = in_rate;
+
+    int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits) != 5) {
+      printf("Error reading h264 kernel dictionary entry %u psdu num_sym, pad, n_encoded_bits and n_data_bits\n", i);
+      exit(-2);
+    }
+    DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
+    the_h264_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
+    the_h264_trace_dict[i].frame_p.n_sym          = in_sym;
+    the_h264_trace_dict[i].frame_p.n_pad          = in_pad;
+    the_h264_trace_dict[i].frame_p.n_encoded_bits = in_encoded_bits;
+    the_h264_trace_dict[i].frame_p.n_data_bits    = in_data_bits;
+
+    int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
+    DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
+    for (int ci = 0; ci < num_in_bits; ci++) { 
+      unsigned c;
+      if (fscanf(dictF, "%u ", &c) != 1) {
+	printf("Error reading h264 kernel dictionary entry %u data\n", i);
+	exit(-6);
+      }
+      #ifdef SUPER_VERBOSE
+      printf("%u ", c);
+      #endif
+      the_h264_trace_dict[i].in_bits[ci] = (uint8_t)c;
+    }
+    DEBUG(printf("\n"));
+  }
+  **/
+  fclose(dictF);
+
+  DEBUG(printf("DONE with init_h264_kernel -- returning success\n"));
   return success;
 }
 
@@ -765,6 +860,29 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
   if (dec_msg != tr_msg) {
     bad_decode_msgs++;
   }
+}
+
+
+
+/* Each time-step of the trace, we read in the 
+ * trace values for the left, middle and right lanes
+ * (i.e. which message if the autonomous car is in the 
+ *  left, middle or right lane).
+ */
+h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs)
+{
+  DEBUG(printf("In iterate_h264_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
+  return NULL;
+}
+
+void eecute_h264_kernel(h264_dict_entry_t* trace_msg)
+{
+  return;
+}
+
+void post_execute_h264_kernel(message_t tr_msg, message_t dec_msg)
+{
+  return;
 }
 
 

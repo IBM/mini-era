@@ -40,7 +40,20 @@ SRC    = kernels_api.c main.c \
          fft/fft-1d/octave.c \
          fft/fft-1d/timer.c \
          viterbi/viterbi_decoder_generic.c \
-         viterbi/viterbi_parms.c
+         viterbi/viterbi_parms.c \
+	 h264/cavlc.c \
+	 h264/decode.c \
+	 h264/framealloc.c \
+	 h264/interpred.c \
+	 h264/intrapred.c \
+	 h264/mathfunc.c \
+	 h264/nalu.c \
+	 h264/parset.c \
+	 h264/residual.c \
+	 h264/slice.c \
+	 h264/vlc.c \
+	 h264/do_h264_decode.c
+
 
 FSRC   = kernels_api.c main.c \
          radar/calculate_dist_from_fmcw.c \
@@ -49,7 +62,19 @@ FSRC   = kernels_api.c main.c \
          fft/fft-1d/octave.c \
          fft/fft-1d/timer.c \
          viterbi/viterbi_flat.c \
-         viterbi/viterbi_parms.c
+         viterbi/viterbi_parms.c \
+	 h264/cavlc.c \
+	 h264/decode.c \
+	 h264/framealloc.c \
+	 h264/interpred.c \
+	 h264/intrapred.c \
+	 h264/mathfunc.c \
+	 h264/nalu.c \
+	 h264/parset.c \
+	 h264/residual.c \
+	 h264/slice.c \
+	 h264/vlc.c \
+	 h264/do_h264_decode.c
 
 
 T_SRC   = $(SRC) read_trace.c
@@ -232,17 +257,20 @@ $(OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(T_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(IT_OBJDIR):
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 	mkdir $@
 
@@ -250,96 +278,112 @@ $(C_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITFC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(T_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(T_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 
@@ -347,114 +391,133 @@ $(S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TS_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITS_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITFC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TS_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(S_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TS_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_S_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_S_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 
