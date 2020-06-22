@@ -145,6 +145,13 @@ unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the f
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
+// This is the declarations, etc. for H264 kernels.
+extern void init_h264_decode(int argc, char **argv);
+extern void do_h264_decode();
+extern void do_post_h264_decode();
+extern void do_closeout_h264_decode();
+int do_h264_argc = 3;
+char * do_h264_argv[3] = {"do_h264_decode", "traces/test.264", "traces/test_dec.yuv"};
 
 
 
@@ -465,6 +472,8 @@ status_t init_h264_kernel(char* dict_fn)
   **/
   fclose(dictF);
 
+  // Now initialize the H264 specific workload stuff...
+  init_h264_decode(do_h264_argc, do_h264_argv);
   DEBUG(printf("DONE with init_h264_kernel -- returning success\n"));
   return success;
 }
@@ -870,6 +879,7 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
  * (i.e. which message if the autonomous car is in the 
  *  left, middle or right lane).
  */
+
 h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_h264_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
@@ -878,15 +888,13 @@ h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs)
 
 void execute_h264_kernel(h264_dict_entry_t* trace_msg)
 {
+  do_h264_decode();
   return;
 }
 
-extern void do_h264_decode(int argc, char **argv);
-int do_h264_argc = 3;
-char * do_h264_argv[3] = {"do_h264_decode", "traces/test.264", "traces/test_dec.yuv"};
 void post_execute_h264_kernel(message_t tr_msg, message_t dec_msg)
 {
-  do_h264_decode(do_h264_argc, do_h264_argv);
+  do_post_h264_decode();
   return;
 }
 
@@ -1003,7 +1011,7 @@ vehicle_state_t plan_and_control(label_t label, distance_t distance, message_t m
 
 void closeout_h264_kernel()
 {
-  ; // Nothing here yet.
+  do_closeout_h264_decode();
 }
 
 void closeout_cv_kernel()
