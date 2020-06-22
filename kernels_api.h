@@ -169,12 +169,12 @@ status_t init_vit_kernel(char* dict_fn);
 status_t init_h264_kernel(char* dict_fn);
 
 h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
-void      execute_h264_kernel(h264_dict_entry_t* hdep);
+void      execute_h264_kernel(h264_dict_entry_t* hdep, char* frame_ptr);
 void      post_execute_h264_kernel();
 
 label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
-label_t execute_cv_kernel(label_t in_tr_val);
+label_t execute_cv_kernel(label_t in_tr_val, char* found_frame_ptr);
 void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);

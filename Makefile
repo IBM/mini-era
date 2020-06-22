@@ -26,3 +26,9 @@ PYTHONLIBS = -lpython3.6m
 CPYTHONLIBS =
 
 include Makefile.targets
+
+
+
+depend:;	makedepend -f$(MFILE) -- $(CFLAGS) -- $(SRC) $(TRGN_SRC) $(G_SRC)
+# DO NOT DELETE THIS LINE -- make depend depends on it.
+

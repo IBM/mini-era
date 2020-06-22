@@ -21,6 +21,11 @@
 #include "nalu.h"
 #include "decode.h"
 
+#ifdef VERBOSE
+#define DEBUG(x) x
+#else
+#define DEBUG(x)
+#endif
 
 
 #if _N_HLS_
@@ -37,6 +42,9 @@ FILE *h264_test_results_out;
 StorablePicture Pic[MAX_REFERENCE_PICTURES];
 StorablePictureInfo Pic_info[MAX_REFERENCE_PICTURES];
 
+// Give a couple different possible outputs
+char* frame_image0 = (char*)0xfeedbeef;
+char* frame_image1 = (char*)0xdeadf00d;
 
 unsigned do_h264_decode_invokes = 0;
 
@@ -83,7 +91,7 @@ void init_h264_decode(int argc, char **argv)
 
   for (int i = 0; i < MAX_H264_DECODE_PASSES; i++) { 
     PINGPONGbuffer[i].nal_unit_type=0;
-    printf(" initializing PPB %u\n", i);
+    DEBUG(printf(" initializing PPB %u\n", i));
     if (GetAnnexbNALU (&PINGPONGbuffer[i], bitstr)==0) {
       printf("ERROR : Only got to %u out of %u H264_DECODE_PASSES\n", i, MAX_H264_DECODE_PASSES);
       exit(-1);
@@ -91,7 +99,7 @@ void init_h264_decode(int argc, char **argv)
 
     PINGPONGbuffer[i].len = EBSPtoRBSP (PINGPONGbuffer[i].buf, PINGPONGbuffer[i].len, 1);
     RBSPtoSODB(&PINGPONGbuffer[i],PINGPONGbuffer[i].len-1);
-    printf("  On pass %u : PPB.len = %u\n", i, PINGPONGbuffer[i].len);
+    DEBUG(printf("  On pass %u : PPB.len = %u\n", i, PINGPONGbuffer[i].len));
   }
 
 
@@ -105,39 +113,41 @@ void init_h264_decode(int argc, char **argv)
 }
 
 
-void do_h264_decode()
+char* do_h264_decode()
 {
   memset(Pic, 0, MAX_REFERENCE_PICTURES*sizeof(StorablePicture));
   memset(Pic_info, 0, MAX_REFERENCE_PICTURES*sizeof(StorablePictureInfo));
 
-  printf("In do_h264_decode invocation %u\n", do_h264_decode_invokes);
+  DEBUG(printf("In do_h264_decode invocation %u\n", do_h264_decode_invokes));
 
-  int poc = 0;
+  //int poc = 0;
   for (int pass = 0; pass < MAX_H264_DECODE_PASSES; pass++) {
-    printf(" do_h264_decode invocation %u pass %u\n", do_h264_decode_invokes, pass); //while_iter);
+    DEBUG(printf(" do_h264_decode invocation %u pass %u\n", do_h264_decode_invokes, pass));
 
     decode_main(&PINGPONGbuffer[pass],Pic,Pic_info);
 
     // Checkif we found a "Picture" (frame)
     if (PINGPONGbuffer[pass].nal_unit_type==5 || PINGPONGbuffer[pass].nal_unit_type==1 ) {
-      printf("  SHOULD have a frame picture -- can exit decode loop now on pass %u\n", pass);
-      printf("  ...Checking for writing...\n");
-      for(int j=0;j<MAX_REFERENCE_PICTURES;j++) {
-	for(int i=0;i<MAX_REFERENCE_PICTURES;i++) {
-	  printf("    for j %u PIC %u memocc %u order_num %u\n", j, i, Pic[i].memoccupied, Pic[i].Picorder_num);
-	  if(Pic[i].memoccupied && Pic[i].Picorder_num==poc) {
-	    //write_out_pic(&Pic[i], h264_test_results_out);
-	    printf("    FOUND frame picture -- should be done at pass %u\n", pass);	    
-	    poc++;
-	    do_h264_decode_invokes++;
-	    return;
-	    //return &Pic[i];
-	  }
-	}
-      }
+      DEBUG(printf("  SHOULD have a frame picture -- can exit decode loop now on pass %u\n", pass));
+      /* printf("  ...Checking for writing...\n"); */
+      /* for(int j=0;j<MAX_REFERENCE_PICTURES;j++) { */
+      /* 	for(int i=0;i<MAX_REFERENCE_PICTURES;i++) { */
+      /* 	  printf("    for j %u PIC %u memocc %u order_num %u\n", j, i, Pic[i].memoccupied, Pic[i].Picorder_num); */
+      /* 	  if(Pic[i].memoccupied && Pic[i].Picorder_num==poc) { */
+      /* 	    //write_out_pic(&Pic[i], h264_test_results_out); */
+      /* 	    printf("    FOUND frame picture -- should be done at pass %u\n", pass);	     */
+      /* 	    poc++; */
+      do_h264_decode_invokes++;
+      return frame_image0;
+      /*     //return &Pic[i]; */
+      /*   } */
+      /*  } */
+      /* } */
     }
   }
   do_h264_decode_invokes++;
+  printf("Note: do_decode hit the fall-through case (probably undesired behavior)\n");
+  return frame_image1;
 }
 
 void write_out_pic(StorablePicture *pic,FILE * p_out)
@@ -165,7 +175,7 @@ void write_out_pic(StorablePicture *pic,FILE * p_out)
 
 void do_post_h264_decode()
 {
-  printf("In do_post_h264_decode...\n");
+  DEBUG(printf("In do_post_h264_decode...\n"));
   /**
   int poc = 1;
 
@@ -187,7 +197,7 @@ void do_post_h264_decode()
 
 void do_closeout_h264_decode()
 {
-  printf("In do_closeout_h264_decode...\n");
+  DEBUG(printf("In do_closeout_h264_decode...\n"));
   /*
   int poc = 0;
 

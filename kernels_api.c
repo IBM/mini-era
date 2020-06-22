@@ -146,10 +146,11 @@ unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the f
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
 // This is the declarations, etc. for H264 kernels.
-extern void init_h264_decode(int argc, char **argv);
-extern void do_h264_decode();
-extern void do_post_h264_decode();
-extern void do_closeout_h264_decode();
+extern void  init_h264_decode(int argc, char **argv);
+extern char* do_h264_decode();
+extern void  do_post_h264_decode();
+extern void  do_closeout_h264_decode();
+
 int do_h264_argc = 3;
 char * do_h264_argv[3] = {"do_h264_decode", "traces/test.264", "traces/test_dec.yuv"};
 
@@ -655,8 +656,9 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 }
 
 
-label_t execute_cv_kernel(label_t in_tr_val)
+label_t execute_cv_kernel(label_t in_tr_val, char* found_frame_ptr)
 {
+  DEBUG(printf("In execute_cv_kernel with in_tr_val %u and frame_ptr %p\n", in_tr_val, found_frame_ptr));
   /* 2) Conduct object detection on the image frame */
   DEBUG(printf("  Calling run_object_detection with in_tr_val tr_val %u %s\n", in_tr_val, object_names[in_tr_val]));
   // Call Keras Code
@@ -686,6 +688,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
   DEBUG(printf("In iterate_rad_kernel\n"));
   unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
   radar_inputs_histogram[crit_fft_samples_set][tr_val]++;
+  //printf("Incrementing radar_inputs_histogram[%u][%u] to %u\n", crit_fft_samples_set, tr_val, radar_inputs_histogram[crit_fft_samples_set][tr_val]);
   return &(the_radar_return_dict[crit_fft_samples_set][tr_val]);
 }
   
@@ -709,6 +712,7 @@ void post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_dist, d
   float error;
   radar_total_calc++;
   hist_distances[set][index]++;
+  //printf("Setting hist_distances[%u][%u] to %u\n", set, index, hist_distances[set][index]);
   if ((tr_dist >= 500.0) && (dist > 10000.0)) {
     error = 0.0;
   } else {
@@ -886,9 +890,9 @@ h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs)
   return NULL;
 }
 
-void execute_h264_kernel(h264_dict_entry_t* trace_msg)
+void execute_h264_kernel(h264_dict_entry_t* in_dict, char* frame_ptr)
 {
-  do_h264_decode();
+  frame_ptr = do_h264_decode();
   return;
 }
 

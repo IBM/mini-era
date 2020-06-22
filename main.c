@@ -410,7 +410,8 @@ int main(int argc, char *argv[])
    #ifdef TIME
     gettimeofday(&start_exec_h264, NULL);
    #endif
-    execute_h264_kernel(hdep);
+    char* found_frame_ptr = 0x0;
+    execute_h264_kernel(hdep, found_frame_ptr);
    #ifdef TIME
     gettimeofday(&stop_exec_h264, NULL);
     exec_h264_sec  += stop_exec_h264.tv_sec  - start_exec_h264.tv_sec;
@@ -418,7 +419,7 @@ int main(int argc, char *argv[])
 
     gettimeofday(&start_exec_cv, NULL);
    #endif
-    label = execute_cv_kernel(cv_tr_label);
+    label = execute_cv_kernel(cv_tr_label, found_frame_ptr);
    #ifdef TIME
     gettimeofday(&stop_exec_cv, NULL);
     exec_cv_sec  += stop_exec_cv.tv_sec  - start_exec_cv.tv_sec;
@@ -444,7 +445,7 @@ int main(int argc, char *argv[])
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_h264_kernel();
     post_execute_cv_kernel(cv_tr_label, label);
-    post_execute_rad_kernel(rdentry_p->set, rdentry_p->index, rdict_dist, distance);
+    post_execute_rad_kernel(rdentry_p->set, rdentry_p->index_in_set, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }

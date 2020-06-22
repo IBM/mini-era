@@ -709,7 +709,3 @@ obj_v/sim_environs.o: utils/sim_environs.h
 
 obj/gen_trace.o: gen_trace.h
 
-
-depend:;	makedepend -f$(MFILE) -- $(CFLAGS) -- $(SRC) $(TRGN_SRC) $(G_SRC)
-# DO NOT DELETE THIS LINE -- make depend depends on it.
-
