@@ -26,8 +26,10 @@
 //test output control
 #define _N_HLS_ 	0
 
+#define MAX_H264_DECODE_PASSES  7 // This is tied to our input video
+
 //buffer sizes
-#define MAXNALBUFFERSIZE 200000
+#define MAXNALBUFFERSIZE 55000 //200000
 #define MAXSPSSIZE 5
 #define MAXPPSSIZE 32
 #define MAX_REFERENCE_PICTURES 3
