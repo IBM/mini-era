@@ -482,7 +482,7 @@ status_t init_h264_kernel(char* dict_fn)
 status_t init_cv_kernel(char* py_file, char* dict_fn)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
-  /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
+  /* The CV kernel uses a different method to select appropriate inputs; dictionary not needed currently
   // Read in the object images dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
@@ -490,39 +490,6 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     printf("Error: unable to open dictionary file %s\n", dict_fn);
     return error;
   }
-  // Read the number of definitions
-  if (fscanf(dictF, "%u\n", &num_cv_dictionary_items) != 1) {
-    printf("Error reading CV kernel dictionary number of entries\n");
-    exit(-6);
-  }
-  DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
-  the_cv_object_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
-  if (the_cv_object_dict == NULL) 
-  {
-    printf("ERROR : Cannot allocate Cv Trace Dictionary memory space\n");
-    return error;
-  }
-
-  for (int di = 0; di < num_cv_dictionary_items; di++) {
-    unsigned entry_id;
-    unsigned object_id;
-    if (fscanf(dictF, "%u %u", &entry_id, &object_id) != 2) {
-    printf("Error reading CV kernel dictionary entry %u header: entry_id and object_id\n", di);
-    exit(-6);
-    }
-    DEBUG(printf("  Reading cv dictionary entry %u : %u %u\n", di, entry_id, object_id));
-    the_cv_object_dict[di].image_id = entry_id;
-    the_cv_object_dict[di].object   = object_id;
-    for (int i = 0; i < IMAGE_SIZE; i++) {
-      unsigned fin;
-      if (fscanf(dictF, "%u", &fin) != 1) {
-      printf("Error reading CV kernel dictionary entry %u input data\n", di);
-      exit(-6);
-      }
-      the_cv_object_dict[di].image_data[i] = fin;
-    }
-  }
-  fclose(dictF);
   **/
   // Initialization to run Keras CNN code 
 #ifndef BYPASS_KERAS_CV_CODE
@@ -549,6 +516,8 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     Py_XDECREF(pFunc_load);
   }
   DEBUG(printf("CV Kernel Init done\n"));
+  // Now we do one execution call, to make sure everything is "primed"
+  label_t label = execute_cv_kernel(0, NULL);
 #endif  
   return success;
 }

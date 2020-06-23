@@ -50,6 +50,8 @@ char cv_dict[256];
 char rad_dict[256];
 char vit_dict[256];
 
+bool_t bypass_h264_functions = false; // This is a global-disable of executing H264 execution functions...
+
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
 
@@ -61,6 +63,8 @@ void print_usage(char * pname) {
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
   printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
   printf("    -C <file>  : defines the input CV/CNN dictionary file <file> to use\n");
+  printf("    -H <file>  : defines the input H264 dictionary file <file> to use\n");
+  printf("    -b         : Bypass (do not use) the H264 functions in this run.\n");
 #ifdef USE_SIM_ENVIRON
   printf("    -s <N>     : Sets the max number of time steps to simulate\n");
   printf("    -r <N>     : Sets the rand random number seed to N\n");
@@ -105,7 +109,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:H:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAbot:v:n:s:r:W:R:V:C:H:f:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -127,6 +131,9 @@ int main(int argc, char *argv[])
       break;
     case 'V':
       snprintf(vit_dict, 255, "%s", optarg);
+      break;
+    case 'b':
+      bypass_h264_functions = true;
       break;
     case 's':
 #ifdef USE_SIM_ENVIRON
@@ -241,11 +248,15 @@ int main(int argc, char *argv[])
 #endif
 
   /* Kernels initialization */
-  printf("Initializing the H264 kernel...\n");
-  if (!init_h264_kernel(h264_dict))
-  {
-    printf("Error: the H264 decoding kernel couldn't be initialized properly.\n");
-    return 1;
+  if (bypass_h264_functions) {
+    printf("Bypassing the H264 Functionality in this run...\n");
+  } else {
+    printf("Initializing the H264 kernel...\n");
+    if (!init_h264_kernel(h264_dict))
+      {
+	printf("Error: the H264 decoding kernel couldn't be initialized properly.\n");
+	return 1;
+      }
   }
 
   printf("Initializing the CV kernel...\n");
@@ -289,7 +300,7 @@ int main(int argc, char *argv[])
 /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   time_step = 0;
  #ifdef TIME
-  struct timeval stop, start;
+  struct timeval stop_prog, start_prog;
 
   struct timeval stop_iter_rad, start_iter_rad;
   struct timeval stop_iter_vit, start_iter_vit;
@@ -325,13 +336,17 @@ int main(int argc, char *argv[])
 
   printf("Starting the main loop...\n");
   /* The input trace contains the per-epoch (time-step) input data */
-#ifdef USE_SIM_ENVIRON
+ #ifdef TIME
+  gettimeofday(&start_prog, NULL);
+ #endif
+  
+ #ifdef USE_SIM_ENVIRON
   DEBUG(printf("\n\nTime Step %d\n", time_step));
   while (iterate_sim_environs(vehicle_state))
-#else //TRACE DRIVEN MODE
+ #else //TRACE DRIVEN MODE
   read_next_trace_record(vehicle_state);
   while (!eof_trace_reader())
-#endif
+ #endif
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
@@ -342,7 +357,10 @@ int main(int argc, char *argv[])
    #ifdef TIME
     gettimeofday(&start_iter_h264, NULL);
    #endif
-    h264_dict_entry_t* hdep = iterate_h264_kernel(vehicle_state);
+    h264_dict_entry_t* hdep = 0x0;
+    if (!bypass_h264_functions) {
+      hdep = iterate_h264_kernel(vehicle_state);
+    }
    #ifdef TIME
     gettimeofday(&stop_iter_h264, NULL);
     iter_h264_sec  += stop_iter_h264.tv_sec  - start_iter_h264.tv_sec;
@@ -411,7 +429,11 @@ int main(int argc, char *argv[])
     gettimeofday(&start_exec_h264, NULL);
    #endif
     char* found_frame_ptr = 0x0;
-    execute_h264_kernel(hdep, found_frame_ptr);
+    if (!bypass_h264_functions) {
+      execute_h264_kernel(hdep, found_frame_ptr);
+    } else {
+      found_frame_ptr = (char*)0xAD065BED;
+    }
    #ifdef TIME
     gettimeofday(&stop_exec_h264, NULL);
     exec_h264_sec  += stop_exec_h264.tv_sec  - start_exec_h264.tv_sec;
@@ -443,7 +465,9 @@ int main(int argc, char *argv[])
    #endif
 
     // POST-EXECUTE each kernels to gather stats, etc.
-    post_execute_h264_kernel();
+    if (!bypass_h264_functions) {
+      post_execute_h264_kernel();
+    }
     post_execute_cv_kernel(cv_tr_label, label);
     post_execute_rad_kernel(rdentry_p->set, rdentry_p->index_in_set, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
@@ -460,9 +484,12 @@ int main(int argc, char *argv[])
 
     #ifdef TIME
     time_step++;
-    if (time_step == 1) {
-      gettimeofday(&start, NULL);
-    }
+    /* // This is done here, becuase of peculiarities in the CV/CNN software where the first */
+    /* //  invocation does a bunch of initialization work (which other kernels do in the */
+    /* //  dictionar-read time/init time-frame). */
+    /* if (time_step == 1) { */
+    /*   gettimeofday(&start_prog, NULL); */
+    /* } */
     #endif
 
     #ifndef USE_SIM_ENVIRON
@@ -470,19 +497,21 @@ int main(int argc, char *argv[])
     #endif
   }
 
-  #ifdef TIME
-  	gettimeofday(&stop, NULL);
-  #endif
+ #ifdef TIME
+  gettimeofday(&stop_prog, NULL);
+ #endif
 
   /* All the traces have been fully consumed. Quitting... */
-  closeout_h264_kernel();
+  if (!bypass_h264_functions) {
+    closeout_h264_kernel();
+  }
   closeout_cv_kernel();
   closeout_rad_kernel();
   closeout_vit_kernel();
 
   #ifdef TIME
   {
-    uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
+    uint64_t total_exec = (uint64_t) (stop_prog.tv_sec - start_prog.tv_sec) * 1000000 + (uint64_t) (stop_prog.tv_usec - start_prog.tv_usec);
     uint64_t iter_rad   = (uint64_t) (iter_rad_sec)  * 1000000 + (uint64_t) (iter_rad_usec);
     uint64_t iter_vit   = (uint64_t) (iter_vit_sec)  * 1000000 + (uint64_t) (iter_vit_usec);
     uint64_t iter_cv    = (uint64_t) (iter_cv_sec)   * 1000000 + (uint64_t) (iter_cv_usec);
