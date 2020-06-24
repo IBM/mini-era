@@ -4,7 +4,7 @@
 # Paths to some dependencies (e.g., HPVM, LLVM) must exist in Makefile.config,
 # which can be copied from Makefile.config.example for a start.
 
-CONFIG_FILE := Makefile.config
+CONFIG_FILE := /home/aejjeh/work_dir/hpvm-dssoc/hpvm/test/benchmarks/include/Makefile.config
 
 ifeq ($(wildcard $(CONFIG_FILE)),)
     $(error $(CONFIG_FILE) not found. See $(CONFIG_FILE).example)
@@ -32,7 +32,7 @@ INCLUDES += -I$(CONFUSE_ROOT)/include
 LFLAGS += -L$(CONFUSE_ROOT)/lib
 endif
 
-EXE = miniera-visc-trace-$(VERSION)-$(TARGET)
+EXE = miniera-hpvm-trace-$(VERSION)-$(TARGET)
 
 CAM_CFLAGS += -mf16c -flax-vector-conversions
 LFLAGS += -pthread
@@ -46,10 +46,10 @@ LFLAGS += -pthread
 #	rm -f $(NATIVE) $(DEBUG)
 
 ## BEGIN HPVM MAKEFILE
-LANGUAGE=visc
+LANGUAGE=hpvm
 SRCDIR_OBJS=read_trace.ll
 OBJS_SRC=$(wildcard $(SRC_DIR)/*.c)
-VISC_OBJS=main.visc.ll
+HPVM_OBJS=main.hpvm.ll
 APP = $(EXE)
 APP_CUDALDFLAGS=-lm -lstdc++
 APP_CFLAGS= $(INCLUDES) -DDMA_MODE -DDMA_INTERFACE_V3
@@ -63,68 +63,68 @@ CXXFLAGS = $(APP_CXXFLAGS) $(PLATFORM_CXXFLAGS)
 LDFLAGS= $(APP_LDFLAGS) $(PLATFORM_LDFLAGS)
 
 LIBCLC_LIB_PATH = $(LLVM_SRC_ROOT)/../libclc/built_libs
-VISC_RT_PATH = $(LLVM_SRC_ROOT)/projects/visc-rt
+HPVM_RT_PATH = $(LLVM_SRC_ROOT)/../build/tools/hpvm/projects/hpvm-rt
 
-VISC_RT_LIB = $(VISC_RT_PATH)/visc-rt.ll
+HPVM_RT_LIB = $(HPVM_RT_PATH)/hpvm-rt.bc
 #LIBCLC_NVPTX_LIB = $(LIBCLC_LIB_PATH)/nvptx--nvidiacl.bc
 LIBCLC_NVPTX_LIB = $(LIBCLC_LIB_PATH)/nvptx64--nvidiacl.bc
 #LIBCLC_NVPTX_LIB = nvptx64--nvidiacl.bc
 
 LLVM_34_AS = $(LLVM_34_ROOT)/build/bin/llvm-as
 
-TESTGEN_OPTFLAGS = -load LLVMGenVISC.so -genvisc -globaldce
+TESTGEN_OPTFLAGS = -load LLVMGenHPVM.so -genhpvm -globaldce
 KERNEL_GEN_FLAGS = -O3 -target nvptx64-nvidia-nvcl
 
 ifeq ($(TARGET),x86)
   DEVICE = SPIR_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_SPIR.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-spir -dfg2llvm-x86 -clearDFG
+  HPVM_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_SPIR.so -load LLVMDFG2LLVM_CPU.so -load LLVMClearDFG.so -localmem -dfg2llvm-spir -dfg2llvm-cpu -clearDFG
   CFLAGS += -DOPENCL_CPU
-  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
+  HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-spir
 else ifeq ($(TARGET),seq)
   DEVICE = CPU_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -dfg2llvm-x86 -clearDFG
-  VISC_OPTFLAGS += -visc-timers-x86
+  HPVM_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMDFG2LLVM_CPU.so -load LLVMClearDFG.so -dfg2llvm-cpu -clearDFG
+  HPVM_OPTFLAGS += -hpvm-timers-cpu
 else ifeq ($(TARGET),fpga)
   DEVICE = FPGA_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_FPGA.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-fpga -dfg2llvm-x86 -clearDFG
+  HPVM_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_FPGA.so -load LLVMDFG2LLVM_CPU.so -load LLVMClearDFG.so -localmem -dfg2llvm-fpga -dfg2llvm-cpu -clearDFG
   CFLAGS += -DOPENCL_CPU
-  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-fpga
+  HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-fpga
 else
   DEVICE = GPU_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_NVPTX.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-nvptx -dfg2llvm-x86 -clearDFG
-  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
+  HPVM_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_NVPTX.so -load LLVMDFG2LLVM_CPU.so -load LLVMClearDFG.so -localmem -dfg2llvm-nvptx -dfg2llvm-cpu -clearDFG
+  HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-ptx
 endif
-  TESTGEN_OPTFLAGS += -visc-timers-gen
+  TESTGEN_OPTFLAGS += -hpvm-timers-gen
 
 CFLAGS += -DDEVICE=$(DEVICE)
 CXXFLAGS += -DDEVICE=$(DEVICE)
 
 #ifeq ($(TIMER),x86)
-#  VISC_OPTFLAGS += -visc-timers-x86
+#  HPVM_OPTFLAGS += -hpvm-timers-cpu
 #else ifeq ($(TIMER),ptx)
-#  VISC_OPTFLAGS += -visc-timers-ptx
+#  HPVM_OPTFLAGS += -hpvm-timers-ptx
 #else ifeq ($(TIMER),gen)
-#  TESTGEN_OPTFLAGS += -visc-timers-gen
+#  TESTGEN_OPTFLAGS += -hpvm-timers-gen
 #else ifeq ($(TIMER),spir)
-#  TESTGEN_OPTFLAGS += -visc-timers-spir
+#  TESTGEN_OPTFLAGS += -hpvm-timers-spir
 #else ifeq ($(TIMER),fpga)
-#  TESTGEN_OPTFLAGS += -visc-timers-fpga
+#  TESTGEN_OPTFLAGS += -hpvm-timers-fpga
 #else ifeq ($(TIMER),no)
 #else
 #  ifeq ($(TARGET),x86)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
+#    HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-spir
 #  else ifeq ($(TARGET),seq)
-#    VISC_OPTFLAGS += -visc-timers-x86
+#    HPVM_OPTFLAGS += -hpvm-timers-cpu
 #  else ifeq ($(TARGET),fpga)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-fpga
-#  else ifeq ($(TARGET),seqx86)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
+#    HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-fpga
+#  else ifeq ($(TARGET),seqcpu)
+#    HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-spir
 #  else ifeq ($(TARGET),seqgpu)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
+#    HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-ptx
 #  else
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
+#    HPVM_OPTFLAGS += -hpvm-timers-cpu -hpvm-timers-ptx
 #  endif
-#  TESTGEN_OPTFLAGS += -visc-timers-gen
+#  TESTGEN_OPTFLAGS += -hpvm-timers-gen
 #endif
 
 # Add BUILDDIR as a prefix to each element of $1
@@ -138,7 +138,7 @@ PYTHON_LLVM_40_34 = ../llvm-40-34.py
 .PRECIOUS: $(BUILD_DIR)/%.ll
 
 OBJS = $(call INBUILDDIR,$(SRCDIR_OBJS))
-TEST_OBJS = $(call INBUILDDIR,$(VISC_OBJS))
+TEST_OBJS = $(call INBUILDDIR,$(HPVM_OBJS))
 KERNEL = $(TEST_OBJS).kernels.ll
 
 ifeq ($(TARGET),x86)
@@ -149,7 +149,7 @@ else ifeq ($(TARGET),fpga)
   AOCL_ASSEMBLY = $(TEST_OBJS).kernels.aocx
   BOARD = a10gx
   ifeq ($(EMULATION),1)
-    EXE = cava-visc-emu
+    EXE = cava-hpvm-emu
     AOC_EMU = -march=emulator
     BUILD_DIR = build/$(TARGET)-emu
   endif
@@ -188,19 +188,21 @@ $(AOCL_ASSEMBLY) : $(AOC_CL)
 $(AOC_CL) : $(KERNEL)
 	llvm-cbe --debug $(KERNEL)
 
+riscv : $(HOST_LINKED)
+	$(OPT) 
+	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
+	/home/aejjeh/work_dir/riscv/bin/riscv64-unknown-linux-gnu-g++ test.o -o $(EXE)-riscv -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+
 $(EXE) : $(HOST_LINKED)
 	$(CXX) -O3 $(LDFLAGS) $< -o $@
 
-$(HOST_LINKED) : $(HOST) $(OBJS) $(VISC_RT_LIB)
+$(HOST_LINKED) : $(HOST) $(OBJS) $(HPVM_RT_LIB)
 	$(LLVM_LINK) $^ -S -o $@
 
-$(VISC_RT_LIB) : $(VISC_RT_PATH)/visc-rt.cpp
-	make -C $(LLVM_LIB_PATH)
-
-$(HOST) $(KERNEL): $(BUILD_DIR)/$(VISC_OBJS)
-	$(OPT) -debug $(VISC_OPTFLAGS) -S $< -o $(HOST)
+$(HOST) $(KERNEL): $(BUILD_DIR)/$(HPVM_OBJS)
+	$(OPT) -debug $(HPVM_OPTFLAGS) -S $< -o $(HOST)
 #	mv *.ll $(BUILD_DIR) 
-#	$(OPT) -debug-only=DFG2LLVM_SPIR,DFG2LLVM_X86,DFG2LLVM_FPGA,GENVISC $(VISC_OPTFLAGS) -S $< -o $(HOST)
+#	$(OPT) -debug-only=DFG2LLVM_SPIR,DFG2LLVM_CPU,DFG2LLVM_FPGA,GENHPVM $(HPVM_OPTFLAGS) -S $< -o $(HOST)
 #$(OBJS): $(OBJS_SRC)
 #	$(CC) $(OBJS_CFLAGS) -emit-llvm -S -o $@ $<
 
@@ -216,7 +218,7 @@ $(BUILD_DIR)/main.ll : $(SRC_DIR)/main.c
 #$(BUILD_DIR)/main.opt.ll : $(BUILD_DIR)/main.ll
 #	$(OPT) $(OPT_FLAGS) $< -S -o $@
 
-$(BUILD_DIR)/main.visc.ll : $(BUILD_DIR)/main.ll
-	$(OPT) -debug-only=genvisc $(TESTGEN_OPTFLAGS) $< -S -o $@
+$(BUILD_DIR)/main.hpvm.ll : $(BUILD_DIR)/main.ll
+	$(OPT) -debug-only=genhpvm $(TESTGEN_OPTFLAGS) $< -S -o $@
 
 ## END HPVM MAKEFILE
