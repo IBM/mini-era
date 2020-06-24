@@ -1009,8 +1009,8 @@ void closeout_cv_kernel()
   }
 
 #ifndef BYPASS_KERAS_CV_CODE
-    Py_DECREF(pModule);
-    Py_Finalize();
+  Py_DECREF(pModule);
+  Py_Finalize();
 #endif   
 }
 

@@ -83,6 +83,7 @@ T_FSRC  = $(FSRC) read_trace.c
 #BT_FSRC = $(foreach f, $(T_SRC), $(shell basename $(f)))
 OBJ     = $(T_SRC:%.c=$(OBJDIR)/%.o)
 OBJ_V   = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
+OBJ_G   = $(T_SRC:%.c=$(OBJ_G_DIR)/%.o)
 IT_OBJ  = $(T_SRC:%.c=$(IT_OBJDIR)/%.o)
 FOBJ    = $(T_SRC:%.c=$(OBJDIR)/%.o)
 FOBJ_V  = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
@@ -268,11 +269,11 @@ $(T_OBJDIR):
 	mkdir -p $@/fft/fft-1d
 
 $(IT_OBJDIR):
+	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
 	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
-	mkdir $@
 
 $(C_OBJDIR):
 	mkdir $@

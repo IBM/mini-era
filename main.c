@@ -484,12 +484,6 @@ int main(int argc, char *argv[])
 
     #ifdef TIME
     time_step++;
-    /* // This is done here, becuase of peculiarities in the CV/CNN software where the first */
-    /* //  invocation does a bunch of initialization work (which other kernels do in the */
-    /* //  dictionar-read time/init time-frame). */
-    /* if (time_step == 1) { */
-    /*   gettimeofday(&start_prog, NULL); */
-    /* } */
     #endif
 
     #ifndef USE_SIM_ENVIRON
