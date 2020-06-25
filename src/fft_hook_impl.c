@@ -65,7 +65,7 @@ void fft_hook(float * data, unsigned int N, unsigned int logn, int sign)
 			.run = true,
 			.devname = "fft.0",
 			.type = fft,
-			.hw_buf = buf;
+			.hw_buf = buf,
 			/* <<--descriptor-->> */
 			.desc.fft_desc.do_bitrev = DO_BITREV,
 			.desc.fft_desc.log_len = logn,
@@ -80,7 +80,7 @@ void fft_hook(float * data, unsigned int N, unsigned int logn, int sign)
 
 	esp_run(cfg_000, NACC);
   
-	for (int j = 0; j < 2 * RADAR_N; j++) {
+	for (int j = 0; j < 2 * N; j++) {
     data[j] = (float)fx2float(buf[j], FX_IL);
   }
 
