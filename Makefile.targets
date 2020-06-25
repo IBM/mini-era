@@ -40,7 +40,20 @@ SRC    = kernels_api.c main.c \
          fft/fft-1d/octave.c \
          fft/fft-1d/timer.c \
          viterbi/viterbi_decoder_generic.c \
-         viterbi/viterbi_parms.c
+         viterbi/viterbi_parms.c \
+	 h264/cavlc.c \
+	 h264/decode.c \
+	 h264/framealloc.c \
+	 h264/interpred.c \
+	 h264/intrapred.c \
+	 h264/mathfunc.c \
+	 h264/nalu.c \
+	 h264/parset.c \
+	 h264/residual.c \
+	 h264/slice.c \
+	 h264/vlc.c \
+	 h264/do_h264_decode.c
+
 
 FSRC   = kernels_api.c main.c \
          radar/calculate_dist_from_fmcw.c \
@@ -49,7 +62,19 @@ FSRC   = kernels_api.c main.c \
          fft/fft-1d/octave.c \
          fft/fft-1d/timer.c \
          viterbi/viterbi_flat.c \
-         viterbi/viterbi_parms.c
+         viterbi/viterbi_parms.c \
+	 h264/cavlc.c \
+	 h264/decode.c \
+	 h264/framealloc.c \
+	 h264/interpred.c \
+	 h264/intrapred.c \
+	 h264/mathfunc.c \
+	 h264/nalu.c \
+	 h264/parset.c \
+	 h264/residual.c \
+	 h264/slice.c \
+	 h264/vlc.c \
+	 h264/do_h264_decode.c
 
 
 T_SRC   = $(SRC) read_trace.c
@@ -58,6 +83,7 @@ T_FSRC  = $(FSRC) read_trace.c
 #BT_FSRC = $(foreach f, $(T_SRC), $(shell basename $(f)))
 OBJ     = $(T_SRC:%.c=$(OBJDIR)/%.o)
 OBJ_V   = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
+OBJ_G   = $(T_SRC:%.c=$(OBJ_G_DIR)/%.o)
 IT_OBJ  = $(T_SRC:%.c=$(IT_OBJDIR)/%.o)
 FOBJ    = $(T_SRC:%.c=$(OBJDIR)/%.o)
 FOBJ_V  = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
@@ -232,114 +258,133 @@ $(OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(T_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(IT_OBJDIR):
+	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
-	mkdir $@
 
 $(C_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITFC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(T_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(T_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 
@@ -347,114 +392,133 @@ $(S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TS_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITS_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(ITFC_S_OBJDIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TS_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(FC_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TFC_S_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(S_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TS_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(C_S_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 $(TC_S_OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/viterbi
 	mkdir -p $@/radar
+	mkdir -p $@/h264
 	mkdir -p $@/fft/fft-1d
 
 
@@ -591,52 +655,182 @@ $(OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
 $(OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+$(OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(OBJDIR)/h264/framealloc.o: h264/global.h 
+$(OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(OBJDIR)/h264/nalu.o: h264/global.h
+$(OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(OBJDIR)/h264/residual.o: h264/global.h 
+$(OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(OBJDIR)/h264/vlc.o: h264/global.h
+$(OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(C_OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
 $(C_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+$(C_OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_OBJDIR)/h264/framealloc.o: h264/global.h 
+$(C_OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_OBJDIR)/h264/nalu.o: h264/global.h
+$(C_OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_OBJDIR)/h264/residual.o: h264/global.h 
+$(C_OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_OBJDIR)/h264/vlc.o: h264/global.h
+$(C_OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
 $(OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(OBJ_V_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(OBJ_V_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(OBJ_V_DIR)/h264/framealloc.o: h264/global.h 
+$(OBJ_V_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(OBJ_V_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(OBJ_V_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(OBJ_V_DIR)/h264/nalu.o: h264/global.h
+$(OBJ_V_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(OBJ_V_DIR)/h264/residual.o: h264/global.h 
+$(OBJ_V_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(OBJ_V_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(OBJ_V_DIR)/h264/vlc.o: h264/global.h
+$(OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(C_OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
 $(C_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(C_OBJ_V_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_OBJ_V_DIR)/h264/framealloc.o: h264/global.h 
+$(C_OBJ_V_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_OBJ_V_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_OBJ_V_DIR)/h264/nalu.o: h264/global.h
+$(C_OBJ_V_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/residual.o: h264/global.h 
+$(C_OBJ_V_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_OBJ_V_DIR)/h264/vlc.o: h264/global.h
+$(C_OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(OBJ_G_DIR)/kernels_api.o: kernels_api.h read_trace.h
 $(OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(OBJ_G_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(C_OBJ_G_DIR)/kernels_api.o: kernels_api.h read_trace.h
 $(C_OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_OBJ_G_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(C_OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(C_OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(C_OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(C_OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(C_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 
 $(S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
 $(S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(S_OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(S_OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(S_OBJDIR)/h264/framealloc.o: h264/global.h 
+$(S_OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(S_OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(S_OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(S_OBJDIR)/h264/nalu.o: h264/global.h
+$(S_OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(S_OBJDIR)/h264/residual.o: h264/global.h 
+$(S_OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(S_OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(S_OBJDIR)/h264/vlc.o: h264/global.h
+$(S_OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(C_S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
 $(C_S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(C_S_OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_S_OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_S_OBJDIR)/h264/framealloc.o: h264/global.h 
+$(C_S_OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_S_OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_S_OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_S_OBJDIR)/h264/nalu.o: h264/global.h
+$(C_S_OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_S_OBJDIR)/h264/residual.o: h264/global.h 
+$(C_S_OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_S_OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_S_OBJDIR)/h264/vlc.o: h264/global.h
+$(C_S_OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(S_OBJ_G_DIR)/kernels_api.o: kernels_api.h sim_environs.h
 $(S_OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(S_OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(S_OBJ_G_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(S_OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(S_OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(S_OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(S_OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(S_OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(S_OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(S_OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(S_OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(S_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 $(C_S_OBJ_G_DIR)/kernels_api.o: kernels_api.h sim_environs.h
 $(C_S_OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
 $(C_S_OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
 $(C_S_OBJ_G_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(C_S_OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_S_OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(C_S_OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_S_OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_S_OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(C_S_OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(C_S_OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_S_OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(C_S_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
 
 obj/sim_environs.o: utils/sim_environs.h
 
@@ -647,6 +841,16 @@ obj_v/sim_environs.o: utils/sim_environs.h
 obj/gen_trace.o: gen_trace.h
 
 
-depend:;	makedepend -f$(MFILE) -- $(CFLAGS) -- $(SRC) $(TRGN_SRC) $(G_SRC)
-# DO NOT DELETE THIS LINE -- make depend depends on it.
-
+h264/cavlc.o: h264/global.h h264/vlc.h
+h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+h264/framealloc.o: h264/global.h 
+h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+h264/intrapred.o: h264/global.h h264/vlc.h
+h264/mathfunc.o: h264/global.h h264/mathfunc.h
+h264/nalu.o: h264/global.h
+h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+h264/residual.o: h264/global.h 
+h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+h264/vlc.o: h264/global.h
+h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h

@@ -80,6 +80,11 @@ typedef struct {
 #define VIT_CLEAR_THRESHOLD  THRESHOLD_1
 
 
+typedef struct {
+  unsigned int entry_id;
+} h264_dict_entry_t;
+
+
 /* Pre-defined labels used by the computer vision kernel */
 typedef enum {
   myself = -1,
@@ -161,11 +166,15 @@ void closeout_trace_reader(void);
 status_t init_cv_kernel(char* py_file, char* dict_fn);
 status_t init_rad_kernel(char* dict_fn);
 status_t init_vit_kernel(char* dict_fn);
+status_t init_h264_kernel(char* dict_fn);
 
+h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
+void      execute_h264_kernel(h264_dict_entry_t* hdep, char* frame_ptr);
+void      post_execute_h264_kernel();
 
 label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
-label_t execute_cv_kernel(label_t in_tr_val);
+label_t execute_cv_kernel(label_t in_tr_val, char* found_frame_ptr);
 void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
@@ -181,6 +190,7 @@ vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t
 
 // These routines are used for any finalk, end-of-run operations/output
 void closeout_cv_kernel(void);
+void closeout_h264_kernel(void);
 void closeout_rad_kernel(void);
 void closeout_vit_kernel(void);
 
