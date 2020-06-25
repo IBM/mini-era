@@ -27,6 +27,9 @@
  * Major modifications by adding SSE2 code by Bogdan Diaconescu
  */
 #include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 #define TRACEBACK_MAX 24
 // GLOBAL VARIABLES
