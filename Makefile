@@ -33,6 +33,7 @@ LFLAGS += -L$(CONFUSE_ROOT)/lib
 endif
 
 EXE = miniera-hpvm-trace-$(VERSION)-$(TARGET)
+RISCVEXE = miniera-hpvm-riscv
 
 CAM_CFLAGS += -mf16c -flax-vector-conversions
 LFLAGS += -pthread
@@ -170,6 +171,7 @@ endif
 
 # Targets
 default: $(FAILSAFE) $(BUILD_DIR) $(EXE)
+riscv: $(FAILSAFE) $(BUILD_DIR) $(RISCVEXE)
 #default: $(FAILSAFE) $(BUILD_DIR) $(PTX_ASSEMBLY) $(SPIR_ASSEMBLY) $(AOC_CL) $(AOCL_ASSEMBLY) $(EXE)
 
 $(PTX_ASSEMBLY) : $(KERNEL_LINKED)
@@ -188,10 +190,11 @@ $(AOCL_ASSEMBLY) : $(AOC_CL)
 $(AOC_CL) : $(KERNEL)
 	llvm-cbe --debug $(KERNEL)
 
-riscv : $(HOST_LINKED)
-	$(OPT) 
+$(RISCVEXE) : $(HOST_LINKED)
+	#$(OPT) 
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
-	/home/aejjeh/work_dir/riscv/bin/riscv64-unknown-linux-gnu-g++ test.o -o $(EXE)-riscv -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	/home/aejjeh/work_dir/riscv/bin/riscv64-unknown-linux-gnu-g++ test.o -o $@ -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	rm test.o
 
 $(EXE) : $(HOST_LINKED)
 	$(CXX) -O3 $(LDFLAGS) $< -o $@
