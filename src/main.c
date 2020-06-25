@@ -28,6 +28,8 @@
 #include <limits.h>
 
 #include "kernels_api.h"
+#include "viterbi_decoder_generic.h"
+#include "base.h"
 
 #ifdef USE_SIM_ENVIRON
  #include "sim_environs.h"
@@ -98,7 +100,6 @@ unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 
 /* These are types, functions, etc. required for VITERBI */
-#include "viterbi_decoder_generic.h"
 
 #ifndef BYPASS_KERAS_CV_CODE
 PyObject *pName, *pModule, *pFunc, *pFunc_load;
@@ -884,8 +885,6 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
  * Some modifications from original Karn code by Matt Ettus
  * Major modifications by adding SSE2 code by Bogdan Diaconescu
  */
-#include "base.h"
-#include "viterbi_decoder_generic.h"
 //#include "viterbi_standalone.h"
 
 // GLOBAL VARIABLES
