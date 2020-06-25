@@ -36,7 +36,7 @@
 #endif
 
 #include "calc_fmcw_dist.h"
-#include "visc.h"
+#include "hpvm.h"
 #define BYPASS_KERAS_CV_CODE  // INITIAL  BRING-UP
 
 #define TIME
@@ -50,6 +50,7 @@ bool_t all_obstacle_lanes_mode = false;
 bool output_viz_trace = false;
   
 
+  d_branchtab27_t d_branchtab27_generic[2];
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
@@ -469,14 +470,14 @@ label_t run_object_classification(unsigned tr_val)
 void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
 		       /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
 {
-  __visc__hint(DEVICE);
-  __visc__attributes(2, in_tr_val, out_label, 1, out_label);
+  __hpvm__hint(DEVICE);
+  __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
   /* 2) Conduct object detection on the image frame */
   // Should replace with nodes generated from DNN compiled from Keras here?
   *out_label = run_object_classification(*in_tr_val);
   
-  __visc__return(1, out_label_size);
+  __hpvm__return(1, out_label_size);
 }
 
 void post_execute_cv_kernel(label_t d_object, label_t object)
@@ -597,7 +598,7 @@ _rev (unsigned int v)
 
 
 static float *
-bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
+bit_reverse (float * w, unsigned int N, unsigned int bits)
 {
   unsigned int i, s, shift;
   s = sizeof(i) * CHAR_BIT - 1;
@@ -623,7 +624,7 @@ bit_reverse (float * w, size_t w_size_bytes, unsigned int N, unsigned int bits)
 }
 
 
-void fft(/* 0 */ float * data, size_t data_size_bytes, /* 1 */ 
+void fft(/* 0 */ float * data,  
 	 /* 2 */ unsigned int N,
 	 /* 3 */ unsigned int logn,
 	 /* 4 */ int sign)
@@ -635,7 +636,7 @@ void fft(/* 0 */ float * data, size_t data_size_bytes, /* 1 */
   transform_length = 1;
 
   /* bit reversal */
-  bit_reverse (data, data_size_bytes, N, logn);
+  bit_reverse (data, N, logn);
 
   /* calculation */
   for (bit = 0; bit < logn; bit++) {
@@ -707,18 +708,18 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
 			unsigned int input_N, unsigned int in_logn, int in_sign,
 			distance_t * distance, size_t dist_size)
 {
-  __visc__hint(DEVICE);
-  __visc__attributes(2, inputs, distance, 1, distance);
+  __hpvm__hint(DEVICE);
+  __hpvm__attributes(2, inputs, distance, 1, distance);
 
   /* 2) Conduct distance estimation on the waveform */
   // The fft routine reads from inputs and writes results in the same memory
-  fft (inputs, input_size_bytes, input_N, in_logn, in_sign);
+  fft (inputs, input_N, in_logn, in_sign);
 
   // get_dist_from_fft takes fft output and puts a distance into distance
   get_dist_from_fft(distance, dist_size, input_N, inputs, input_size_bytes);
 
-  // Return the SIZE -- the pointer is transferred by a __visc__bind
-  __visc__return(1, dist_size);
+  // Return the SIZE -- the pointer is transferred by a __hpvm__bind
+  __hpvm__return(1, dist_size);
 }
 
 
@@ -937,173 +938,6 @@ uint8_t* depuncture(ofdm_param *ofdm,   size_t ofdm_size,
   return depunctured;
 }
 
-/* The basic Viterbi decoder operation, called a "butterfly"
- * operation because of the way it looks on a trellis diagram. Each
- * butterfly involves an Add-Compare-Select (ACS) operation on the two nodes
- * where the 0 and 1 paths from the current node merge at the next step of
- * the trellis.
- *
- * The code polynomials are assumed to have 1's on both ends. Given a
- * function encode_state() that returns the two symbols for a given
- * encoder state in the low two bits, such a code will have the following
- * identities for even 'n' < 64:
- *
- * 	encode_state(n) = encode_state(n+65)
- *	encode_state(n+1) = encode_state(n+64) = (3 ^ encode_state(n))
- *
- * Any convolutional code you would actually want to use will have
- * these properties, so these assumptions aren't too limiting.
- *
- * Doing this as a macro lets the compiler evaluate at compile time the
- * many expressions that depend on the loop index and encoder state and
- * emit them as immediate arguments.
- * This makes an enormous difference on register-starved machines such
- * as the Intel x86 family where evaluating these expressions at runtime
- * would spill over into memory.
- */
-
-// INPUTS/OUTPUTS:  All are 64-entry (bytes) arrays randomly accessed.
-//    symbols : INPUT        : Array [  4 bytes ] 
-//    mm0     : INPUT/OUTPUT : Array [ 64 bytes ]
-//    mm1     : INPUT/OUTPUT : Array [ 64 bytes ]
-//    pp0     : INPUT/OUTPUT : Array [ 64 bytes ] 
-//    pp1     : INPUT/OUTPUT : Array [ 64 bytes ]
-// d_branchtab27_generic[1].c[] : INPUT : Array [2].c[32] {GLOBAL}
-//
-
-void viterbi_butterfly2_generic(unsigned char *symbols,        size_t size_symbols,
-				unsigned char *d_brtab27[2],   size_t size_brtab27,
-				unsigned char *mm0,            size_t size_mm0,
-				unsigned char *mm1,            size_t size_mm1,
-				unsigned char *pp0,            size_t size_pp0,
-				unsigned char *pp1,            size_t size_pp1 )
-{
-  //unsigned char *d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
-
-  // These are used to "virtually" rename the uses below (for symmetry; reduces code size)
-  //  Really these are functionally "offset pointers" into the above arrays....
-  unsigned char *metric0, *metric1;
-  unsigned char *path0, *path1;
-
-  // Operate on 4 symbols (2 bits) at a time
-
-  unsigned char m0[16], m1[16], m2[16], m3[16], decision0[16], decision1[16], survivor0[16], survivor1[16];
-  unsigned char metsv[16], metsvm[16];
-  unsigned char shift0[16], shift1[16];
-  unsigned char tmp0[16], tmp1[16];
-  unsigned char sym0v[16], sym1v[16];
-  unsigned short simd_epi16;
-  unsigned int   first_symbol;
-  unsigned int   second_symbol;
-
-  // Set up for the first two symbols (0 and 1)
-  metric0 = mm0;
-  path0 = pp0;
-  metric1 = mm1;
-  path1 = pp1;
-  first_symbol = 0;
-  second_symbol = first_symbol+1;
-  for (int j = 0; j < 16; j++) {
-    sym0v[j] = symbols[first_symbol];
-    sym1v[j] = symbols[second_symbol];
-  }
-
-  for (int s = 0; s < 2; s++) { // iterate across the 2 symbol groups
-    // This is the basic viterbi butterfly for 2 symbols (we need therefore 2 passes for 4 total symbols)
-    for (int i = 0; i < 2; i++) {
-      if (symbols[first_symbol] == 2) {
-	for (int j = 0; j < 16; j++) {
-          //metsvm[j] = d_branchtab27_generic[1].c[(i*16) + j] ^ sym1v[j];
-	  metsvm[j] = d_brtab27[1][(i*16) + j] ^ sym1v[j];
-	  metsv[j] = 1 - metsvm[j];
-	}
-      }
-      else if (symbols[second_symbol] == 2) {
-	for (int j = 0; j < 16; j++) {
-          //metsvm[j] = d_branchtab27_generic[0].c[(i*16) + j] ^ sym0v[j];
-	  metsvm[j] = d_brtab27[0][(i*16) + j] ^ sym0v[j];
-	  metsv[j] = 1 - metsvm[j];
-	}
-      }
-      else {
-	for (int j = 0; j < 16; j++) {
-          //metsvm[j] = (d_branchtab27_generic[0].c[(i*16) + j] ^ sym0v[j]) + (d_branchtab27_generic[1].c[(i*16) + j] ^ sym1v[j]);
-	  metsvm[j] = (d_brtab27[0][(i*16) + j] ^ sym0v[j]) + (d_brtab27[1][(i*16) + j] ^ sym1v[j]);
-	  metsv[j] = 2 - metsvm[j];
-	}
-      }
-
-      for (int j = 0; j < 16; j++) {
-	m0[j] = metric0[(i*16) + j] + metsv[j];
-	m1[j] = metric0[((i+2)*16) + j] + metsvm[j];
-	m2[j] = metric0[(i*16) + j] + metsvm[j];
-	m3[j] = metric0[((i+2)*16) + j] + metsv[j];
-      }
-
-      for (int j = 0; j < 16; j++) {
-	decision0[j] = ((m0[j] - m1[j]) > 0) ? 0xff : 0x0;
-	decision1[j] = ((m2[j] - m3[j]) > 0) ? 0xff : 0x0;
-	survivor0[j] = (decision0[j] & m0[j]) | ((~decision0[j]) & m1[j]);
-	survivor1[j] = (decision1[j] & m2[j]) | ((~decision1[j]) & m3[j]);
-      }
-
-      for (int j = 0; j < 16; j += 2) {
-	simd_epi16 = path0[(i*16) + j];
-	simd_epi16 |= path0[(i*16) + (j+1)] << 8;
-	simd_epi16 <<= 1;
-	shift0[j] = simd_epi16;
-	shift0[j+1] = simd_epi16 >> 8;
-
-	simd_epi16 = path0[((i+2)*16) + j];
-	simd_epi16 |= path0[((i+2)*16) + (j+1)] << 8;
-	simd_epi16 <<= 1;
-	shift1[j] = simd_epi16;
-	shift1[j+1] = simd_epi16 >> 8;
-      }
-      for (int j = 0; j < 16; j++) {
-	shift1[j] = shift1[j] + 1;
-      }
-
-      for (int j = 0, k = 0; j < 16; j += 2, k++) {
-	metric1[(2*i*16) + j] = survivor0[k];
-	metric1[(2*i*16) + (j+1)] = survivor1[k];
-      }
-      for (int j = 0; j < 16; j++) {
-	tmp0[j] = (decision0[j] & shift0[j]) | ((~decision0[j]) & shift1[j]);
-      }
-
-      for (int j = 0, k = 8; j < 16; j += 2, k++) {
-	metric1[((2*i+1)*16) + j] = survivor0[k];
-	metric1[((2*i+1)*16) + (j+1)] = survivor1[k];
-      }
-      for (int j = 0; j < 16; j++) {
-	tmp1[j] = (decision1[j] & shift0[j]) | ((~decision1[j]) & shift1[j]);
-      }
-
-      for (int j = 0, k = 0; j < 16; j += 2, k++) {
-	path1[(2*i*16) + j] = tmp0[k];
-	path1[(2*i*16) + (j+1)] = tmp1[k];
-      }
-      for (int j = 0, k = 8; j < 16; j += 2, k++) {
-	path1[((2*i+1)*16) + j] = tmp0[k];
-	path1[((2*i+1)*16) + (j+1)] = tmp1[k];
-      }
-    }
-
-    // Set up for the second two symbols (2 and 3)
-    metric0 = mm1;
-    path0 = pp1;
-    metric1 = mm0;
-    path1 = pp0;
-    first_symbol = 2;
-    second_symbol = first_symbol+1;
-    for (int j = 0; j < 16; j++) {
-      sym0v[j] = symbols[first_symbol];
-      sym1v[j] = symbols[second_symbol];
-    }
-  }
-}
-
 //  Find current best path
 // 
 // INPUTS/OUTPUTS:  
@@ -1184,7 +1018,6 @@ void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
 		   unsigned char*  d_path1_generic __attribute__ ((aligned(16))),   size_t d_p1_size,
 		   unsigned char*  d_mmresult __attribute__((aligned(16))),         size_t mmres_size,
 		   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))),         size_t ppres_size,
-		   d_branchtab27_t* d_branchtab27_generic,                          size_t d_brt_size,
 		   int* d_ntraceback,                    size_t ntrbk_size,
 		   int* d_k,                             size_t d_k_size,
 		   unsigned char *d_depuncture_pattern,  size_t depunc_ptn_size
@@ -1235,6 +1068,251 @@ void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
 }
 
 
+void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory)
+{
+	int in_count = 0;
+	int out_count = 0;
+	int n_decoded = 0;
+
+	/* int* inWords = (int*)inMemory; */
+
+	/* int  in_cbps        = inWords[  0]; // inMemory[    0] */
+	/* int  in_ntraceback  = inWords[  1]; // inMemory[    4] */
+	/* int  in_n_data_bits = inWords[  2]; // inMemory[    8] */
+	unsigned char* d_brtab27[2] = {      &(inMemory[    0]), 
+		&(inMemory[   32]) };
+	unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
+	uint8_t* depd_data                 = &(inMemory[   72]);
+	uint8_t* l_decoded                 = &(outMemory[   0]);
+
+	uint8_t  l_metric0_generic[64];
+	uint8_t  l_metric1_generic[64];
+	uint8_t  l_path0_generic[64];
+	uint8_t  l_path1_generic[64];
+	uint8_t  l_mmresult[64];
+	uint8_t  l_ppresult[TRACEBACK_MAX][64];
+	int      l_store_pos = 0;
+
+	// This is the "reset" portion:
+	//  Do this before the real operation so local memories are "cleared to zero"
+	// d_store_pos = 0;
+	for (int i = 0; i < 64; i++) {
+		l_metric0_generic[i] = 0;
+		l_path0_generic[i] = 0;
+		l_metric1_generic[i] = 0;
+		l_path1_generic[i] = 0;
+		l_mmresult[i] = 0;
+		for (int j = 0; j < TRACEBACK_MAX; j++) {
+			l_ppresult[j][i] = 0;
+		}
+	}
+
+	int viterbi_butterfly_calls = 0;
+	while(n_decoded < in_n_data_bits) {
+		if ((in_count % 4) == 0) { //0 or 3
+			{
+				unsigned char *mm0       = l_metric0_generic;
+				unsigned char *mm1       = l_metric1_generic;
+				unsigned char *pp0       = l_path0_generic;
+				unsigned char *pp1       = l_path1_generic;
+				unsigned char *symbols   = &depd_data[in_count & 0xfffffffc];
+
+				// These are used to "virtually" rename the uses below (for symmetry; reduces code size)
+				//  Really these are functionally "offset pointers" into the above arrays....
+				unsigned char *metric0, *metric1;
+				unsigned char *path0, *path1;
+
+				// Operate on 4 symbols (2 bits) at a time
+
+				unsigned char m0[16], m1[16], m2[16], m3[16], decision0[16], decision1[16], survivor0[16], survivor1[16];
+				unsigned char metsv[16], metsvm[16];
+				unsigned char shift0[16], shift1[16];
+				unsigned char tmp0[16], tmp1[16];
+				unsigned char sym0v[16], sym1v[16];
+				unsigned short simd_epi16;
+				unsigned int   first_symbol;
+				unsigned int   second_symbol;
+
+				// Set up for the first two symbols (0 and 1)
+				metric0 = mm0;
+				path0 = pp0;
+				metric1 = mm1;
+				path1 = pp1;
+				first_symbol = 0;
+				second_symbol = first_symbol+1;
+				for (int j = 0; j < 16; j++) {
+					sym0v[j] = symbols[first_symbol];
+					sym1v[j] = symbols[second_symbol];
+				}
+
+				for (int s = 0; s < 2; s++) { // iterate across the 2 symbol groups
+					// This is the basic viterbi butterfly for 2 symbols (we need therefore 2 passes for 4 total symbols)
+					for (int i = 0; i < 2; i++) {
+						if (symbols[first_symbol] == 2) {
+							for (int j = 0; j < 16; j++) {
+								metsvm[j] = d_brtab27[1][(i*16) + j] ^ sym1v[j];
+								metsv[j] = 1 - metsvm[j];
+							}
+						}
+						else if (symbols[second_symbol] == 2) {
+							for (int j = 0; j < 16; j++) {
+								metsvm[j] = d_brtab27[0][(i*16) + j] ^ sym0v[j];
+								metsv[j] = 1 - metsvm[j];
+							}
+						}
+						else {
+							for (int j = 0; j < 16; j++) {
+								metsvm[j] = (d_brtab27[0][(i*16) + j] ^ sym0v[j]) + (d_brtab27[1][(i*16) + j] ^ sym1v[j]);
+								metsv[j] = 2 - metsvm[j];
+							}
+						}
+
+						for (int j = 0; j < 16; j++) {
+							m0[j] = metric0[(i*16) + j] + metsv[j];
+							m1[j] = metric0[((i+2)*16) + j] + metsvm[j];
+							m2[j] = metric0[(i*16) + j] + metsvm[j];
+							m3[j] = metric0[((i+2)*16) + j] + metsv[j];
+						}
+
+						for (int j = 0; j < 16; j++) {
+							decision0[j] = ((m0[j] - m1[j]) > 0) ? 0xff : 0x0;
+							decision1[j] = ((m2[j] - m3[j]) > 0) ? 0xff : 0x0;
+							survivor0[j] = (decision0[j] & m0[j]) | ((~decision0[j]) & m1[j]);
+							survivor1[j] = (decision1[j] & m2[j]) | ((~decision1[j]) & m3[j]);
+						}
+
+						for (int j = 0; j < 16; j += 2) {
+							simd_epi16 = path0[(i*16) + j];
+							simd_epi16 |= path0[(i*16) + (j+1)] << 8;
+							simd_epi16 <<= 1;
+							shift0[j] = simd_epi16;
+							shift0[j+1] = simd_epi16 >> 8;
+
+							simd_epi16 = path0[((i+2)*16) + j];
+							simd_epi16 |= path0[((i+2)*16) + (j+1)] << 8;
+							simd_epi16 <<= 1;
+							shift1[j] = simd_epi16;
+							shift1[j+1] = simd_epi16 >> 8;
+						}
+						for (int j = 0; j < 16; j++) {
+							shift1[j] = shift1[j] + 1;
+						}
+
+						for (int j = 0, k = 0; j < 16; j += 2, k++) {
+							metric1[(2*i*16) + j] = survivor0[k];
+							metric1[(2*i*16) + (j+1)] = survivor1[k];
+						}
+						for (int j = 0; j < 16; j++) {
+							tmp0[j] = (decision0[j] & shift0[j]) | ((~decision0[j]) & shift1[j]);
+						}
+
+						for (int j = 0, k = 8; j < 16; j += 2, k++) {
+							metric1[((2*i+1)*16) + j] = survivor0[k];
+							metric1[((2*i+1)*16) + (j+1)] = survivor1[k];
+						}
+						for (int j = 0; j < 16; j++) {
+							tmp1[j] = (decision1[j] & shift0[j]) | ((~decision1[j]) & shift1[j]);
+						}
+
+						for (int j = 0, k = 0; j < 16; j += 2, k++) {
+							path1[(2*i*16) + j] = tmp0[k];
+							path1[(2*i*16) + (j+1)] = tmp1[k];
+						}
+						for (int j = 0, k = 8; j < 16; j += 2, k++) {
+							path1[((2*i+1)*16) + j] = tmp0[k];
+							path1[((2*i+1)*16) + (j+1)] = tmp1[k];
+						}
+					}
+
+					// Set up for the second two symbols (2 and 3)
+					metric0 = mm1;
+					path0 = pp1;
+					metric1 = mm0;
+					path1 = pp0;
+					first_symbol = 2;
+					second_symbol = first_symbol+1;
+					for (int j = 0; j < 16; j++) {
+						sym0v[j] = symbols[first_symbol];
+						sym1v[j] = symbols[second_symbol];
+					}
+				}
+			} // END of call to viterbi_butterfly2_generic
+			viterbi_butterfly_calls++; // Do not increment until after the comparison code.
+
+			if ((in_count > 0) && (in_count % 16) == 8) { // 8 or 11
+				unsigned char c;
+				{
+					unsigned char *mm0       = l_metric0_generic;
+					unsigned char *pp0       = l_path0_generic;
+					int ntraceback = in_ntraceback;
+					unsigned char *outbuf = &c;
+
+					int i;
+					int bestmetric, minmetric;
+					int beststate = 0;
+					int pos = 0;
+					int j;
+
+					// circular buffer with the last ntraceback paths
+					l_store_pos = (l_store_pos + 1) % ntraceback;
+
+					for (i = 0; i < 4; i++) {
+						for (j = 0; j < 16; j++) {
+							l_mmresult[(i*16) + j] = mm0[(i*16) + j];
+							l_ppresult[l_store_pos][(i*16) + j] = pp0[(i*16) + j];
+						}
+					}
+
+					// Find out the best final state
+					bestmetric = l_mmresult[beststate];
+					minmetric = l_mmresult[beststate];
+
+					for (i = 1; i < 64; i++) {
+						if (l_mmresult[i] > bestmetric) {
+							bestmetric = l_mmresult[i];
+							beststate = i;
+						}
+						if (l_mmresult[i] < minmetric) {
+							minmetric = l_mmresult[i];
+						}
+					}
+
+					// Trace back
+					for (i = 0, pos = l_store_pos; i < (ntraceback - 1); i++) {
+						// Obtain the state from the output bits
+						// by clocking in the output bits in reverse order.
+						// The state has only 6 bits
+						beststate = l_ppresult[pos][beststate] >> 2;
+						pos = (pos - 1 + ntraceback) % ntraceback;
+					}
+
+					// Store output byte
+					*outbuf = l_ppresult[pos][beststate];
+
+					for (i = 0; i < 4; i++) {
+						for (j = 0; j < 16; j++) {
+							pp0[(i*16) + j] = 0;
+							mm0[(i*16) + j] = mm0[(i*16) + j] - minmetric;
+						}
+					}
+
+				}
+
+				if (out_count >= in_ntraceback) {
+					for (int i= 0; i < 8; i++) {
+						l_decoded[(out_count - in_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
+						//printf("l_decoded[ %u ] written as %u\n", (out_count - in_ntraceback) * 8 + i, l_decoded[(out_count - in_ntraceback) * 8 + i]);
+						n_decoded++;
+					}
+				}
+				out_count++;
+			}
+		}
+		in_count++;
+	}
+
+}
+
 /* This is the main "decode" function; it prepares data and repeatedly
  * calls the viterbi butterfly2 routine to do steps of decoding.
  */
@@ -1266,7 +1344,6 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   // Paths for each state
   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16)));
 
-  d_branchtab27_t d_branchtab27_generic[2];
   
   int d_store_pos = 0;
   int d_ntraceback;
@@ -1280,7 +1357,6 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
 		 d_path1_generic,       64,
 		 d_mmresult,            64,
 		 d_ppresult,            TRACEBACK_MAX * 64,
-		 d_branchtab27_generic, 2*sizeof(d_branchtab27_t),
 		 &d_ntraceback,         sizeof(int),
 		 &d_k,                  sizeof(int),
 		 d_depuncture_pattern,  6);
@@ -1291,51 +1367,40 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
 				    d_depuncture_pattern,  6,
 				    in,        in_size);
 	
-  int in_count = 0;
-  int out_count = 0;
-  int n_decoded = 0;
-
-  //printf("uint8_t DECODER_VERIF_DATA[7000][4][64] = {\n");
-  //printf("void set_viterbi_decode_verif_data() {\n");
-
-  int viterbi_butterfly_calls = 0;
-  while (n_decoded < frame->n_data_bits) {
-    //printf("n_decoded = %d vs %d = frame->n_data_bits\n", n_decoded, frame->n_data_bits);
-    if ((in_count % 4) == 0) { //0 or 3
-      //printf(" Viterbi_Butterfly Call,%d,n_decoded,%d,n_data_bits,%d,in_count,%d,%d\n", viterbi_butterfly_calls, n_decoded, frame->n_data_bits, in_count, (in_count & 0xfffffffc));
-      unsigned char *d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
-      viterbi_butterfly2_generic(&depunctured[in_count & 0xfffffffc],   4,
-				 d_brtab27,                            64,
-				 d_metric0_generic,                    64,
-				 d_metric1_generic,                    64,
-				 d_path0_generic,                      64,
-				 d_path1_generic,                      64 );
-      viterbi_butterfly_calls++; // Do not increment until after the comparison code.
-
-      if ((in_count > 0) && (in_count % 16) == 8) { // 8 or 11
-	unsigned char c;
-	viterbi_get_output_generic(d_metric0_generic,     64,
-				   d_path0_generic,       64,
-				   d_ntraceback,
-				   &d_store_pos,          sizeof(int),
-				   d_mmresult,            64,
-				   d_ppresult,            TRACEBACK_MAX * 64,
-				   &c,                    1);
-	//std::cout << "OUTPUT: " << (unsigned int)c << std::endl; 
-	if (out_count >= d_ntraceback) {
-	  for (int i= 0; i < 8; i++) {
-	    l_decoded[(out_count - d_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
-	    //printf("l_decoded[ %u ] written\n", (out_count - d_ntraceback) * 8 + i);
-	    n_decoded++;
-	  }
-	}
-	out_count++;
+    uint8_t inMemory[24852];  // This is "minimally sized for max entries"
+    uint8_t outMemory[18585]; // This is "minimally sized for max entries"
+    
+		int imi = 0;
+    for (int ti = 0; ti < 2; ti ++) {
+      for (int tj = 0; tj < 32; tj++) {
+	inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
       }
     }
-    in_count++;
-  }
-  //printf("};\n");
-  //return l_decoded;
+    if (imi != 64) { printf("ERROR : imi = %u and should be 64\n", imi); }
+    // imi = 64;
+    for (int ti = 0; ti < 6; ti ++) {
+      inMemory[imi++] = d_depuncture_pattern[ti];
+    }
+    if (imi != 70) { printf("ERROR : imi = %u and should be 70\n", imi); }
+    // imi = 70
+    imi += 2; // Padding
+    for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
+      inMemory[imi++] = depunctured[ti];
+    }
+
+    if (imi != 24852) { printf("ERROR : imi = %u and should be 24852\n", imi); }
+    // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
+    // Reset the output space (for cleaner testing results)
+    for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+      outMemory[ti] = 0;
+    }
+    
+		do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
+	
+    imi = 0; // start of the outputs
+    for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+			l_decoded[ti] = outMemory[imi++];
+		} 
 }
 
 
@@ -1435,8 +1500,8 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 			/*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
 			/* 10 */ int num_msgs_to_decode)
 {
-  __visc__hint(DEVICE);
-  __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
+  __hpvm__hint(DEVICE);
+  __hpvm__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
 		     2, out_message, out_msg_txt);
   
   uint8_t l_decoded[MAX_ENCODED_BITS * 3 / 4]; // Intermediate value
@@ -1451,8 +1516,8 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
 				out_message, sizeof(message_t));
   }
   
-  // Return the SIZE -- the pointer is transferred by a __visc__bind
-  __visc__return(2, out_message_size, out_msg_txt_size);
+  // Return the SIZE -- the pointer is transferred by a __hpvm__bind
+  __hpvm__return(2, out_message_size, out_msg_txt_size);
 }
 
 
@@ -1473,8 +1538,8 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 		      /* 4 */ message_t* message,             size_t size_message,  /* 5 */ 
 		      /* 6 */ vehicle_state_t* vehicle_state, size_t size_vehicle_state /* 7 */ )
 {
-  __visc__hint(CPU_TARGET);
-  __visc__attributes(4, label, distance, message, vehicle_state,
+  __hpvm__hint(CPU_TARGET);
+  __hpvm__attributes(4, label, distance, message, vehicle_state,
 		     1, vehicle_state);
 
   DEBUG(printf("In the plan_and_control routine : label %u %s distance %.1f (T1 %.1f T1 %.1f T3 %.1f) message %u\n", 
@@ -1555,7 +1620,7 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
 
   *vehicle_state = new_vehicle_state;
 
-  __visc__return(1, size_vehicle_state);
+  __hpvm__return(1, size_vehicle_state);
   //return new_vehicle_state;
 }
 
@@ -1634,27 +1699,27 @@ void closeout_vit_kernel()
 void execute_cv_wrapper(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
 			/* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
 {
-  __visc__hint(CPU_TARGET);
-  __visc__attributes(2, in_tr_val, out_label, 1, out_label);
+  __hpvm__hint(CPU_TARGET);
+  __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
   // associated with node function execute_cv_kernel
-  //void* EXEC_CV_node = __visc__createNodeND(1, execute_cv_kernel, (size_t)1); // 1-D with 1 instance
-  void* EXEC_CV_node = __visc__createNodeND(0, execute_cv_kernel);
+  //void* EXEC_CV_node = __hpvm__createNodeND(1, execute_cv_kernel, (size_t)1); // 1-D with 1 instance
+  void* EXEC_CV_node = __hpvm__createNodeND(0, execute_cv_kernel);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __visc__bindIn(EXEC_CV_node,  0,  0, 0); // in_tr_val -> EXEC_CV_node:in_tr_val
-  __visc__bindIn(EXEC_CV_node,  1,  1, 0); // in_tr_val_size -> EXEC_CV_node:in_tr_val_size
-  __visc__bindIn(EXEC_CV_node,  2,  2, 0); // out_label -> EXEC_CV_node:out_label
-  __visc__bindIn(EXEC_CV_node,  3,  3, 0); // out_label_size -> EXEC_CV_node:out_label_size
+  __hpvm__bindIn(EXEC_CV_node,  0,  0, 0); // in_tr_val -> EXEC_CV_node:in_tr_val
+  __hpvm__bindIn(EXEC_CV_node,  1,  1, 0); // in_tr_val_size -> EXEC_CV_node:in_tr_val_size
+  __hpvm__bindIn(EXEC_CV_node,  2,  2, 0); // out_label -> EXEC_CV_node:out_label
+  __hpvm__bindIn(EXEC_CV_node,  3,  3, 0); // out_label_size -> EXEC_CV_node:out_label_size
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(EXEC_CV_node, 0, 0, 0);
+  __hpvm__bindOut(EXEC_CV_node, 0, 0, 0);
 }
 
 
@@ -1662,30 +1727,30 @@ void execute_rad_wrapper(float * inputs, size_t input_size_bytes,
 			unsigned int input_N, unsigned int in_logn, int in_sign,
 			distance_t * distance, size_t dist_size)
 {
-  __visc__hint(CPU_TARGET);
-  __visc__attributes(2, inputs, distance, 1, distance);
+  __hpvm__hint(CPU_TARGET);
+  __hpvm__attributes(2, inputs, distance, 1, distance);
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
   // associated with node function execute_rad_kernel
-  //void* EXEC_RAD_node = __visc__createNodeND(1, execute_rad_kernel, (size_t)1); // 1-D with 1 instance
-  void* EXEC_RAD_node = __visc__createNodeND(0, execute_rad_kernel);
+  //void* EXEC_RAD_node = __hpvm__createNodeND(1, execute_rad_kernel, (size_t)1); // 1-D with 1 instance
+  void* EXEC_RAD_node = __hpvm__createNodeND(0, execute_rad_kernel);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __visc__bindIn(EXEC_RAD_node,  0,  0, 0); // inputs -> EXEC_RAD_node:inputs
-  __visc__bindIn(EXEC_RAD_node,  1,  1, 0); // input_size_bytes -> EXEC_RAD_node:input_size_bytes
-  __visc__bindIn(EXEC_RAD_node,  2,  2, 0); // input_N -> EXEC_RAD_node:input_N
-  __visc__bindIn(EXEC_RAD_node,  3,  3, 0); // in_logn -> EXEC_RAD_node:in_logn
-  __visc__bindIn(EXEC_RAD_node,  4,  4, 0); // in_sign -> EXEC_RAD_node:in_sign
-  __visc__bindIn(EXEC_RAD_node,  5,  5, 0); // distance -> EXEC_RAD_node:distance
-  __visc__bindIn(EXEC_RAD_node,  6,  6, 0); // dist_size -> EXEC_RAD_node:dist_size
+  __hpvm__bindIn(EXEC_RAD_node,  0,  0, 0); // inputs -> EXEC_RAD_node:inputs
+  __hpvm__bindIn(EXEC_RAD_node,  1,  1, 0); // input_size_bytes -> EXEC_RAD_node:input_size_bytes
+  __hpvm__bindIn(EXEC_RAD_node,  2,  2, 0); // input_N -> EXEC_RAD_node:input_N
+  __hpvm__bindIn(EXEC_RAD_node,  3,  3, 0); // in_logn -> EXEC_RAD_node:in_logn
+  __hpvm__bindIn(EXEC_RAD_node,  4,  4, 0); // in_sign -> EXEC_RAD_node:in_sign
+  __hpvm__bindIn(EXEC_RAD_node,  5,  5, 0); // distance -> EXEC_RAD_node:distance
+  __hpvm__bindIn(EXEC_RAD_node,  6,  6, 0); // dist_size -> EXEC_RAD_node:dist_size
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(EXEC_RAD_node, 0, 0, 0);
+  __hpvm__bindOut(EXEC_RAD_node, 0, 0, 0);
 }
 
 void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,   /*  1 */
@@ -1695,35 +1760,35 @@ void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size
 			 /*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
 			 /* 10 */ int num_msgs_to_decode)
 {
-  __visc__hint(CPU_TARGET);
-  __visc__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
+  __hpvm__hint(CPU_TARGET);
+  __hpvm__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message, 
 		     //2, out_msg_txt, out_message);
 		     1, out_message);
   
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
   // associated with node function execute_rad_kernel
-  void* EXEC_VIT_node = __visc__createNodeND(0, execute_vit_kernel);
+  void* EXEC_VIT_node = __hpvm__createNodeND(0, execute_vit_kernel);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __visc__bindIn(EXEC_VIT_node,  0,  0, 0); // ofdm_ptr -> EXEC_VIT_node::ofdm_ptr
-  __visc__bindIn(EXEC_VIT_node,  1,  1, 0); // ofdm_parm_size -> EXEC_VIT_node::ofdm_parm_size
-  __visc__bindIn(EXEC_VIT_node,  2,  2, 0); // frame_ptr -> EXEC_VIT_node::frame_ptr
-  __visc__bindIn(EXEC_VIT_node,  3,  3, 0); // frame_parm_size  -> EXEC_VIT_node::frame_parm_size
-  __visc__bindIn(EXEC_VIT_node,  4,  4, 0); // input_bits -> EXEC_VIT_node::input_bits
-  __visc__bindIn(EXEC_VIT_node,  5,  5, 0); // input_bits_size -> EXEC_VIT_node::input_bits_size
-  __visc__bindIn(EXEC_VIT_node,  6,  6, 0); // out_msg_txt -> EXEC_VIT_node::out_msg_txt
-  __visc__bindIn(EXEC_VIT_node,  7,  7, 0); // out_msg_txt_size -> EXEC_VIT_node::out_msg_txt_size
-  __visc__bindIn(EXEC_VIT_node,  8,  8, 0); // out_message -> EXEC_VIT_node::out_message
-  __visc__bindIn(EXEC_VIT_node,  9,  9, 0); // out_message_size -> EXEC_VIT_node::out_message_size
-  __visc__bindIn(EXEC_VIT_node, 10, 10, 0); // num_msgs_to_decode -> EXEC_VIT_node::num_msgs_to_decode
+  __hpvm__bindIn(EXEC_VIT_node,  0,  0, 0); // ofdm_ptr -> EXEC_VIT_node::ofdm_ptr
+  __hpvm__bindIn(EXEC_VIT_node,  1,  1, 0); // ofdm_parm_size -> EXEC_VIT_node::ofdm_parm_size
+  __hpvm__bindIn(EXEC_VIT_node,  2,  2, 0); // frame_ptr -> EXEC_VIT_node::frame_ptr
+  __hpvm__bindIn(EXEC_VIT_node,  3,  3, 0); // frame_parm_size  -> EXEC_VIT_node::frame_parm_size
+  __hpvm__bindIn(EXEC_VIT_node,  4,  4, 0); // input_bits -> EXEC_VIT_node::input_bits
+  __hpvm__bindIn(EXEC_VIT_node,  5,  5, 0); // input_bits_size -> EXEC_VIT_node::input_bits_size
+  __hpvm__bindIn(EXEC_VIT_node,  6,  6, 0); // out_msg_txt -> EXEC_VIT_node::out_msg_txt
+  __hpvm__bindIn(EXEC_VIT_node,  7,  7, 0); // out_msg_txt_size -> EXEC_VIT_node::out_msg_txt_size
+  __hpvm__bindIn(EXEC_VIT_node,  8,  8, 0); // out_message -> EXEC_VIT_node::out_message
+  __hpvm__bindIn(EXEC_VIT_node,  9,  9, 0); // out_message_size -> EXEC_VIT_node::out_message_size
+  __hpvm__bindIn(EXEC_VIT_node, 10, 10, 0); // num_msgs_to_decode -> EXEC_VIT_node::num_msgs_to_decode
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(EXEC_VIT_node, 0, 0, 0);
+  __hpvm__bindOut(EXEC_VIT_node, 0, 0, 0);
 }
 
 void plan_and_control_wrapper(/* 0 */ label_t* label,                 size_t size_label,    /* 1 */ 
@@ -1731,33 +1796,33 @@ void plan_and_control_wrapper(/* 0 */ label_t* label,                 size_t siz
 			      /* 4 */ message_t* message,             size_t size_message,  /* 5 */ 
 			      /* 6 */ vehicle_state_t* vehicle_state, size_t size_vehicle_state /* 7 */ )
 {
-  __visc__hint(CPU_TARGET);
-  __visc__attributes(4, label, distance, message, vehicle_state,
+  __hpvm__hint(CPU_TARGET);
+  __hpvm__attributes(4, label, distance, message, vehicle_state,
 		     1, vehicle_state);
   
   DEBUG(printf("In the plan_and_control wrapper : label %u %s distance %.1f message %u Lane %u Speed %.2f\n", 
 	       *label, object_names[*label], *distance, *message, vehicle_state->lane, vehicle_state->speed));
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node 
-  void* PLAN_CTL_node = __visc__createNodeND(0, plan_and_control);
+  void* PLAN_CTL_node = __hpvm__createNodeND(0, plan_and_control);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __visc__bindIn(PLAN_CTL_node,  0,  0, 0); // label -> PLAN_CTL_node::label
-  __visc__bindIn(PLAN_CTL_node,  1,  1, 0); // size_label -> PLAN_CTL_node::size_label
-  __visc__bindIn(PLAN_CTL_node,  2,  2, 0); // distance -> PLAN_CTL_node::distance
-  __visc__bindIn(PLAN_CTL_node,  3,  3, 0); // size_distance  -> PLAN_CTL_node::size_distance
-  __visc__bindIn(PLAN_CTL_node,  4,  4, 0); // message -> PLAN_CTL_node::message
-  __visc__bindIn(PLAN_CTL_node,  5,  5, 0); // size_message -> PLAN_CTL_node::size_message
-  __visc__bindIn(PLAN_CTL_node,  6,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
-  __visc__bindIn(PLAN_CTL_node,  7,  7, 0); // vehicle_state_size -> PLAN_CTL_node::vehicle_state_size
+  __hpvm__bindIn(PLAN_CTL_node,  0,  0, 0); // label -> PLAN_CTL_node::label
+  __hpvm__bindIn(PLAN_CTL_node,  1,  1, 0); // size_label -> PLAN_CTL_node::size_label
+  __hpvm__bindIn(PLAN_CTL_node,  2,  2, 0); // distance -> PLAN_CTL_node::distance
+  __hpvm__bindIn(PLAN_CTL_node,  3,  3, 0); // size_distance  -> PLAN_CTL_node::size_distance
+  __hpvm__bindIn(PLAN_CTL_node,  4,  4, 0); // message -> PLAN_CTL_node::message
+  __hpvm__bindIn(PLAN_CTL_node,  5,  5, 0); // size_message -> PLAN_CTL_node::size_message
+  __hpvm__bindIn(PLAN_CTL_node,  6,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __hpvm__bindIn(PLAN_CTL_node,  7,  7, 0); // vehicle_state_size -> PLAN_CTL_node::vehicle_state_size
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(PLAN_CTL_node, 0, 0, 0);
+  __hpvm__bindOut(PLAN_CTL_node, 0, 0, 0);
 }
 
 
@@ -1804,29 +1869,29 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
 		 )
 {
   //Specifies compilation target for current node
-  __visc__hint(CPU_TARGET);
+  __hpvm__hint(CPU_TARGET);
 
   // Specifies pointer arguments that will be used as "in" and "out" arguments
   // - count of "in" arguments
   // - list of "in" argument , and similar for "out"
-  __visc__attributes(11, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
+  __hpvm__attributes(11, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
 		         ofdm_ptr, frame_ptr, vit_in_bits, vit_out_msg_txt, vit_out_msg,
 		         vehicle_state,
 		     1, vehicle_state);          // - count of "out" arguments, list of "out" arguments
   //                 3, radar_distance, vit_out_msg_txt, vit_out_msg);          // - count of "out" arguments, list of "out" arguments
 
   // FFT Node
-  //void* EXEC_RAD_node = __visc__createNodeND(0, execute_rad_kernel);
-  void* RAD_wrap_node = __visc__createNodeND(0, execute_rad_wrapper);
+  //void* EXEC_RAD_node = __hpvm__createNodeND(0, execute_rad_kernel);
+  void* RAD_wrap_node = __hpvm__createNodeND(0, execute_rad_wrapper);
 
   // Viterbi Node
-  void* VIT_wrap_node = __visc__createNodeND(0, execute_vit_wrapper);
+  void* VIT_wrap_node = __hpvm__createNodeND(0, execute_vit_wrapper);
 
   // CV Nodes
-  void* CV_wrap_node = __visc__createNodeND(0, execute_cv_wrapper);
+  void* CV_wrap_node = __hpvm__createNodeND(0, execute_cv_wrapper);
 
   // Plan and Control Node
-  void* PLAN_CTL_wrap = __visc__createNodeND(0, plan_and_control_wrapper);
+  void* PLAN_CTL_wrap = __hpvm__createNodeND(0, plan_and_control_wrapper);
 
   // BindIn binds inputs of current node with specified node
   // - destination node
@@ -1837,55 +1902,55 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   // Edge transfers data between nodes within the same level of hierarchy.
   // - source and destination dataflow nodes
   // - edge type, all-all (1) or one-one(0)
-  // - source position (in output struct of source node, i.e. __visc__return() statement)
+  // - source position (in output struct of source node, i.e. __hpvm__return() statement)
   // - destination position (in argument list of destination node function parameters)
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
-  __visc__bindIn(RAD_wrap_node,  0,  0, 0); // radar_data -> RAD_wrap_node:radar_data
-  __visc__bindIn(RAD_wrap_node,  1,  1, 0); // bytes_radar_data -> RAD_wrap_node:bytes_radar_data
-  __visc__bindIn(RAD_wrap_node,  2,  2, 0); // radar_N -> RAD_wrap_node:radar_N
-  __visc__bindIn(RAD_wrap_node,  3,  3, 0); // radar_logn -> RAD_wrap_node:radar_logn
-  __visc__bindIn(RAD_wrap_node,  4,  4, 0); // radar_sign -> RAD_wrap_node:radar_sign
-  __visc__bindIn(RAD_wrap_node,  5,  5, 0); // radar_distance -> RAD_wrap_node:radar_distance
-  __visc__bindIn(RAD_wrap_node,  6,  6, 0); // bytes_radar_dist -> RAD_wrap_node:bytes_radar_dist
+  __hpvm__bindIn(RAD_wrap_node,  0,  0, 0); // radar_data -> RAD_wrap_node:radar_data
+  __hpvm__bindIn(RAD_wrap_node,  1,  1, 0); // bytes_radar_data -> RAD_wrap_node:bytes_radar_data
+  __hpvm__bindIn(RAD_wrap_node,  2,  2, 0); // radar_N -> RAD_wrap_node:radar_N
+  __hpvm__bindIn(RAD_wrap_node,  3,  3, 0); // radar_logn -> RAD_wrap_node:radar_logn
+  __hpvm__bindIn(RAD_wrap_node,  4,  4, 0); // radar_sign -> RAD_wrap_node:radar_sign
+  __hpvm__bindIn(RAD_wrap_node,  5,  5, 0); // radar_distance -> RAD_wrap_node:radar_distance
+  __hpvm__bindIn(RAD_wrap_node,  6,  6, 0); // bytes_radar_dist -> RAD_wrap_node:bytes_radar_dist
 
-  __visc__bindIn(VIT_wrap_node,  7,  0, 0); // ofdm_ptr -> VIT_wrap_node:ofdm_ptr
-  __visc__bindIn(VIT_wrap_node,  8,  1, 0); // bytes_ofdm_parm -> VIT_wrap_node:bytes_ofdm_parm
-  __visc__bindIn(VIT_wrap_node,  9,  2, 0); // frame_ptr -> VIT_wrap_node:frame_ptr
-  __visc__bindIn(VIT_wrap_node, 10,  3, 0); // bytes_frame_parm -> VIT_wrap_node:bytes_frame_parm
-  __visc__bindIn(VIT_wrap_node, 11,  4, 0); // vit_in_bits -> VIT_wrap_node:vit_in_bits
-  __visc__bindIn(VIT_wrap_node, 12,  5, 0); // bytes_vit_in_bits -> VIT_wrap_node:bytes_vit_in_bits
-  __visc__bindIn(VIT_wrap_node, 13,  6, 0); // vit_out_msg_txt -> VIT_wrap_node:vit_out_msg_txt
-  __visc__bindIn(VIT_wrap_node, 14,  7, 0); // bytes_vit_out_msg_txt -> VIT_wrap_node:bytes_vit_out_msg_txt
-  __visc__bindIn(VIT_wrap_node, 15,  8, 0); // vit_out_msg -> VIT_wrap_node:vit_out_msg
-  __visc__bindIn(VIT_wrap_node, 16,  9, 0); // bytes_vit_out_msg -> VIT_wrap_node:bytes_vit_out_msg
-  __visc__bindIn(VIT_wrap_node, 17, 10, 0); // num_msgs_to_decode -> VIT_wrap_node:num_msgs_to_decode
+  __hpvm__bindIn(VIT_wrap_node,  7,  0, 0); // ofdm_ptr -> VIT_wrap_node:ofdm_ptr
+  __hpvm__bindIn(VIT_wrap_node,  8,  1, 0); // bytes_ofdm_parm -> VIT_wrap_node:bytes_ofdm_parm
+  __hpvm__bindIn(VIT_wrap_node,  9,  2, 0); // frame_ptr -> VIT_wrap_node:frame_ptr
+  __hpvm__bindIn(VIT_wrap_node, 10,  3, 0); // bytes_frame_parm -> VIT_wrap_node:bytes_frame_parm
+  __hpvm__bindIn(VIT_wrap_node, 11,  4, 0); // vit_in_bits -> VIT_wrap_node:vit_in_bits
+  __hpvm__bindIn(VIT_wrap_node, 12,  5, 0); // bytes_vit_in_bits -> VIT_wrap_node:bytes_vit_in_bits
+  __hpvm__bindIn(VIT_wrap_node, 13,  6, 0); // vit_out_msg_txt -> VIT_wrap_node:vit_out_msg_txt
+  __hpvm__bindIn(VIT_wrap_node, 14,  7, 0); // bytes_vit_out_msg_txt -> VIT_wrap_node:bytes_vit_out_msg_txt
+  __hpvm__bindIn(VIT_wrap_node, 15,  8, 0); // vit_out_msg -> VIT_wrap_node:vit_out_msg
+  __hpvm__bindIn(VIT_wrap_node, 16,  9, 0); // bytes_vit_out_msg -> VIT_wrap_node:bytes_vit_out_msg
+  __hpvm__bindIn(VIT_wrap_node, 17, 10, 0); // num_msgs_to_decode -> VIT_wrap_node:num_msgs_to_decode
 
-  __visc__bindIn(CV_wrap_node, 18, 0, 0); // label -> CV_wrap_node:in_tr_val
-  __visc__bindIn(CV_wrap_node, 19, 1, 0); // label_size -> CV_wrap_node:in_tr_val_size
-  __visc__bindIn(CV_wrap_node, 18, 2, 0); // label -> CV_wrap_node:out_label
-  __visc__bindIn(CV_wrap_node, 19, 3, 0); // label_size -> CV_wrap_node:out_label_size
+  __hpvm__bindIn(CV_wrap_node, 18, 0, 0); // label -> CV_wrap_node:in_tr_val
+  __hpvm__bindIn(CV_wrap_node, 19, 1, 0); // label_size -> CV_wrap_node:in_tr_val_size
+  __hpvm__bindIn(CV_wrap_node, 18, 2, 0); // label -> CV_wrap_node:out_label
+  __hpvm__bindIn(CV_wrap_node, 19, 3, 0); // label_size -> CV_wrap_node:out_label_size
 
   // Use bindIn for the label (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __visc__bindIn(PLAN_CTL_wrap, 18,  0, 0); // out_label -> PLAN_CTL_node::label
-  __visc__edge(CV_wrap_node, PLAN_CTL_wrap, 1, 0, 1, 0); // RAD_wrap_node::out_label_size output -> PLAN_CTL_wrap::size_label
+  __hpvm__bindIn(PLAN_CTL_wrap, 18,  0, 0); // out_label -> PLAN_CTL_node::label
+  __hpvm__edge(CV_wrap_node, PLAN_CTL_wrap, 1, 0, 1, 0); // RAD_wrap_node::out_label_size output -> PLAN_CTL_wrap::size_label
 
   // Use bindIn for the distance (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __visc__bindIn(PLAN_CTL_wrap,  5,  2, 0); // radar_distance -> PLAN_CTL_wrap:radar_distance
-  __visc__edge(RAD_wrap_node, PLAN_CTL_wrap, 1, 0, 3, 0); // RAD_wrap_node::dist_size ouput -> PLAN_CTL_wrap::distance input
+  __hpvm__bindIn(PLAN_CTL_wrap,  5,  2, 0); // radar_distance -> PLAN_CTL_wrap:radar_distance
+  __hpvm__edge(RAD_wrap_node, PLAN_CTL_wrap, 1, 0, 3, 0); // RAD_wrap_node::dist_size ouput -> PLAN_CTL_wrap::distance input
 
   // Use bindIn for the vit_out_msg (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __visc__bindIn(PLAN_CTL_wrap, 15,  4, 0); // vit_out_msg -> PLAN_CTL_wrap::message input  
-  __visc__edge(VIT_wrap_node, PLAN_CTL_wrap, 1, 0, 5, 0); // VIT_wrap_node::out_message -> PLAN_CTL_wrap::message input
+  __hpvm__bindIn(PLAN_CTL_wrap, 15,  4, 0); // vit_out_msg -> PLAN_CTL_wrap::message input  
+  __hpvm__edge(VIT_wrap_node, PLAN_CTL_wrap, 1, 0, 5, 0); // VIT_wrap_node::out_message -> PLAN_CTL_wrap::message input
 
-  __visc__bindIn(PLAN_CTL_wrap, 20,  6, 0); // vehicle_state -> PLAN_CTL_wrap::vehicle_state
-  __visc__bindIn(PLAN_CTL_wrap, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_wrap::size_vehicle_state
-  //__visc__edge(PLAN_CTL_wrap, PLAN_CTL_wrap, 1, 0, 7, 0); // PLAN_CTL_wrap::size_vehicle_stat -> PLAN_CTL_wrap::size_vehicle_state
+  __hpvm__bindIn(PLAN_CTL_wrap, 20,  6, 0); // vehicle_state -> PLAN_CTL_wrap::vehicle_state
+  __hpvm__bindIn(PLAN_CTL_wrap, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_wrap::size_vehicle_state
+  //__hpvm__edge(PLAN_CTL_wrap, PLAN_CTL_wrap, 1, 0, 7, 0); // PLAN_CTL_wrap::size_vehicle_stat -> PLAN_CTL_wrap::size_vehicle_state
   
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __visc__bindOut(PLAN_CTL_wrap, 0, 0, 0);  // Output is just the new vehicle_state
+  __hpvm__bindOut(PLAN_CTL_wrap, 0, 0, 0);  // Output is just the new vehicle_state
 }
 
 
@@ -2024,7 +2089,7 @@ int main(int argc, char *argv[])
   RootIn* rootArgs = (RootIn*) malloc(sizeof(RootIn));
 
   /* Initialize the HPVM environment, etc. (Only done once) */
-  __visc__init();
+  __hpvm__init();
 
   /* Declare memories used in the while loop but tracked by HPVM */
   // Memory tracking is required for pointer arguments.
@@ -2033,8 +2098,8 @@ int main(int argc, char *argv[])
   // The pair (pointer, size) is inserted in memory tracker using this call
   float radar_input[2*RADAR_N];
   distance_t radar_distance;
-  llvm_visc_track_mem(radar_input, 8*RADAR_N);
-  llvm_visc_track_mem(&radar_distance, sizeof(float));
+  llvm_hpvm_track_mem(radar_input, 8*RADAR_N);
+  llvm_hpvm_track_mem(&radar_distance, sizeof(float));
   
   ofdm_param  xfer_ofdm;
   frame_param xfer_frame;
@@ -2042,16 +2107,16 @@ int main(int argc, char *argv[])
   char        vit_msg_txt[1600];
   message_t   vit_message;
 
-  llvm_visc_track_mem(&xfer_ofdm, sizeof(ofdm_param));
-  llvm_visc_track_mem(&xfer_frame, sizeof(frame_param));
-  llvm_visc_track_mem(xfer_vit_inputs, MAX_ENCODED_BITS);
+  llvm_hpvm_track_mem(&xfer_ofdm, sizeof(ofdm_param));
+  llvm_hpvm_track_mem(&xfer_frame, sizeof(frame_param));
+  llvm_hpvm_track_mem(xfer_vit_inputs, MAX_ENCODED_BITS);
 
-  llvm_visc_track_mem(vit_msg_txt, 1600);
-  llvm_visc_track_mem(&vit_message, sizeof(message_t));
+  llvm_hpvm_track_mem(vit_msg_txt, 1600);
+  llvm_hpvm_track_mem(&vit_message, sizeof(message_t));
 
   label_t cv_infer_label;
-  llvm_visc_track_mem(&cv_infer_label, sizeof(label_t));
-  llvm_visc_track_mem(&vehicle_state, sizeof(vehicle_state_t));
+  llvm_hpvm_track_mem(&cv_infer_label, sizeof(label_t));
+  llvm_hpvm_track_mem(&vehicle_state, sizeof(vehicle_state_t));
   
   int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
 
@@ -2157,14 +2222,14 @@ int main(int argc, char *argv[])
     //        AND the Viterbi computation...
     //        AND the Plan-and-Control function
 
-    void* doExecPlanControlDFG = __visc__launch(0, miniERARoot, (void*) rootArgs);
-    __visc__wait(doExecPlanControlDFG);
+    void* doExecPlanControlDFG = __hpvm__launch(0, miniERARoot, (void*) rootArgs);
+    __hpvm__wait(doExecPlanControlDFG);
 
     // Request data from graph.
-    llvm_visc_request_mem(&radar_distance, sizeof(float));
-    //llvm_visc_request_mem(&vit_msg_txt, 1600); 
-    llvm_visc_request_mem(&vit_message, sizeof(message_t));
-    llvm_visc_request_mem(&vehicle_state, sizeof(vehicle_state_t));
+    llvm_hpvm_request_mem(&radar_distance, sizeof(float));
+    //llvm_hpvm_request_mem(&vit_msg_txt, 1600); 
+    llvm_hpvm_request_mem(&vit_message, sizeof(message_t));
+    llvm_hpvm_request_mem(&vehicle_state, sizeof(vehicle_state_t));
     
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
@@ -2202,20 +2267,20 @@ int main(int argc, char *argv[])
   #endif
 
   // Remove tracked pointers.
-  llvm_visc_untrack_mem(radar_input);
-  llvm_visc_untrack_mem(&radar_distance);
+  llvm_hpvm_untrack_mem(radar_input);
+  llvm_hpvm_untrack_mem(&radar_distance);
 
-  llvm_visc_untrack_mem(&xfer_ofdm);
-  llvm_visc_untrack_mem(&xfer_frame);
-  llvm_visc_untrack_mem(xfer_vit_inputs);
+  llvm_hpvm_untrack_mem(&xfer_ofdm);
+  llvm_hpvm_untrack_mem(&xfer_frame);
+  llvm_hpvm_untrack_mem(xfer_vit_inputs);
 
-  llvm_visc_untrack_mem(vit_msg_txt);
-  llvm_visc_untrack_mem(&vit_message);
+  llvm_hpvm_untrack_mem(vit_msg_txt);
+  llvm_hpvm_untrack_mem(&vit_message);
 
-  llvm_visc_track_mem(&cv_infer_label, sizeof(label_t));
-  llvm_visc_untrack_mem(&vehicle_state);
+  llvm_hpvm_track_mem(&cv_infer_label, sizeof(label_t));
+  llvm_hpvm_untrack_mem(&vehicle_state);
 
-  __visc__cleanup();
+  __hpvm__cleanup();
 
   printf("\nDone.\n");
   return 0;
