@@ -4,7 +4,11 @@
 # Paths to some dependencies (e.g., HPVM, LLVM) must exist in Makefile.config,
 # which can be copied from Makefile.config.example for a start.
 
-CONFIG_FILE := /home/aejjeh/work_dir/hpvm-dssoc/hpvm/test/benchmarks/include/Makefile.config
+ifeq ($(HPVM_DIR),)
+    $(error HPVM_DIR must be set!)
+endif
+
+CONFIG_FILE := $(HPVM_DIR)/test/benchmarks/include/Makefile.config
 
 ifeq ($(wildcard $(CONFIG_FILE)),)
     $(error $(CONFIG_FILE) not found. See $(CONFIG_FILE).example)
@@ -92,7 +96,7 @@ epochs: $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE)
 
 $(EPOCHSEXE) : $(EPOCHS_LINKED)
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
-	/home/aejjeh/work_dir/riscv/bin/riscv64-unknown-linux-gnu-g++ test.o -o $@ -L$(ESP_DIR)/contig_alloc -L$(ESP_DIR)/libesp -L$(ESP_DIR)/test -lm -lrt -lpthread -lesp -ltest -lcontig -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -L$(ESP_DIR)/contig_alloc -L$(ESP_DIR)/libesp -L$(ESP_DIR)/test -lm -lrt -lpthread -lesp -ltest -lcontig -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EPOCHS_LINKED) : $(EPOCHS_HOST) $(OBJS) $(HPVM_RT_LIB)
@@ -105,7 +109,7 @@ $(EPOCHS_HOST) : $(HOST)
 
 $(RISCVEXE) : $(HOST_LINKED)
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
-	/home/aejjeh/work_dir/riscv/bin/riscv64-unknown-linux-gnu-g++ test.o -o $@ -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EXE) : $(HOST_LINKED)
