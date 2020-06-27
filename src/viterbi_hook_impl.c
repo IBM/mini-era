@@ -30,7 +30,6 @@ static unsigned out_size;
 static unsigned out_offset;
 static unsigned size;
 
-#include "do_decoding.c" 
 
 /* User-defined code */
 static void init_parameters()
@@ -51,7 +50,7 @@ static void init_parameters()
 }
 
 
-void viterbi_hook()(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory)
+void do_decoding_hook(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory)
 {
 
 	int errors;

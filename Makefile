@@ -102,20 +102,23 @@ $(EPOCHSEXE) : $(EPOCHS_LINKED)
 	@echo -e ${RED}First clang is used to generate object file${NC}
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
 	@echo -e ${RED}Then gcc cross-compiler is used to link the binary \(linking with ESP libraries required\)${NC}
-	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -LlibESP -lm -lrt -lpthread -lesp -ltest -lcontig -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -LESP/lib -lm -lrt -lpthread -lesp -ltest -lcontig -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EPOCHS_LINKED) : $(EPOCHS_HOST) $(OBJS) $(HPVM_RT_LIB)
 	@echo -e ${RED}Compile hook function that contains invocation for accelerator${NC}
-	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/fft_hook_impl.c -I$(ESP_DIR)/include -o $(BUILD_DIR)/fft_hook.ll
+	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/fft_hook_impl.c -IESP/include -o $(BUILD_DIR)/fft_hook.ll
+	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/viterbi_hook_impl.c -IESP/include -o $(BUILD_DIR)/viterbi_hook.ll
 	@echo -e ${RED}Link main application with hook function, other necessary object files, and HPVM runtime library${NC}
-	$(LLVM_LINK) $^ $(BUILD_DIR)/fft_hook.ll -S -o $@
+	$(LLVM_LINK) $^ $(BUILD_DIR)/fft_hook.ll $(BUILD_DIR)/viterbi_hook.ll -S -o $@
 
 $(EPOCHS_HOST) : $(HOST)
 	@echo -e ${RED}Generate .ll file for accelerator spec, to be used by matching pass for accelerator code-gen${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/fft_spec.c -o $(BUILD_DIR)/fft_spec.ll
+	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/viterbi_spec.c -o $(BUILD_DIR)/viterbi_spec.ll
 	@echo -e ${RED}Run accelerator code-gen pass to replace calls to software functions with calls to hook functions that invoke the accelerator${NC}
-	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
+	$(OPT) -S -load $(ESP_MATCHER_PATH)/LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
+	$(OPT) -S -load $(ESP_MATCHER_PATH)/LLVMesp_codegen.so -esp_codegen $@ --targetspec $(BUILD_DIR)/viterbi_spec.ll:do_decoding -o $@ 
 
 $(RISCVEXE) : $(HOST_LINKED)
 	@echo -e ${RED}Cross-compiling linked module for RISCV${NC}
