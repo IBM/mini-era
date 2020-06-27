@@ -57,7 +57,7 @@ CFLAGS = -O1 $(APP_CFLAGS) $(PLATFORM_CFLAGS)
 OBJS_CFLAGS = -O1 $(APP_CFLAGS) $(PLATFORM_CFLAGS)
 LDFLAGS= $(APP_LDFLAGS) $(PLATFORM_LDFLAGS)
 
-HPVM_RT_PATH = $(LLVM_SRC_ROOT)/../build/tools/hpvm/projects/hpvm-rt
+HPVM_RT_PATH = $(LLVM_BUILD_DIR)/tools/hpvm/projects/hpvm-rt
 
 HPVM_RT_LIB = $(HPVM_RT_PATH)/hpvm-rt.bc
 
@@ -105,7 +105,7 @@ $(EPOCHS_LINKED) : $(EPOCHS_HOST) $(OBJS) $(HPVM_RT_LIB)
 
 $(EPOCHS_HOST) : $(HOST)
 	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/fft_spec.c -o $(BUILD_DIR)/fft_spec.ll
-	$(OPT) -S -load $(ESP_MATCHER_PATH)/LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
+	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
 
 $(RISCVEXE) : $(HOST_LINKED)
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
