@@ -468,16 +468,30 @@ label_t run_object_classification(unsigned tr_val)
 }
 
 
+
+
 void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
 		       /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
 {
+  
   __hpvm__hint(DEVICE);
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
-  /* 2) Conduct object detection on the image frame */
+  // FIXIT: remove old code later
+  /*
   // Should replace with nodes generated from DNN compiled from Keras here?
-  *out_label = run_object_classification(*in_tr_val);
-  
+  *out_label = run_object_classification(*in_tr_val)
+  */
+
+  // FIXIT: send the image passed through by in_tr_val instead of fixed image
+  // FIXIT: call proper DNN - not LeNet-Mnist
+  label_t object;
+  system("ls");
+  system("./nvdla_runtime  --loadable  hpvm-mod_newint8.nvdla  --image 0000-7.pgm  --rawdump");        
+
+  // FIXIT: return proper label after parsing output.dimg output of NVDLA
+  *out_label = object;
+ 
   __hpvm__return(1, out_label_size);
 }
 
