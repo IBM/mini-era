@@ -91,7 +91,7 @@ $(EPOCHSEXE) : $(EPOCHS_LINKED)
 	@echo -e ${RED}1\) Use Clang to generate object file${NC}
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
 	@echo -e ${RED}Cross-compiling for RISCV: 2\) Use GCC cross-compiler to link the binary \(linking with ESP libraries required\)${NC}
-	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -LESP/lib -lm -lrt -lpthread -lesp -ltest -lcontig -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -LESP/lib -lm -lrt -lpthread -lesp -ltest -lcontig -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EPOCHS_LINKED) : $(EPOCHS_HOST) $(OBJS) $(HPVM_RT_LIB)
