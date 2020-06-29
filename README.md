@@ -7,7 +7,7 @@ This is the HPVM port of the Mini-ERA workload.
 Mini-ERA-HPVM Requirements:
 
 - HPVM (internal repository branch `hpvm-epochs0` located [here](https://gitlab.engr.illinois.edu/llvm/hpvm/-/tree/hpvm-epochs0))
-    * Refer to [README](https://gitlab.engr.illinois.edu/llvm/hpvm/-/blob/hpvm-epochs0/README.md) for set up instructions.
+    * Refer to [HPVM README](https://gitlab.engr.illinois.edu/llvm/hpvm/-/blob/hpvm-epochs0/README.md) for set up instructions.
     *Note: During installation, make sure target is set to X86;RISCV*
 - GCC cross compiler for riscv, can be installed using ESP as follows:
     * Clone ESP repository using: `git clone --recursive https://github.com/sld-columbia/esp.git`
