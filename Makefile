@@ -106,11 +106,11 @@ $(EPOCHS_HOST) : $(HOST)
 	@echo -e ${RED}Generate .ll file for accelerator spec: fft_spec.c${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/fft_spec.c -o $(BUILD_DIR)/fft_spec.ll
 	@echo -e ${RED}Accelerator code-gen for: fft_spec.ll${NC}
-	$(OPT) -S -load $(ESP_MATCHER_PATH)/LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
+	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
 	@echo -e ${RED}Generate .ll file for accelerator spec: viterbi_spec.c${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/viterbi_spec.c -o $(BUILD_DIR)/viterbi_spec.ll
 	@echo -e ${RED}Accelerator code-gen for: viterbi_spec.ll${NC}
-	$(OPT) -S -load $(ESP_MATCHER_PATH)/LLVMesp_codegen.so -esp_codegen $@ --targetspec $(BUILD_DIR)/viterbi_spec.ll:do_decoding -o $@ 
+	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $@ --targetspec $(BUILD_DIR)/viterbi_spec.ll:do_decoding -o $@ 
 
 $(RISCVEXE) : $(HOST_LINKED)
 	@echo -e -n ${RED}Cross-compiling for RISCV: ${NC}
