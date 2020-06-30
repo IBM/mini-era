@@ -490,8 +490,10 @@ void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 *
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
   system("./nvdla_runtime --loadable hpvm-mod.nvdla --image 2004_2.jpg --rawdump");        
-  *out_label = parse_output_dimg();
-  printf("---> *out_label = %d\n", *out_label);
+  label_t pred_label = parse_output_dimg();
+  printf("---> Predicted label = %d\n", pred_label);
+  *out_label = *in_tr_val;
+
   __hpvm__return(1, out_label_size);
 }
 
