@@ -468,7 +468,19 @@ label_t run_object_classification(unsigned tr_val)
 }
 
 
-
+static inline label_t parse_output_dimg() {
+  FILE *file_p = fopen("./output.dimg", "r");
+	const size_t n_classes = 5;
+  float probs[n_classes];
+  for (size_t i = 0; i< n_classes; i++)
+    fscanf(file_p, "%f", &probs[i]);
+  float max_val = 0.0f;
+  size_t max_idx = -1;
+  for (size_t i = 0; i < n_classes; i++)
+    if (probs[i] > max_val)
+      max_val = probs[i], max_idx = i;
+  return max_idx;
+}
 
 void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
 		       /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */)
@@ -477,21 +489,9 @@ void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 *
   __hpvm__hint(DEVICE);
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
-  // FIXIT: remove old code later
-  /*
-  // Should replace with nodes generated from DNN compiled from Keras here?
-  *out_label = run_object_classification(*in_tr_val)
-  */
-
-  // FIXIT: send the image passed through by in_tr_val instead of fixed image
-  // FIXIT: call proper DNN - not LeNet-Mnist
-  label_t object;
-  system("ls");
-  system("./nvdla_runtime  --loadable  hpvm-mod_newint8.nvdla  --image 0000-7.pgm  --rawdump");        
-
-  // FIXIT: return proper label after parsing output.dimg output of NVDLA
-  *out_label = object;
- 
+  system("./nvdla_runtime --loadable hpvm-miniera_int8.nvdla --image 2004_2.jpg --rawdump");        
+  *out_label = parse_output_dimg();
+  printf("---> *out_label = %d\n", *out_label);
   __hpvm__return(1, out_label_size);
 }
 
