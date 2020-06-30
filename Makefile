@@ -8,12 +8,18 @@ ifeq ($(HPVM_DIR),)
     $(error HPVM_DIR must be set!)
 endif
 
+ifeq ($(APPROXHPVM_DIR),)
+    $(error APPROXHPVM_DIR must be set!)
+endif
+
 CONFIG_FILE := $(HPVM_DIR)/test/benchmarks/include/Makefile.config
 
 ifeq ($(wildcard $(CONFIG_FILE)),)
     $(error $(CONFIG_FILE) not found. See $(CONFIG_FILE).example)
 endif
 include $(CONFIG_FILE)
+
+CUR_DIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 # Compiler Flags
 
@@ -72,6 +78,9 @@ EPOCHS_HOST = $(BUILD_DIR)/$(APP).host.epochs.ll
 HOST_LINKED = $(BUILD_DIR)/$(APP).linked.ll
 EPOCHS_LINKED = $(BUILD_DIR)/$(APP).linked.epochs.ll
 
+NVDLA_MODULE = hpvm-mod.nvdla
+NVDLA_DIR = $(APPROXHPVM_DIR)/llvm/test/VISC/DNN_Benchmarks/benchmarks/miniera-hpvm
+
 ifeq ($(OPENCL_PATH),)
 FAILSAFE=no_opencl
 else 
@@ -85,6 +94,11 @@ NC='\033[0m'
 default: $(FAILSAFE) $(BUILD_DIR) $(EXE)
 riscv: $(FAILSAFE) $(BUILD_DIR) $(RISCVEXE)
 epochs: $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE)
+epochs-nvdla: $(NVDLA_MODULE) $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE) 
+
+$(NVDLA_MODULE):
+	@echo -e ${RED}Compiling HPVM Module for NVDLA${NC}
+	@cd $(APPROXHPVM_DIR)/llvm/test/VISC/DNN_Benchmarks/benchmarks/miniera-hpvm && bash set_paths.sh && make && cp $(NVDLA_MODULE) $(CUR_DIR)
 
 $(EPOCHSEXE) : $(EPOCHS_LINKED)
 	@echo -e -n ${RED}Cross-compiling for RISCV: ${NC}
@@ -152,4 +166,5 @@ clean:
 	if [ -f "$(EXE)" ]; then rm $(EXE); fi
 	if [ -f "$(EPOCHSEXE)" ]; then rm $(EPOCHSEXE); fi
 	if [ -f "$(RISCVEXE)" ]; then rm $(RISCVEXE); fi
+	if [ -f "$(NVDLA_MODULE)" ]; then rm $(NVDLA_MODULE); fi
 ## END HPVM MAKEFILE
