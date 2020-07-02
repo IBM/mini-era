@@ -2,7 +2,21 @@
 
 This is a top-level driver for the Mini-ERA workload.
 
-## Requirements
+The Mini-ERA serves as a simplified but still representative workload for Colaborative Autonomous Vehicles, intended to drive the
+EPOCHS full system design and development methodology in lieu of the full ERA workload.  As such, Mini-ERA is under continuous
+development and extension.
+
+Currently, Mini-ERA contains a number of kernels, and a decision module (used to update the autonomous vehicle's state).
+The main kernels modules currently implemented are:
+ - The "Radar" kernel, used to model the radar range-finding to the nearest obstacle in a given lane (usually the lane in which the autonomous vehicle is travelling)
+ - The Viterbi Decoder kernel, which is used to decode messages received (presumably via Wi-Fi connection of some sort)
+ - An H264 decoder, used to decode the input frames from the onboard camera in order to send them through the CV/CNN module
+ - The CV/CNN (Computer Vision Object Recognition and Labeling) Module, which identifies the type of obstacle in a given lane, and
+
+Recall that Min-ERA is a simplified representative workload set, so the code expresses the proper functionality for the kernels,
+but does not implement a truly functional, full autonomous driving system; that is the domain of the larger ERA workload.
+
+## System Requirements
 
 Mini-ERA has been successfully built and executed using the following set-up:
  - Ubuntu 18.04
@@ -45,7 +59,10 @@ Usage: ./cmain.exe <OPTIONS>
     -R <file>  : defines the input Radar dictionary file <file> to use
     -V <file>  : defines the input Viterbi dictionary file <file> to use
     -C <file>  : defines the input CV/CNN dictionary file <file> to use
+    -H <file>  : defines the input H264 dictionary file <file> to use
+    -b         : Bypass (do not use) the H264 functions in this run.
     -t <trace> : defines the input trace file <trace> to use
+    -p <N>     : defines the plan-and-control repeat factor (calls per time step -- default is 1)
     -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks
                :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.
     -n <N>     : defines number of Viterbi messages per time step behavior:
@@ -65,25 +82,41 @@ Mini-ERA also supports a number of other targets.  One can build these individua
 ```
 make all
 ```
+If one is compiling on a system that does not include the full support for the CV/CNN (Keras, Tensorflow) model, then
+one can restrict the build to only produce the Mini-ERA executables that do not utilize those resources.  This is referred to as
+the C-subset, or the C-version Mini-ERA (as it does not includethe other languages used in defining the CNN model, etc.).  To build
+this set of Mini-ERA executables, the easiest method is to build the "cver" target:
+``` make cver
+```
 
-The primary update is that Mini-ERA now supports two modes of execution: 
+
+Mini-ERA supports two modes of execution: 
  - a trace-driven mode (the "classic" mode) where the simulation is driven by an input trace of obstacle positions per simulation time step 
  - a new, developing mode which uses on-board environment simulation to both introduce new obstacle vehicles and track the positions, etc. during simulation
 This new simulation version is developed from the trace generation utility, and provides a greater range of behaviors to the autonomous vehicle ("red car") during a Mini-ERA run.
 
-The ```make all``` command should compile a number of targets:
+The ```make all``` command should compile a number of targets, including:
  - The default, trace-driven Mini-ERA:
    - main.exe : the trace-driven Mini-ERA
    - vmain.exe : trace-driven Mini-ERA in "verbose" mode (includes debug output)
  - The trace-driven Mini-ERA with no use of Keras/Python code:
    - cmain.exe : the trace-driven Mini-ERA with no use of Keras/Python code
-   - vcmain.exe : the trace-driven Mini-ERA in "verbose" mode, with no use of Keras/Python code 
+   - fcmain.exe : the trace-driven Mini-ERA with no use of Keras/Python code and using hte "viterbi_flat" Viterbi implementation
+   - gp_cmain.exe : the trace-driven Mini-ERA without CNN, and set up for ```gprof``` profiling
+   - it-cmain.exe : the cmain.exe Mini-ERA with support for timing the execution of various elements (and report the timing)
+   - it-fcmain.exe : the fcmain.exe Mini-ERA with support for timing the execution of various elements (and report the timing)
+   - vcmain.exe : the trace-driven cmain.exe Mini-ERA in "verbose" mode, with no use of Keras/Python code 
+   - vfcmain.exe : the trace-driven fcmain.exe Mini-ERA in "verbose" mode, with no use of Keras/Python code 
  - The default, trace-driven Mini-ERA:
    - sim_main.exe : the base Mini-ERA code running in a simulation (not trace-driven) mode
    - vsim_main.exe : the simulation-mode Mini-ERA in "verbose" mode (includes debug output)
  - The default, trace-driven Mini-ERA:
    - csim_main.exe : the simulation-mode Mini-ERA with no use of Keras/Python code
+   - fcsim_main.exe : the simulation-mode Mini-ERA with no use of Keras/Python code, using the "viterbi_flat" Viterbi code
+   - it-csim_main.exe : the csim_main.exe Mini-ERA with support for timing the execution of various elements (and report the timing)
+   - it-fcsim_main.exe : the fcsim_main.exe Mini-ERA with support for timing the execution of various elements (and report the timing)
    - vcsim_main.exe : the simulation-mode Mini-ERA in "verbose" mode, with no use of Keras/Python code
+   - vfcsim_main.exe : the simulation-mode Mini-ERA in "verbose" mode, with no use of Keras/Python code, using the "viterbi_flat" Viterbi code
 
 ### Execution (Example)
 The usage for the trace-driven Mini-ERA and simulation-mode Mini-ERA differ slightly.  Here we will give two examples, one for each mode.
@@ -116,10 +149,13 @@ Usage: ./csim_main.exe <OPTIONS>
     -R <file>  : defines the input Radar dictionary file <file> to use
     -V <file>  : defines the input Viterbi dictionary file <file> to use
     -C <file>  : defines the input CV/CNN dictionary file <file> to use
+    -H <file>  : defines the input H264 dictionary file <file> to use
+    -b         : Bypass (do not use) the H264 functions in this run.
     -s <N>     : Sets the max number of time steps to simulate
     -r <N>     : Sets the rand random number seed to N
     -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)
     -W <wfile> : defines the world environment parameters description file <wfile> to use
+    -p <N>     : defines the plan-and-control repeat factor (calls per time step -- default is 1)
     -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks
                :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.
     -n <N>     : defines number of Viterbi messages per time step behavior:
@@ -156,6 +192,7 @@ value for ```-f``` which exceeds the number of sets in the dictionary file resul
 The radar dictionary files and their descriptions:
  - ```norm_radar_16k_dictionary.dfn``` defines normalized inputs, etc. for a 16k-sample FFT 
  - ```norm_radar_01k_dictionary.dfn``` defines normalized inputs, etc. for a  1k-sample FFT
+ - ```norm_radar_all_dictionary.dfn``` defines normalized inputs, etc. for a 1k-sample FFT set followed by a 16k-sample FFT 
 
 Thus, legal combinations of the ```-f``` and ```-R``` options are:
  - ```-f 0 -R traces/norm_radar_16k_dictionary``` which is 16k normalized samples
@@ -313,6 +350,11 @@ The trace dictionary is defined as follows:
 ### The CV Dictionary Format
 
 This version of the Mini-ERA does not use or require a CV CNN Dictionary file.  Note that this may change as we move forward, but currently the dictionary functionality is incorporated into the Python CV CNN kernel code.
+
+
+### The H264 Dictionary Format
+
+This version of the Mini-ERA does not use or require an H264 Dictionary file (yet).  There is provision in place to utilize one in the future.
 
 
 ## More Details, Additional Utilities, etc. 
