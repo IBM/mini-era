@@ -54,6 +54,7 @@ bool_t bypass_h264_functions = false; // This is a global-disable of executing H
 
 bool_t all_obstacle_lanes_mode = false;
 unsigned time_step;
+unsigned pandc_repeat_factor = 1;
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
@@ -73,6 +74,7 @@ void print_usage(char * pname) {
 #else
   printf("    -t <trace> : defines the input trace file <trace> to use\n");
 #endif
+  printf("    -p <N>     : defines the plan-and-control repeat factor (calls per time step -- default is 1)\n");
   printf("    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks\n");
   printf("               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.\n");
   printf("    -n <N>     : defines number of Viterbi messages per time step behavior:\n");
@@ -109,7 +111,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAbot:v:n:s:r:W:R:V:C:H:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAbot:v:n:s:r:W:R:V:C:H:f:p:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -140,6 +142,10 @@ int main(int argc, char *argv[])
       max_time_steps = atoi(optarg);
       printf("Using %u maximum time steps (simulation)\n", max_time_steps);
 #endif
+      break;
+    case 'p':
+      pandc_repeat_factor = atoi(optarg);
+      printf("Using Plan-Adn-Control repeat factor %u\n", pandc_repeat_factor);
       break;
     case 'f':
       crit_fft_samples_set = atoi(optarg);
@@ -195,6 +201,10 @@ int main(int argc, char *argv[])
     printf("extra arguments: %s\n", argv[optind]);
   }
 
+  if (pandc_repeat_factor == 0) {
+    printf("ERROR - Pland-and-Control repeat factor must be >= 1 : %u specified (with '-p' option)\n", pandc_repeat_factor);
+    exit(-1);
+  }
 
   if (rad_dict[0] == '\0') {
     sprintf(rad_dict, "traces/norm_radar_16k_dictionary.dfn");
@@ -331,6 +341,11 @@ int main(int argc, char *argv[])
   uint64_t exec_vit_usec = 0LL;
   uint64_t exec_cv_usec  = 0LL;
   uint64_t exec_h264_usec  = 0LL;
+
+  struct timeval stop_exec_pandc , start_exec_pandc;
+  uint64_t exec_pandc_sec  = 0LL;
+  uint64_t exec_pandc_usec  = 0LL;
+
   //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
  #endif // TIME
 
@@ -478,8 +493,21 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
-    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance));
-    vehicle_state = plan_and_control(label, distance, message, vehicle_state);
+    DEBUG(printf("Time Step %3u : Calling Plan and Control %u times with message %u and distance %.1f\n", pandc_repeat_factor, time_step, message, distance));
+    vehicle_state_t new_vehicle_state;
+   #ifdef TIME
+    gettimeofday(&start_exec_pandc, NULL);
+   #endif
+    for (int prfi = 0; prfi <= pandc_repeat_factor; prfi++) {
+      new_vehicle_state = plan_and_control(label, distance, message, vehicle_state);
+    }
+   #ifdef TIME
+    gettimeofday(&stop_exec_pandc, NULL);
+    exec_pandc_sec  += stop_exec_pandc.tv_sec  - start_exec_pandc.tv_sec;
+    exec_pandc_usec += stop_exec_pandc.tv_usec - start_exec_pandc.tv_usec;
+   #endif
+    vehicle_state = new_vehicle_state;
+
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
     #ifdef TIME
@@ -501,7 +529,9 @@ int main(int argc, char *argv[])
   gettimeofday(&stop_prog, NULL);
  #endif
 
-  /* All the traces have been fully consumed. Quitting... */
+  /* All the trace/simulation-time has been completed -- Quitting... */
+  printf("\nRun completed %u time steps\n\n", time_step);
+
   if (!bypass_h264_functions) {
     closeout_h264_kernel();
   }
@@ -520,6 +550,7 @@ int main(int argc, char *argv[])
     uint64_t exec_vit   = (uint64_t) (exec_vit_sec)  * 1000000 + (uint64_t) (exec_vit_usec);
     uint64_t exec_cv    = (uint64_t) (exec_cv_sec)   * 1000000 + (uint64_t) (exec_cv_usec);
     uint64_t exec_h264  = (uint64_t) (exec_h264_sec) * 1000000 + (uint64_t) (exec_h264_usec);
+    uint64_t exec_pandc = (uint64_t) (exec_pandc_sec) * 1000000 + (uint64_t) (exec_pandc_usec);
     printf("\nProgram total execution time     %lu usec\n", total_exec);
     printf("  iterate_rad_kernel run time    %lu usec\n", iter_rad);
     printf("  iterate_vit_kernel run time    %lu usec\n", iter_vit);
@@ -529,6 +560,7 @@ int main(int argc, char *argv[])
     printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
     printf("  execute_h264_kernel run time   %lu usec\n", exec_h264);
     printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
+    printf("  plan_and_control run time      %lu usec at %u factor\n", exec_pandc, pandc_repeat_factor);
   }
  #endif // TIME
  #ifdef INT_TIME
