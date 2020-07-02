@@ -479,7 +479,7 @@ int main(int argc, char *argv[])
     exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
    #endif
 
-    // POST-EXECUTE each kernels to gather stats, etc.
+    // POST-EXECUTE each kernel to gather stats, etc.
     if (!bypass_h264_functions) {
       post_execute_h264_kernel();
     }
@@ -510,9 +510,9 @@ int main(int argc, char *argv[])
 
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
-    #ifdef TIME
+   #ifdef TIME
     time_step++;
-    #endif
+   #endif
 
     #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
