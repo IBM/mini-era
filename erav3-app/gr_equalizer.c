@@ -186,8 +186,8 @@ void do_LS_equalize(fx_pt *in, int n, fx_pt *symbols, uint8_t *bits) // BPSK , b
       if((i == 32) || (i < 6) || ( i > 58)) {
 	continue;
       }
-      noise += pow(abs(d_H[i] - in[i]), 2);
-      signal += pow(abs(d_H[i] + in[i]), 2);
+      noise += pow(cabs(d_H[i] - in[i]), 2);
+      signal += pow(cabs(d_H[i] + in[i]), 2);
       d_H[i] += in[i];
       d_H[i] /= LONG_ref[i] * (fx_pt)(2 + 0 * I);
     }

@@ -631,7 +631,7 @@ int do_mapper_work(int psdu_length) // int noutput, gr_vector_int& ninput_items,
    **          I think I could just use d_symbols and the known offset (as a starting point) ?
    std::memcpy(out, d_symbols + d_symbols_offset, i);
   **/
-  DEBUG(printf("output i = %u :  d_sym = %p and d_sym_off = %u\n", i, d_symbols, d_symbols_offset));
+  DEBUG(printf("output i = %u :  d_sym = %p and d_sym_off = %u\n", i, (void*)d_symbols, d_symbols_offset));
   for (int di = 0; di < i; di++) {
     d_map_out[di] = d_symbols[d_symbols_offset + di];
     DEBUG(if (di < 16) { printf("%2u : d_map_out[%2u] = %1x : d_symbols[%2u] = %1x\n", i, di, d_map_out[di], (d_symbols_offset + di), d_symbols[d_symbols_offset + di]); });

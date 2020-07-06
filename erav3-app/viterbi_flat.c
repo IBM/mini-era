@@ -310,10 +310,10 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	printf("%02x", in_depuncture_pattern[ti]);
       }
       printf("]\n");
-      printf("\nVBS: depd_data : %p\n", depd_data);
+      printf("\nVBS: depd_data : %p\n", (void*)depd_data);
       {
 	int per_row = 0;
-	printf("%p : ", &depd_data[0]);
+	printf("%p : ", (void*)(&depd_data[0]));
 	for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
 	  per_row++;
 	  if ((per_row % 8) == 0) {
@@ -322,7 +322,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	  printf("%u", depd_data[ti]);
 	  if (per_row == 39) {
 	    printf("\n");
-	    printf("%p : ", &depd_data[ti]);
+	    printf("%p : ", (void*)(&depd_data[ti]));
 	    per_row = 0;
 	  }
 	}
