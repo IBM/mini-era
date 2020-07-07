@@ -52,7 +52,7 @@ fx_pt1 abs_c(fx_pt data)
 #define N_ext 64
 #define int_ext 16
 
-void complex_multiply(fx_pt out[CMP_MULT_MAX_SIZE], unsigned num_ins, fx_pt data1[CMP_CONJ_MAX_SIZE], fx_pt data2[CMP_MULT_MAX_SIZE])
+void complex_multiply(fx_pt out[CMP_MULT_MAX_SIZE], unsigned num_ins, fx_pt data1[CMP_MULT_MAX_SIZE], fx_pt data2[CMP_MULT_MAX_SIZE])
 {
   /*mult:*/
   for(unsigned j = 0; j < num_ins /*CMP_MULT_MAX_SIZE*/; j++) {
