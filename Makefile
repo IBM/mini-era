@@ -87,78 +87,78 @@ else
 FAILSAFE=
 endif
 
-RED='\033[0;31m'
+YEL='\033[0;33m'
 NC='\033[0m'
 
 # Targets
 default: $(FAILSAFE) $(BUILD_DIR) $(EXE)
 riscv: $(FAILSAFE) $(BUILD_DIR) $(RISCVEXE)
-epochs: $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE)
-epochs-nvdla: $(NVDLA_MODULE) $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE) 
+#epochs: $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE)
+epochs: $(NVDLA_MODULE) $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE) 
 
 $(NVDLA_MODULE):
-	@echo -e ${RED}Compiling HPVM Module for NVDLA${NC}
-	@cd $(APPROXHPVM_DIR)/llvm/test/VISC/DNN_Benchmarks/benchmarks/miniera-hpvm && bash set_paths.sh && make && cp $(NVDLA_MODULE) $(CUR_DIR)
+	@echo -e ${YEL}Compiling HPVM Module for NVDLA${NC}
+	@cd $(APPROXHPVM_DIR)/llvm/test/VISC/DNN_Benchmarks/benchmarks/miniera-hpvm && make && cp $(NVDLA_MODULE) $(CUR_DIR)
 
 $(EPOCHSEXE) : $(EPOCHS_LINKED)
-	@echo -e -n ${RED}Cross-compiling for RISCV: ${NC}
-	@echo -e ${RED}1\) Use Clang to generate object file${NC}
+	@echo -e -n ${YEL}Cross-compiling for RISCV: ${NC}
+	@echo -e ${YEL}1\) Use Clang to generate object file${NC}
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
-	@echo -e ${RED}Cross-compiling for RISCV: 2\) Use GCC cross-compiler to link the binary \(linking with ESP libraries required\)${NC}
+	@echo -e ${YEL}Cross-compiling for RISCV: 2\) Use GCC cross-compiler to link the binary \(linking with ESP libraries required\)${NC}
 	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -LESP/lib -lm -lrt -lpthread -lesp -ltest -lcontig -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EPOCHS_LINKED) : $(EPOCHS_HOST) $(OBJS) $(HPVM_RT_LIB)
-	@echo -e ${RED}Compile hook function for accelerator: fft${NC}
+	@echo -e ${YEL}Compile hook function for accelerator: fft${NC}
 	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/fft_hook_impl.c -IESP/include -o $(BUILD_DIR)/fft_hook.ll
-	@echo -e ${RED}Compile hook function for accelerator: viterbi${NC}
+	@echo -e ${YEL}Compile hook function for accelerator: viterbi${NC}
 	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/viterbi_hook_impl.c -IESP/include -o $(BUILD_DIR)/viterbi_hook.ll
-	@echo -e ${RED}Link main application with hook function, other necessary object files, and HPVM runtime library${NC}
+	@echo -e ${YEL}Link main application with hook function, other necessary object files, and HPVM runtime library${NC}
 	$(LLVM_LINK) $^ $(BUILD_DIR)/fft_hook.ll $(BUILD_DIR)/viterbi_hook.ll -S -o $@
 
 $(EPOCHS_HOST) : $(HOST)
-	@echo -e ${RED}Generate .ll file for accelerator spec: fft_spec.c${NC}
+	@echo -e ${YEL}Generate .ll file for accelerator spec: fft_spec.c${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/fft_spec.c -o $(BUILD_DIR)/fft_spec.ll
-	@echo -e ${RED}Accelerator code-gen for: fft_spec.ll${NC}
+	@echo -e ${YEL}Accelerator code-gen for: fft_spec.ll${NC}
 	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
-	@echo -e ${RED}Generate .ll file for accelerator spec: viterbi_spec.c${NC}
+	@echo -e ${YEL}Generate .ll file for accelerator spec: viterbi_spec.c${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/viterbi_spec.c -o $(BUILD_DIR)/viterbi_spec.ll
-	@echo -e ${RED}Accelerator code-gen for: viterbi_spec.ll${NC}
+	@echo -e ${YEL}Accelerator code-gen for: viterbi_spec.ll${NC}
 	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $@ --targetspec $(BUILD_DIR)/viterbi_spec.ll:do_decoding -o $@ 
 
 $(RISCVEXE) : $(HOST_LINKED)
-	@echo -e -n ${RED}Cross-compiling for RISCV: ${NC}
-	@echo -e ${RED}1\) Use Clang to generate object file${NC}
+	@echo -e -n ${YEL}Cross-compiling for RISCV: ${NC}
+	@echo -e ${YEL}1\) Use Clang to generate object file${NC}
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
-	@echo -e ${RED}Then gcc cross-compiler is used to link the binary${NC}
+	@echo -e ${YEL}Then gcc cross-compiler is used to link the binary${NC}
 	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EXE) : $(HOST_LINKED)
-	@echo -e ${RED}Generating native executable${NC}
+	@echo -e ${YEL}Generating native executable${NC}
 	$(CXX) -O3 $(LDFLAGS) $< -o $@
 
 $(HOST_LINKED) : $(HOST) $(OBJS) $(HPVM_RT_LIB)
-	@echo -e ${RED}Link main application with other necessary object files and HPVM runtime library${NC}
+	@echo -e ${YEL}Link main application with other necessary object files and HPVM runtime library${NC}
 	$(LLVM_LINK) $^ -S -o $@
 
 $(HOST) $(KERNEL): $(BUILD_DIR)/$(HPVM_OBJS)
-	@echo -e ${RED}Build HPVM DFG and compile for CPU Backend${NC}
+	@echo -e ${YEL}Build HPVM DFG and compile for CPU Backend${NC}
 	$(OPT) -load LLVMBuildDFG.so -load LLVMDFG2LLVM_CPU.so -load LLVMClearDFG.so -dfg2llvm-cpu -clearDFG -S $< -o $(HOST)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%.ll : $(SRC_DIR)/%.c
-	@echo -e ${RED}Building other source files${NC}
+	@echo -e ${YEL}Building other source files${NC}
 	$(CC) $(OBJS_CFLAGS) -emit-llvm -S -o $@ $<
 
 $(BUILD_DIR)/main.ll : $(SRC_DIR)/main.c
-	@echo -e ${RED}Compiling main application code into LLVM${NC}
+	@echo -e ${YEL}Compiling main application code into LLVM${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S -o $@ $<
 
 $(BUILD_DIR)/main.hpvm.ll : $(BUILD_DIR)/main.ll
-	@echo -e ${RED}Run GenHPVM on module to convert HPVM-C function calls into HPVM intrinsics${NC}
+	@echo -e ${YEL}Run GenHPVM on module to convert HPVM-C function calls into HPVM intrinsics${NC}
 	$(OPT) -load LLVMGenHPVM.so -genhpvm -globaldce $< -S -o $@
 
 clean:
