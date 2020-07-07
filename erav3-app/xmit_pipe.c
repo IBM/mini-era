@@ -1314,7 +1314,7 @@ do_ofdm_carrier_allocator_cvc_impl_work (int noutput_items,
   // Reset the contents of the output_items to 0x00 (so any not over-written remain 0x00?)
   //memset((void *) out_real, 0x00, sizeof(float) * d_fft_len * noutput_items);
   //memset((void *) out_imag, 0x00, sizeof(float) * d_fft_len * noutput_items);
-  for (int ti = 0; ti < d_fft_len * noutput_items; ti++) {
+  for (int ti = 0; ti < d_fft_len * (noutput_items + d_num_sync_words); ti++) {
     out_real[ti] = 0.0;
     out_imag[ti] = 0.0;
   }
