@@ -174,6 +174,8 @@ int main(int argc, char *argv[])
   accelHW_desc.src_offset = 0;
   accelHW_desc.dst_offset = 0;
 
+  struct timeval accel_stop, accel_start;
+
   for (int ri = 0; ri < repeats; ri++) {
     gettimeofday(&calc_start, NULL);
     call_into_hw(&accelHW_fd, &accelHW_desc);
@@ -186,7 +188,7 @@ int main(int argc, char *argv[])
   printf("  accel_time = %lu usec (for %u repeats with %u mem_size)\n", total_time, repeats, mem_size);
   printf("\nDone.\n");
 
-  contig_free(fftHW_mem);
-  close(fftHW_fd);
+  contig_free(accelHW_mem);
+  close(accelHW_fd);
   return 0;
 }
