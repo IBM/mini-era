@@ -21,14 +21,21 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <string.h>
 #include <sys/time.h>
 
 
 #include "contig.h"
 #include "get_init_time.h"
 #include "getopt.h"
+
+
+typedef enum {false, true} bool_t;
 
 uint64_t accel_sec  = 0;
 uint64_t accel_usec = 0;
@@ -52,10 +59,14 @@ size_t accelHW_size;
 
 struct accelHW_access accelHW_desc;
 
-
-static void init_accel_parameters(mem_size)
+static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 {
-  int len = (mem_size+3)/4; // four bytes per word
+        return (sizeof(void *) / _st);
+}
+
+
+static void init_accel_parameters(unsigned len)
+{
   if (DMA_WORD_PER_BEAT(sizeof(accelHW_token_t)) == 0) {
     accelHW_in_words_adj  = len;
     accelHW_out_words_adj = len;
@@ -82,10 +93,9 @@ static void call_into_hw(int *fd, struct accelHW_access *desc)
 
   //contig_copy_from(inMemory, *mem, 0, out_size);
 }
-#endif // HW_ACCEL
 
 
-void print_usage(char * pname) {
+void show_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
   printf("    -h        : print this helpful usage info\n");
@@ -100,13 +110,14 @@ int main(int argc, char *argv[])
   unsigned repeats = 1;
   unsigned mem_size = 131072;
 
+  int opt;
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
   while((opt = getopt(argc, argv, ":hr:M:")) != -1) {
     switch(opt) {
     case 'h':
-      print_usage(argv[0]);
+      show_usage(argv[0]);
       exit(0);
     case 'r':
       repeats = atoi(optarg);
@@ -137,7 +148,7 @@ int main(int argc, char *argv[])
     
   if (mem_size > (128*1024)) {
     printf("ERROR : Max mem_size is %u (you specified %u)\n", 128*1024, mem_size);
-    print_usage(argv[0]);
+    show_usage(argv[0]);
     exit(-1);
   }
 
@@ -177,7 +188,7 @@ int main(int argc, char *argv[])
   struct timeval accel_stop, accel_start;
 
   for (int ri = 0; ri < repeats; ri++) {
-    gettimeofday(&calc_start, NULL);
+    gettimeofday(&accel_start, NULL);
     call_into_hw(&accelHW_fd, &accelHW_desc);
     gettimeofday(&accel_stop, NULL);
     accel_sec  += accel_stop.tv_sec  - accel_start.tv_sec;

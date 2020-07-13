@@ -23,9 +23,13 @@ struct accelHW_access {
 	struct esp_access esp;
 	/* <<--regs-->> */
         unsigned mem_size;
+	unsigned src_offset;
+        unsigned dst_offset;
+
 };
 
 #define ACCELHW_IOC_ACCESS	_IOW ('S', 0, struct accelHW_access)
 
+typedef int8_t accelHW_token_t;
 
 #endif /* _GET_INIT_TIME_H_ */
