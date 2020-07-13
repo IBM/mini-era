@@ -33,7 +33,7 @@ void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX]
   uint8_t bit_r[DECODE_IN_SIZE_MAX];
   uint8_t bit[DECODE_IN_SIZE_MAX];
 
-  DEBUG(printf("In the decode_signal routine...\n"));
+  DEBUG(printf("In the decode_signal routine with num_inputs = %u\n", num_inputs));
   // map to the nearest one
   for(unsigned i = 0; i < num_inputs /*DECODE_IN_SIZE_MAX*/;i++) {
     if( crealf(constellation[i]) > 0 ) {
