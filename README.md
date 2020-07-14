@@ -30,13 +30,14 @@ To build the HPVM version of Mini-ERA:
 
 1. Set up the path to HPVM: `export HPVM_DIR=$(PATH_TO_HPVM_REPO)/hpvm` (*This can also be added to bashrc*)
 2. Setup up path to AppoxHPVM directory (`approxhpvm_nvdla` branch) with `export APPROXHPVM_DIR=$(PATH_TO_APPROXHPVM_REPO)/`
-3. Include path to LLVM-9 binaries in `$PATH`
-4. Build for desired target:
+3. Set up necessary paths by sourcing the setup script using `source ./set_nvdla_paths.sh`
+4. Include path to LLVM-9 binaries in `$PATH`
+5. Build for desired target:
     * For native architecture: `make`
     * For epochs0 (risc-v host with fft and viterbi accelerators): `make epochs`
     * For epochs0 with NVDLA (with fft and viterbi accelerators): `make epochs-nvdla`
     * For all-software risc-v version: `make riscv`
-5. To clean the build: `make clean`
+6. To clean the build: `make clean`
 
 ### Usage
 ```
