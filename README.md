@@ -34,8 +34,7 @@ To build the HPVM version of Mini-ERA:
 4. Include path to LLVM-9 binaries in `$PATH`
 5. Build for desired target:
     * For native architecture: `make`
-    * For epochs0 (risc-v host with fft and viterbi accelerators): `make epochs`
-    * For epochs0 with NVDLA (with fft and viterbi accelerators): `make epochs-nvdla`
+    * For epochs0 (risc-v host with fft, viterbi and NVLDA accelerators): `make epochs`
     * For all-software risc-v version: `make riscv`
 6. To clean the build: `make clean`
 
