@@ -4,23 +4,23 @@ Follow all the steps when a bit stream needs to be generated. If not, i.e. when 
 1. Generate an instance with ariane + NVDLA (1) with 
 make esp-xconfig
  
-2. replace the contents of ~/repos/esp/third-party/accelerators/dma64/NV_NVDLA/sw/umd/apps/runtime with the contents of next_ver/nvdla
-from the mini-era repo. Make sure you copy everything except next_ver/nvdla/NV_NVDLA
+2. replace the contents of ~/repos/esp/third-party/accelerators/dma64/NV_NVDLA/sw/umd/apps/runtime with the contents of esp_hardware/nvdla
+from the mini-era repo. Make sure you copy everything except esp_hardware/nvdla/NV_NVDLA
 
 3.In folder ~/repos/esp/socs/profpga-xc7v2000t
 make dist-clean 
-make NV_NVDLA-clean
 make linux -j8
 
-4. make NV_NVDLA
+4. make NV_NVDLA-clean
+   make NV_NVDLA
 
 5. Generate bitstream (This step needs to be done only the very first time. No need to do this when changing anything in umd or kmd, unless the RTL in ip changes. 
 make vivado-syn
 . 
 6. make linux -j8
-This step populates the folder ~/repos/esp/socs/profpga-xc7v2000t/sysroot/root  with libruntime.so
+This step populates the folder ~/repos/esp/socs/profpga-xc7v2000t/sysroot/root  with libruntime.so and the executable (curently called nvdla_runtime)
 
-7. Copy the contents of next_ver/nvdla/NV_NVDLA to ~/repos/esp/socs/profpga-xc7v2000t/sysroot/root/NV_NVDLA except libruntime.so
+7. Copy the contents of esp_hardware/nvdla/NV_NVDLA to ~/repos/esp/socs/profpga-xc7v2000t/sysroot/root/NV_NVDLA 
 
 8. In folder ~/repos/esp/socs/profpga-xc7v2000t
 make fpga-run-linux
@@ -28,3 +28,13 @@ make fpga-run-linux
 9. On espdev, go to folder NV_NVDLA 
 ./nvdla_runtime -t traces/tt02_05.new 
 
+
+
+For subsequent changes to only the software - 
+4. make NV_NVDLA-clean
+make NV_NVDLA
+6. make linux -j8
+7. Copy the contents of esp_hardware/nvdla/NV_NVDLA to ~/repos/esp/socs/profpga-xc7v2000t/sysroot/root/NV_NVDLA
+8. make fpga-run-linux
+9. On espdev, go to folder NV_NVDLA
+./nvdla_runtime -t traces/tt02_05.new

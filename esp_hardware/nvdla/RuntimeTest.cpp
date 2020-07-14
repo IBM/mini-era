@@ -428,6 +428,17 @@ fail:
     return e;
 }
 
+NvDlaError runImage(const TestAppArgs* appArgs, TestInfo* i)
+{
+    NvDlaError e = NvDlaSuccess;
+    /* Run test */
+    PROPAGATE_ERROR_FAIL(runTest(appArgs, i));
+
+fail:
+    return e;
+}
+
+
 NvDlaError run(const TestAppArgs* appArgs, TestInfo* i)
 {
     NvDlaError e = NvDlaSuccess;
@@ -447,26 +458,6 @@ NvDlaError run(const TestAppArgs* appArgs, TestInfo* i)
     /* Start emulator */
     if (!i->runtime->initEMU())
         ORIGINATE_ERROR(NvDlaError_DeviceNotFound, "runtime->initEMU() failed");
-
-    /* Run test */
-    PROPAGATE_ERROR_FAIL(runTest(appArgs, i));
-
 fail:
-    /* Stop emulator */
-    if (i->runtime != NULL)
-        i->runtime->stopEMU();
-
-    /* Unload loadables */
-    unloadLoadable(appArgs, i);
-
-    /* Free if allocated in read Loadable */
-    if (!i->dlaServerRunning && i->pData != NULL) {
-        delete[] i->pData;
-        i->pData = NULL;
-    }
-
-    /* Destroy runtime */
-    nvdla::destroyRuntime(i->runtime);
-
     return e;
 }

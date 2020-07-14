@@ -545,7 +545,8 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
   }
   fclose(dictF);
   **/
-  // Initialization to run Keras CNN code 
+  // Initialization to run Keras CNN code
+  initNVDLA(); 
 #ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
   pName = PyUnicode_DecodeFSDefault(python_module);
@@ -683,12 +684,11 @@ label_t execute_cv_kernel(label_t in_tr_val)
   DEBUG(printf("  Calling run_object_detection with in_tr_val tr_val %u %s\n", in_tr_val, object_names[in_tr_val]));
   // Call Keras Code
   //label_t object = run_object_classification((unsigned)in_tr_val); 
+  label_t object = in_tr_val;
 
-  runImageonNVDLA("seven.pgm");
-//  runImageonNVDLA("eight.pgm");
-//  runImageonNVDLA("bus.jpeg");
+  //runImageonNVDLA("seven.pgm");
+  runImageonNVDLA("class_busimage_5489.jpg");
 
-  label_t object = in_tr_val;   // In this version, the focus is on functional integration of nvdla into mini-era. So this doesn't really process anything coming out of nvdla. 
   DEBUG(printf("  Returning object %u %s : tr_val %u %s\n", object, object_names[object], in_tr_val, object_names[in_tr_val]));
   return object;
 }
