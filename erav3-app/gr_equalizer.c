@@ -4,6 +4,13 @@
 #include <complex.h>
 #include <math.h>
 
+#ifndef DEBUG_MODE
+ #define DEBUG_MODE
+#endif
+#ifndef VERBOSE_MODE
+ #define VERBOSE_MODE
+#endif
+
 #include "debug.h"
 #include "type.h"
 #include "base.h"
@@ -47,22 +54,35 @@ int d_frame_mod;
 
 bool
 decode_signal_field(uint8_t *rx_bits) {
+  printf("In decode_signal_field - DSF...\n");
   ofdm_param ofdm = {   BPSK_1_2, //  encoding   : 0 = BPSK_1_2
 			13,       //             : rate field of SIGNAL header //Taken constant
 			1,        //  n_bpsc     : coded bits per subcarrier
 			48,       //  n_cbps     : coded bits per OFDM symbol
 			24 };     //  n_dbps     : data bits per OFDM symbol
-  
-  frame_param frame = {  1528,     // psdu_size      : PSDU size in bytes
-			 511,      // n_sym          : number of OFDM symbols
-			 18,       // n_pad          : number of padding bits in DATA field
-			 24528,    // n_encoded_bits : number of encoded bits
-			 12264 };  // n_data_bits: number of data bits, including service and padding
+
+  /*frame_param::frame_param(ofdm_param &ofdm, int psdu_length) {
+        psdu_size = psdu_length;
+        // number of symbols (17-11)
+        n_sym = (int) ceil((16 + 8 * psdu_size + 6) / (double) ofdm.n_dbps);
+        n_data_bits = n_sym * ofdm.n_dbps;
+        // number of padding bits (17-13)
+        n_pad = n_data_bits - (16 + 8 * psdu_size + 6);
+        n_encoded_bits = n_sym * ofdm.n_cbps;
+  */
+  frame_param frame = {  0,     // psdu_size      : PSDU size in bytes
+			 1,     // n_sym          : number of OFDM symbols
+			 2,     // n_pad          : number of padding bits in DATA field
+			 0,     // n_encoded_bits : number of encoded bits
+			 24 };  // n_data_bits: number of data bits, including service and padding
   
   //deinterleave(rx_bits);
   // void
   // frame_equalizer_impl::deinterleave(uint8_t *rx_bits) {
-  uint8_t d_deinterleaved[24528]; // 48  // This should not require so much; but I don't know what to set the above to
+  uint8_t d_deinterleaved[32768]; // This must be huge -- 24528 ?  or "Stack Smaching" should not require so much!
+  for(int ii = 0; ii < 128; ii++) {
+    d_deinterleaved[ii] = 0;
+  }
   for(int ii = 0; ii < 48; ii++) {
     DEBUG(printf("DSF: Setting d_deintlvd[%u] = rx_bits[%u] = %u\n", ii, interleaver_pattern[ii], rx_bits[interleaver_pattern[ii]]));
     d_deinterleaved[ii] = rx_bits[interleaver_pattern[ii]];
@@ -70,8 +90,9 @@ decode_signal_field(uint8_t *rx_bits) {
   // }
   
   //uint8_t *decoded_bits = d_decoder.decode(&ofdm, &frame, d_deinterleaved);
-  uint8_t decoded_bits[48];
+  uint8_t decoded_bits[48]; // extra-big for now (should need 48 bytes)
   int n_bits;
+  DEBUG(printf("\nDSF: Calling decode...\n"));
   decode(&ofdm, &frame, d_deinterleaved, &n_bits, decoded_bits);
   DEBUG(printf("\nDSF: Back from decode\n");
 	for (int i = 0; i < 48; i++) {
@@ -88,7 +109,7 @@ decode_signal_field(uint8_t *rx_bits) {
     DEBUG(printf("  DSF : i %u :: parity ^ %u = %u\n", i, decoded_bits[i], parity));
     if((i < 4) && decoded_bits[i]) {
       r = r | (1 << i);
-      DEBUG(printf("  DSF: i %u :: r = %u\n", i, r));
+      DEBUG(printf("  DSF : i %u :: r = %u\n", i, r));
     }
 
     if(decoded_bits[i] && (i > 4) && (i < 17)) {
@@ -98,7 +119,7 @@ decode_signal_field(uint8_t *rx_bits) {
   }
 
   if (parity != decoded_bits[17]) {
-    printf("SIGNAL: wrong parity -- bad message!\n");  fflush(stdout);
+    printf("SIGNAL: wrong parity %u vs %u -- bad message!\n", parity, decoded_bits[17]);  fflush(stdout);
     return false;
   }
 
@@ -294,20 +315,24 @@ void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_I
     do_LS_equalize(current_symbol, d_current_symbol, symbols, &(outputs[ out_sym * 48])); // BPSK , d_frame_mod);
     
     // signal field -- IF good parirty/checksum, then good to go...
-    if(d_current_symbol == 2) {
+    if (d_current_symbol == 2) {
       // ASSUME GOOD PARITY FOR NOW ?!?
       // Otherwise, I think we decode this frame, and do some checking, etc... in the decode_signal_field (above)
+      printf("Calling decode_signal_field with out_sym = %u and d_current_symbol = %u\n", out_sym, d_current_symbol);
       if (!decode_signal_field(&(outputs[out_sym * 48]))) {
         printf("ERROR : Bad decode_signal_filed return value ...\n");
 	exit(-20); // return false;
       }
+      DEBUG(printf("Back from decode_signal_field...\n"));
     }
   
     if(d_current_symbol > 2) {
       // Just put this into the output stream...
       for (int ii = 0; ii < 48; ii++) {
 	out_symbols[48*out_sym + ii] = symbols[ii];
+	DEBUG(printf("Set out_symbols[%d] = %12.8f %12.8f\n", 48*out_sym + ii, crealf(symbols[ii]), cimagf(symbols[ii])));
       }
+      DEBUG(printf("\n"));
       out_sym++;
     }
 
