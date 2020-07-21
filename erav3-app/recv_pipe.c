@@ -83,12 +83,14 @@ do_recv_pipeline(int msg_len, int num_recvd_vals, float* recvd_in_real, float* r
 
 void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_t *out_msg) {
   uint8_t scrambled_msg[1600]; // 1600 is sufficiently large for our messages.
-  DEBUG(printf("In top.cc compute routine...\n");
-	for (int ti = 0; ti < num_inputs /*RAW_DATA_IN_MAX_SIZE*/; ti++) {
+  //DEBUG(
+  printf("In receive pipe compute routine with in_msg_len %u and %u inputs\n", in_msg_len, num_inputs);//);
+  DEBUG(for (int ti = 0; ti < num_inputs /*RAW_DATA_IN_MAX_SIZE*/; ti++) {
 	  printf("  %6u : TOP_INBUF %12.8f %12.8f\n", ti, crealf(input_data[ti]), cimagf(input_data[ti]));
 	});
 
-  DEBUG(printf("\nCalling delay...\n"));
+  //DEBUG(
+  printf("\nCalling delay...\n"); //);
   unsigned num_del16_vals = num_inputs + 16;
   // We don't need to make this call now -- we've done the effect in the memory array already
   // delay(delay16_out, num_inputs, input_data);  
@@ -96,42 +98,54 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
       printf(" DEL16 %5u : TMPBUF %12.8f %12.8f : INBUF %12.8f %12.8f\n", ti, crealf(delay16_out[ti]), cimagf(delay16_out[ti]), crealf(input_data[ti]), cimagf(input_data[ti]));
     });
   
-  DEBUG(printf("\nCalling complex_conjugate...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling complex_conjugate...\n"); //);
   unsigned num_cconj_vals = num_del16_vals;
   complex_conjugate(cmpx_conj_out, num_del16_vals, delay16_out);
   DEBUG(for (int ti = 0; ti < num_cconj_vals; ti++) {
       printf("  CMP_CONJ %5u : CONJ_OUT %12.8f %12.8f : DEL16_IN %12.8f %12.8f\n", ti, crealf(cmpx_conj_out[ti]), cimagf(cmpx_conj_out[ti]), crealf(delay16_out[ti]), cimagf(delay16_out[ti]));
     });
   
-  DEBUG(printf("\nCalling complex_mult...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling complex_mult...\n"); //);
   unsigned num_cmult_vals = num_cconj_vals;
   complex_multiply(cmpx_mult_out, num_cconj_vals, cmpx_conj_out, input_data);
   DEBUG(for (int ti = 0; ti < num_cmult_vals; ti++) {
       printf("  CMP_MULT %5u : MULT_OUT %12.8f %12.8f : CMP_CONJ %12.8f %12.8f : INBUF %12.8f %12.8f\n", ti, crealf(cmpx_mult_out[ti]), cimagf(cmpx_mult_out[ti]), crealf(cmpx_conj_out[ti]), cimagf(cmpx_conj_out[ti]), crealf(input_data[ti]), cimagf(input_data[ti]));
     });
   
-  DEBUG(printf("\nCalling firc (Moving Average 48)...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling firc (Moving Average 48)...\n"); //);
   unsigned num_cmpcorr_vals = num_cmult_vals;
   firc(correlation_complex, cmpx_mult_out);
   DEBUG(for (int ti = 0; ti < num_cmpcorr_vals; ti++) {
       printf("  MV_AVG48 %5u : CORR_CMP %12.8f %12.8f : MULT_OUT %12.8f %12.8f\n", ti, crealf(correlation_complex[ti]), cimagf(correlation_complex[ti]), crealf(cmpx_mult_out[ti]), cimagf(cmpx_mult_out[ti]));
     });
   
-  DEBUG(printf("\nCalling complex_to_magnitude...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling complex_to_magnitude...\n"); //);
   unsigned num_cmag_vals = num_cmpcorr_vals;
   complex_to_magnitude(correlation, num_cmpcorr_vals, correlation_complex);
   DEBUG(for (unsigned ti = 0; ti < num_cmag_vals; ti++) {
       printf("  MAGNITUDE %5u : CORR %12.8f : CORR_CMP %12.8f %12.8f\n", ti, correlation[ti], crealf(correlation_complex[ti]), cimagf(correlation_complex[ti]));
     });
   
-  DEBUG(printf("\nCalling complex_to_mag_squared (signal_power)...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling complex_to_mag_squared (signal_power)...\n"); //);
   unsigned num_cmag2_vals = num_inputs;
   complex_to_mag_squared(signal_power, num_inputs, input_data);
   DEBUG(for (int ti = 0; ti < num_cmag2_vals; ti++) {
       printf("  MAG^2 %5u : SIGN_PWR %12.8f : INBUF %12.8f %12.8f\n", ti, signal_power[ti], crealf(input_data[ti]), cimagf(input_data[ti]));
     });
     
-  DEBUG(printf("\nCalling fir (Moving Average 64)...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling fir (Moving Average 64)...\n"); //);
   // fir filter
   const fx_pt1 coeff_mvgAvg[COEFF_LENGTH]={ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,   //   8
   					    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,   //  16
@@ -147,7 +161,9 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
     printf(" TOP_FIR_OUT %5u : SIGN_PWR-AVG %12.8f : SIGN_PWR %12.8f\n", ti, avg_signal_power[ti], signal_power[ti]);
     });
   
-  DEBUG(printf("\nCalling division...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling division...\n"); //);
   unsigned num_cdiv_vals = num_cmpcorr_vals;
   // Ensure we've picked the MIN(num_mavg48_vals, num_cmag_vals) -- should have an a-priori known relationship!
   if (num_mavg48_vals > num_cmag_vals) {
@@ -159,7 +175,9 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
     printf(" TOP_DIV_OUT %5u : CORRZ %12.8f : CORRL %12.8f : SPA %12.8f\n", ti, the_correlation[ti], correlation[ti], avg_signal_power[ti]);
     });
   
-  DEBUG(printf("\nCalling sync_short...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling sync_short...\n"); //);
   float ss_freq_offset;
   unsigned num_sync_short_vals;
   sync_short(num_cdiv_vals, delay16_out, correlation_complex, the_correlation, &ss_freq_offset, &num_sync_short_vals, sync_short_out_frames);
@@ -169,7 +187,9 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	  printf(" S_S_OUT %5u : TMPBUF %12.8f %12.8f : CORR_CMP %12.8f %12.8f : CORRZ %12.8f : SS_FRAME %12.8f %12.8f\n", ti, crealf(delay16_out[ti]), cimagf(delay16_out[ti]), crealf(correlation_complex[ti]), cimagf(correlation_complex[ti]), the_correlation[ti], crealf(sync_short_out_frames[ti]), cimagf(sync_short_out_frames[ti])); 
 	});
 
-  DEBUG(printf("\nCalling delay320...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling delay320...\n"); //);
   // We've used a similar memory-placement trick to avoid having to do the delay320 function; sync_short_out_frames = &(frame_d[320])
   //delay320(frame_d, synch_short_out_frames);
   DEBUG(for (int ti = 0; ti < 320+num_sync_short_vals; ti++) {
@@ -177,7 +197,9 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
     });
   
 
-  DEBUG(printf("\nCalling sync_long...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling sync_long...\n"); //);
   float sl_freq_offset;
   unsigned num_sync_long_vals;
   sync_long(num_sync_short_vals, sync_short_out_frames, frame_d, &sl_freq_offset, &num_sync_long_vals, d_sync_long_out_frames );
@@ -294,7 +316,9 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
   for (int ii = 0; ii < FRAME_EQ_OUT_MAX_SIZE; ii++) {
     equalized_bits[ii] = 0;
   }
-  DEBUG(printf("\nCalling gr_equalize (frame_equalizer) with wifi_start = %12.8f\n", wifi_start));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling gr_equalize (frame_equalizer) with wifi_start = %12.8f\n", wifi_start); //);
   unsigned num_eq_out_bits;
   unsigned num_eq_out_sym;
   gr_equalize( wifi_start, num_fft_outs, toBeEqualized, &num_eq_out_bits, equalized_bits, &num_eq_out_sym, equalized);
@@ -305,7 +329,9 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	});
 
   //decode signal
-  DEBUG(printf("\nCalling decode_signal...\n"));
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling decode_signal...\n");//);
   unsigned num_dec_bits;
   decode_signal(num_eq_out_bits, equalized, &num_dec_bits, scrambled_msg);
   DEBUG(for (int ti = 0; ti < num_dec_bits; ti++) {
@@ -313,8 +339,10 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
     });
 
   //descrambler
-  DEBUG(printf("\nCalling descrambler...\n"));
   unsigned psdu = (in_msg_len + 28);
+  printf("In receive pipe compute routine with in_msg_len %u\n", in_msg_len);
+  //DEBUG(
+  printf("\nCalling descrambler with psdu = %u\n", psdu);//);
   descrambler(scrambled_msg, psdu, (char*)out_msg);
   DEBUG(printf("\nDESC_MSG:\n%s\n", out_msg));
 }

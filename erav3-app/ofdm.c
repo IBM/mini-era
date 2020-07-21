@@ -7,7 +7,11 @@
 #include <unistd.h>
 #include <stdint.h>
 
+/* #ifndef DEBUG_MODE */
+/*  #define DEBUG_MODE */
+/* #endif */
 #include "debug.h"
+
 #include "type.h"
 #include "base.h"
 #include "ofdm.h"
@@ -33,7 +37,8 @@ void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX]
   uint8_t bit_r[DECODE_IN_SIZE_MAX];
   uint8_t bit[DECODE_IN_SIZE_MAX];
 
-  DEBUG(printf("In the decode_signal routine with num_inputs = %u\n", num_inputs));
+//DEBUG(
+printf("In the decode_signal routine with num_inputs = %u\n", num_inputs);//);
   // map to the nearest one
   for(unsigned i = 0; i < num_inputs /*DECODE_IN_SIZE_MAX*/;i++) {
     if( crealf(constellation[i]) > 0 ) {
@@ -77,12 +82,16 @@ void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX]
     int n_res_char;
     DEBUG(printf("Calling decode with OFDM_PARMS %u %2u %u %2u %2u\n", ofdm.encoding, 13, ofdm.n_bpsc, ofdm.n_cbps, ofdm.n_dbps);
 	  printf("               and FRAME_PARMS %4u %3u %2u %5u %5u\n",  frame.psdu_size, frame.n_sym, frame.n_pad, frame.n_encoded_bits, frame.n_data_bits));
-    DEBUG(printf("Calling decode : n_inputs = %u \n", num_inputs));
+    /* DEBUG(printf("Calling decode : n_inputs = %u \n", num_inputs); */
+    /* 	  printf("OFDM : enc %u   rate %u  n_bpsc %u  n_cbps %u  n_dbps %u\n", ofdm.encoding, ofdm.rate_field, ofdm.n_bpsc, ofdm.n_cbps, ofdm.n_dbps); */
+    /* 	  printf("FRAME: psdu %u  n_sym %u  n_pad %u  n_encb %u  n_dtab %u\n", frame.psdu_size, frame.n_sym, frame.n_pad, frame.n_encoded_bits, frame.n_data_bits)); */
+    
     decode(&ofdm, &frame, bit /*input_data*/, &n_res_char, output_data);
     // end of decode (viterbi) function, but result bits need to be "descrambled"
     *num_outputs = num_out_bits;
   }
-  DEBUG(printf("  done and leaving ofdm.c\n"));
+  //DEBUG(
+  printf("  done and leaving ofdm.c\n");//);
 }
 
 

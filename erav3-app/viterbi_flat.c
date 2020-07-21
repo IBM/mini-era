@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+
+/* #ifndef DEBUG_MODE */
+/*  #define DEBUG_MODE */
+/* #endif */
 #include "debug.h"
 
 #ifdef HW_VIT
@@ -291,7 +295,11 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 #endif
   }
 #endif
-  
+
+      printf("\nVBS: in_cbps        = %u\n", in_cbps);
+      printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
+      printf("VBS: in_n_data_bits = %u\n", in_n_data_bits);
+
   DEBUG({
       printf("\nVBS: in_cbps        = %u\n", in_cbps);
       printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
@@ -310,59 +318,28 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	printf("%02x", in_depuncture_pattern[ti]);
       }
       printf("]\n");
-      printf("\nVBS: depd_data : %p\n", (void*)depd_data);
+      printf("\nVBS: depd_data : \n %6u : ", 0);
       {
 	int per_row = 0;
-	printf("%p : ", (void*)(&depd_data[0]));
-	for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
-	  per_row++;
+	//printf("%p : ", (void*)(&depd_data[0]));
+	for (int ti = 0; ti < (2* in_n_data_bits) /*MAX_ENCODED_BITS*/; ti++) {
 	  if ((per_row % 8) == 0) {
 	    printf(" ");
 	  }
 	  printf("%u", depd_data[ti]);
 	  if (per_row == 39) {
-	    printf("\n");
-	    printf("%p : ", (void*)(&depd_data[ti]));
+	    printf("\n %6u : ", ti);
+	    //printf("%p : ", (void*)(&depd_data[ti]));
 	    per_row = 0;
+	  } else {
+	    per_row++;
 	  }
 	}
 	printf("\n");
       }
-      /* for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) { */
-      /* 	if (ti > 0) { printf(", "); } */
-      /* 	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
-      /* 	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
-      /* 	printf("%02x", depd_data[ti]); */
-      /* } */
       printf("\n");
-      /** This is always ZERO
-      printf("\nVBS: l_decoded : %p\n", l_decoded);
-      {
-	int per_row = 0;
-	printf("%p : ", &l_decoded[0]);
-	for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-	  per_row++;
-	  if ((per_row % 8) == 0) {
-	    printf(" ");
-	  }
-	  printf("%u", l_decoded[ti]);
-	  if (per_row == 39) {
-	    printf("\n");
-	    printf("%p : ", &l_decoded[ti]);
-	    per_row = 0;
-	  }
-	}
-	printf("\n");
-	}**/
-      /* for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
-      /* 	if (ti > 0) { printf(", "); } */
-      /* 	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
-      /* 	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
-      /* 	printf("%02x", l_decoded[ti]); */
-      /* } */
       printf("\n\n");
     });      
-
 
   uint8_t  l_metric0_generic[64];
   uint8_t  l_metric1_generic[64];
@@ -377,9 +354,9 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   // d_store_pos = 0;
   for (int i = 0; i < 64; i++) {
     l_metric0_generic[i] = 0;
-    l_path0_generic[i] = 0;
+    l_path0_generic[i]   = 0;
     l_metric1_generic[i] = 0;
-    l_path1_generic[i] = 0;
+    l_path1_generic[i]   = 0;
     l_mmresult[i] = 0;
     for (int j = 0; j < TRACEBACK_MAX; j++) {
       l_ppresult[j][i] = 0;
@@ -389,7 +366,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   int viterbi_butterfly_calls = 0;
   //while(n_decoded < d_frame->n_data_bits) {
   while(n_decoded < in_n_data_bits) {
-    //printf("n_decoded = %d vs %d = in_n_data_bits\n", n_decoded, in_n_data_bits);
+    DEBUG(printf("VBS: in_count %u : n_decoded = %d vs %d = in_n_data_bits\n", in_count, n_decoded, in_n_data_bits));
     if ((in_count % 4) == 0) { //0 or 3
       //printf(" Viterbi_Butterfly Call,%d,n_decoded,%d,n_data_bits,%d,in_count,%d,%d\n", viterbi_butterfly_calls, n_decoded, in_n_data_bits, in_count, (in_count & 0xfffffffc));
 
@@ -453,7 +430,6 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	unsigned short simd_epi16;
 	unsigned int   first_symbol;
 	unsigned int   second_symbol;
-
 	// Set up for the first two symbols (0 and 1)
 	metric0 = mm0;
 	path0 = pp0;
@@ -466,6 +442,9 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	  sym1v[j] = symbols[second_symbol];
 	}
 
+	DEBUG(for (int ti = 0; ti < 4; ti++) {
+	    printf(" VF in_ct %u + %u : symbol %u %u\n", in_count, ti, symbols[ti], depd_data[(in_count & 0xfffffffc) + ti]);
+	  });
 	for (int s = 0; s < 2; s++) { // iterate across the 2 symbol groups
 	  // This is the basic viterbi butterfly for 2 symbols (we need therefore 2 passes for 4 total symbols)
 	  for (int i = 0; i < 2; i++) {
@@ -752,6 +731,11 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
 
   reset();
 
+  //DEBUG(
+  printf("In the decode routine: num_in_bits = %u (+ 10?)\n", frame->n_encoded_bits);
+  printf("DEC: OFDM  : %u %u %u %u %u\n", ofdm->n_bpsc, ofdm->n_cbps, ofdm->n_dbps, ofdm->encoding, ofdm->rate_field);
+  printf("DEC: FRAME : %u %u %u %u %u\n", frame->psdu_size, frame->n_sym, frame->n_pad, frame->n_encoded_bits, frame->n_data_bits); //);
+
   //#define DUMP_DECODE_INPUTS
 #ifdef  DUMP_DECODE_INPUTS
   {
@@ -777,11 +761,11 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
 #endif
 
   DEBUG({
-      printf("VBS: depunctured = [\n");
-      for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
+      printf("VBS: depunctured = [\n %6u : ", 0);
+      for (int ti = 0; ti < (frame->n_encoded_bits) /*MAX_ENCODED_BITS*/; ti ++) {
 	if (ti > 0) { printf(", "); }
-	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
-	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
+	if ((ti > 0) && ((ti % 8) == 0)) { printf("\n %6u : ", ti); }
+	//if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
 	printf("%02x", depunctured[ti]);
       }
       printf("\n");
@@ -843,6 +827,7 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
     do_decoding_hw(&vitHW_fd, &vitHW_desc);
    #else
     // Call the viterbi_butterfly2_generic function using ESP interface
+    printf("Calling so_decoding with frame->n_data_bits = %u  ofdm->n_cbps = %u d_ntraceback = %u \n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
     do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
    #endif
    #ifdef INT_TIME

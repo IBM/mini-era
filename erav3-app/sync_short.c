@@ -18,7 +18,8 @@ void sync_short( unsigned num_inputs, fx_pt input_sample[SYNC_S_MAX_IN_SIZE], fx
   bool frame = false;
   unsigned frame_start = 0;
   fx_pt1_ext1 d_freq_offset = 0;
-  DEBUG(printf("In sync_short with %u inputs\n", num_inputs));
+  //DEBUG(
+  printf("In sync_short with %u inputs\n", num_inputs);//);
   //if (frame == false) {
   for (unsigned i = 0; i < num_inputs /*SYNC_S_MAX_COR_SIZE*/; i++) {
     DEBUG2(printf("S_S_IN %5u : IN %12.8f %12.8f ABS %12.8f %12.8f CORR %12.8f : CP %u\n", i, crealf(input_sample[i]), cimagf(input_sample[i]), crealf(input_abs[i]), cimagf(input_abs[i]), correlation[i], c_plateau));
@@ -66,6 +67,7 @@ void sync_short( unsigned num_inputs, fx_pt input_sample[SYNC_S_MAX_IN_SIZE], fx
     } // end-for
 
     *num_outputs = out_idx;
+    printf(" synch_short set num_outputs to %u\n", *num_outputs);
     // if (out_idx >= MAX_SAMPLES) {
     //   frame = false;
     //   DEBUG(printf(" came to the MAX_SAMPLES (%u)...\n", MAX_SAMPLES));

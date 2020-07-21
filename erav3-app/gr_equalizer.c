@@ -4,14 +4,14 @@
 #include <complex.h>
 #include <math.h>
 
-#ifndef DEBUG_MODE
- #define DEBUG_MODE
-#endif
-#ifndef VERBOSE_MODE
- #define VERBOSE_MODE
-#endif
-
+/* #ifndef DEBUG_MODE */
+/*  #define DEBUG_MODE */
+/* #endif */
+/* #ifndef VERBOSE_MODE */
+/*  #define VERBOSE_MODE */
+/* #endif */
 #include "debug.h"
+
 #include "type.h"
 #include "base.h"
 #include "viterbi_flat.h"
@@ -73,9 +73,11 @@ decode_signal_field(uint8_t *rx_bits) {
   frame_param frame = {  0,     // psdu_size      : PSDU size in bytes
 			 1,     // n_sym          : number of OFDM symbols
 			 2,     // n_pad          : number of padding bits in DATA field
-			 0,     // n_encoded_bits : number of encoded bits
-			 24 };  // n_data_bits: number of data bits, including service and padding
+			 48,    // n_encoded_bits : number of encoded bits
+			 24 };  // n_data_bits    : number of data bits, including service and padding
   
+  printf("DSF : OFDM  : %u %u %u %u %u\n", ofdm.n_bpsc, ofdm.n_cbps, ofdm.n_dbps, ofdm.encoding, ofdm.rate_field);
+  printf("DSF : FRAME : %u %u %u %u %u\n", frame.psdu_size, frame.n_sym, frame.n_pad, frame.n_encoded_bits, frame.n_data_bits); //);
   //deinterleave(rx_bits);
   // void
   // frame_equalizer_impl::deinterleave(uint8_t *rx_bits) {
@@ -92,7 +94,8 @@ decode_signal_field(uint8_t *rx_bits) {
   //uint8_t *decoded_bits = d_decoder.decode(&ofdm, &frame, d_deinterleaved);
   uint8_t decoded_bits[48]; // extra-big for now (should need 48 bytes)
   int n_bits;
-  DEBUG(printf("\nDSF: Calling decode...\n"));
+  //DEBUG(
+  printf("DSF: Calling decode...\n");//);
   decode(&ofdm, &frame, d_deinterleaved, &n_bits, decoded_bits);
   DEBUG(printf("\nDSF: Back from decode\n");
 	for (int i = 0; i < 48; i++) {
@@ -244,6 +247,7 @@ void do_LS_equalize(fx_pt *in, int n, fx_pt *symbols, uint8_t *bits) // BPSK , b
 
 void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_IN_MAX_SIZE], unsigned* num_out_bits, uint8_t outputs[FRAME_EQ_OUT_MAX_SIZE], unsigned* num_out_sym, fx_pt out_symbols[FRAME_EQ_OUT_MAX_SIZE] )
 {
+  printf("\nIn gr_equalize with %u inputs\n", num_inputs);
   const fx_pt POLARITY[127] = { 1 , 1, 1, 1,-1,-1,-1, 1,-1,-1,-1,-1, 1, 1,-1, 1,
 				-1,-1, 1, 1,-1, 1, 1,-1, 1, 1, 1, 1, 1, 1,-1, 1,
 				1 , 1,-1, 1, 1,-1,-1, 1, 1, 1,-1, 1,-1,-1,-1, 1,
@@ -272,6 +276,8 @@ void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_I
   //UNUSED: DEBUG(printf(" GR_FREQ : d_freq_offset_from_synclong = %12.8f\n", d_freq_offset_from_synclong));
   DEBUG(printf(" GR_FREQ : d_epsilon0 = %12.8f\n", d_epsilon0));
   unsigned num_inp_sym = num_inputs /*FRAME_EQ_IN_MAX_SIZE*/ / 64;
+  //DEBUG(
+  printf(" gr_equalizer has %u input symbols\n", num_inp_sym);//);
   for (inp_sym = 0; inp_sym < num_inp_sym ; inp_sym++) {
     // Set up the values for the current symbols and compensate sampling offset
     DEBUG(printf("Setting up initial current_symbol : i = %u\n", inp_sym));
@@ -318,12 +324,14 @@ void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_I
     if (d_current_symbol == 2) {
       // ASSUME GOOD PARITY FOR NOW ?!?
       // Otherwise, I think we decode this frame, and do some checking, etc... in the decode_signal_field (above)
-      printf("Calling decode_signal_field with out_sym = %u and d_current_symbol = %u\n", out_sym, d_current_symbol);
+      //DEBUG(
+      printf("Calling decode_signal_field with out_sym = %u and d_current_symbol = %u\n", out_sym, d_current_symbol);//);
       if (!decode_signal_field(&(outputs[out_sym * 48]))) {
         printf("ERROR : Bad decode_signal_filed return value ...\n");
 	exit(-20); // return false;
       }
-      DEBUG(printf("Back from decode_signal_field...\n"));
+      //DEBUG(
+      printf("Back from decode_signal_field...\n");//);
     }
   
     if(d_current_symbol > 2) {
@@ -338,6 +346,7 @@ void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_I
 
     d_current_symbol++;
   } //  for (inp_sym = 0; loop through input symbols
-  *num_out_bits = num_inp_sym * 48;
+  *num_out_bits = out_sym * 48;
   *num_out_sym  = out_sym;
+  printf(" gr_equalize setting %u in symbols, %u out symbols and %u out bits\n", num_inp_sym, *num_out_sym, *num_out_bits);
 }
