@@ -31,8 +31,7 @@ void descrambler(uint8_t* in, int psdusize, char* out_msg) //definition
   uint32_t msg_length = (psdusize)-28;
   uint8_t out[MAX_PSDU_SIZE + 2]; // output_length];
   int state = 0; //start
-  //DEBUG(
-  printf("\nIn the descrambler with psdu_size = %u\n", psdusize);//);
+  DEBUG(printf("\nIn the descrambler with psdu_size = %u\n", psdusize));
   // find the initial state of LFSR (linear feedback shift register: 7 bits) from first 7 input bits
   for(int i = 0; i < 7; i++) {
     if( *(in+i) ) {

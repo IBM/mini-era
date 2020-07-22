@@ -27,7 +27,7 @@ typedef float complex fx_pt_ext2;
  **********************************************************************************/
 void sync_long( unsigned num_inputs, fx_pt* input, fx_pt* input_delayed, float* freq_offset_out, unsigned* num_outputs, fx_pt* output )
 {
-  printf("In synch_long with %u inputs\n", num_inputs);
+  DEBUG(printf("In synch_long with %u inputs\n", num_inputs));
   /**
   const fx_pt_ext coeff[COEFF_LENGTH] = { fx_pt_ext( fx_pt1_ext(-0.0455),fx_pt1_ext(-1.0679) ),
 					  fx_pt_ext( fx_pt1_ext(0.3528), fx_pt1_ext(-0.9865) ),
@@ -276,6 +276,6 @@ void sync_long( unsigned num_inputs, fx_pt* input, fx_pt* input_delayed, float* 
     o++;
   } // for ( i = 0 .. samples )
   *num_outputs = out_idx;
-  printf(" synch_long set num_outputs to %u\n", *num_outputs);
+  DEBUG(printf(" synch_long set num_outputs to %u\n", *num_outputs));
 }
 

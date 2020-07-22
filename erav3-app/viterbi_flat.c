@@ -296,10 +296,11 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   }
 #endif
 
-      printf("\nVBS: in_cbps        = %u\n", in_cbps);
-      printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
-      printf("VBS: in_n_data_bits = %u\n", in_n_data_bits);
-
+  /**
+     printf("\nVBS: in_cbps        = %u\n", in_cbps);
+     printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
+     printf("VBS: in_n_data_bits = %u\n", in_n_data_bits);
+  **/
   DEBUG({
       printf("\nVBS: in_cbps        = %u\n", in_cbps);
       printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
@@ -731,10 +732,9 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
 
   reset();
 
-  //DEBUG(
-  printf("In the decode routine: num_in_bits = %u (+ 10?)\n", frame->n_encoded_bits);
-  printf("DEC: OFDM  : %u %u %u %u %u\n", ofdm->n_bpsc, ofdm->n_cbps, ofdm->n_dbps, ofdm->encoding, ofdm->rate_field);
-  printf("DEC: FRAME : %u %u %u %u %u\n", frame->psdu_size, frame->n_sym, frame->n_pad, frame->n_encoded_bits, frame->n_data_bits); //);
+  DEBUG(printf("In the decode routine: num_in_bits = %u (+ 10?)\n", frame->n_encoded_bits);
+	printf("DEC: OFDM  : %u %u %u %u %u\n", ofdm->n_bpsc, ofdm->n_cbps, ofdm->n_dbps, ofdm->encoding, ofdm->rate_field);
+	printf("DEC: FRAME : %u %u %u %u %u\n", frame->psdu_size, frame->n_sym, frame->n_pad, frame->n_encoded_bits, frame->n_data_bits));
 
   //#define DUMP_DECODE_INPUTS
 #ifdef  DUMP_DECODE_INPUTS

@@ -35,10 +35,9 @@ void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX]
   // ap_uint<1> bit[CHUNK];
   unsigned num_sym = num_inputs/48;
   uint8_t bit_r[DECODE_IN_SIZE_MAX];
-  uint8_t bit[DECODE_IN_SIZE_MAX];
+  uint8_t bit[DECODE_IN_SIZE_MAX + OFDM_PAD_ENTRIES]; // This is oversize becuase decode uses extra space (?)
 
-//DEBUG(
-printf("In the decode_signal routine with num_inputs = %u\n", num_inputs);//);
+  DEBUG(printf("In the decode_signal routine with num_inputs = %u\n", num_inputs));
   // map to the nearest one
   for(unsigned i = 0; i < num_inputs /*DECODE_IN_SIZE_MAX*/;i++) {
     if( crealf(constellation[i]) > 0 ) {
@@ -64,7 +63,11 @@ printf("In the decode_signal routine with num_inputs = %u\n", num_inputs);//);
       DEBUG(printf(" OFDM_BIT %5u : BIT %5u = BIR_R %5u = %u\n", i, (j+i*48), index, bit[j+i*48]));
     }
   }
-
+  // Initialize the pad entries
+  for (int ti = 0; ti < OFDM_PAD_ENTRIES; ti++) {
+    bit[48*num_sym + ti] = 0;
+  }
+  
   DEBUG(printf("     at the call to our decode...\n"));
   unsigned num_out_bits = num_inputs/2; // for BPSK_1_2
   {
@@ -90,8 +93,7 @@ printf("In the decode_signal routine with num_inputs = %u\n", num_inputs);//);
     // end of decode (viterbi) function, but result bits need to be "descrambled"
     *num_outputs = num_out_bits;
   }
-  //DEBUG(
-  printf("  done and leaving ofdm.c\n");//);
+  DEBUG(printf("  done and leaving ofdm.c\n"));
 }
 
 

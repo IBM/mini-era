@@ -124,7 +124,8 @@ typedef struct {
 #define FRAME_EQ_OUT_MAX_SIZE  FRAME_EQ_MAX_PACKETS * 48
 
 // ofdm
-#define DECODE_IN_SIZE_MAX  MAX_ENCODED_BITS
+#define OFDM_PAD_ENTRIES        80 // extra pad space used by decode (?)
+#define DECODE_IN_SIZE_MAX  FRAME_EQ_OUT_MAX_SIZE // MAX_ENCODED_BITS
 
 // sync_long
 #define SYNC_L_OUT_MAX_SIZE 32620
