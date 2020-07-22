@@ -35,8 +35,12 @@
 #include <cstring>
 #include <iostream>
 #include <cstdlib> // system
-static TestAppArgs defaultTestAppArgs = TestAppArgs();
+
+TestAppArgs defaultTestAppArgs = TestAppArgs();
 //TestAppArgs defaultTestAppArgs = TestAppArgs();
+
+TestAppArgs testAppArgs = defaultTestAppArgs;
+TestInfo testInfo;
 
 static NvDlaError testSetup(const TestAppArgs* appArgs, TestInfo* i)
 //NvDlaError testSetup(const TestAppArgs* appArgs, TestInfo* i)
@@ -82,46 +86,25 @@ static NvDlaError launchTest(const TestAppArgs* appArgs)
 //NvDlaError launchTest(const TestAppArgs* appArgs)
 {
     NvDlaError e = NvDlaSuccess;
-    TestInfo testInfo;
 
     testInfo.dlaServerRunning = false;
+    //TestInfo testInfo;
     PROPAGATE_ERROR_FAIL(testSetup(appArgs, &testInfo));
+    //PROPAGATE_ERROR_FAIL(testSetup(testAppArgs, &testInfo));
 
     PROPAGATE_ERROR_FAIL(run(appArgs, &testInfo));
+    //PROPAGATE_ERROR_FAIL(run(testAppArgs, &testInfo));
 
 fail:
     return e;
 }
 
-
-
-//static NvDlaError runImageonNVDLA(std::string iImage) {
-//NvDlaError runImageonNVDLA(std::string iImage) {
 void runImageonNVDLA(std::string iImage) {
-
     NvDlaError e = NvDlaError_TestApplicationFailed;
-    TestAppArgs testAppArgs = defaultTestAppArgs;
-    bool serverMode = false;
-    bool inputPathSet = false;
-    NVDLA_UNUSED(inputPathSet);
-
-    //testAppArgs.inputPath = std::string();
     testAppArgs.inputName = iImage;
-    testAppArgs.loadableName = "mnist_loadable2.nvdla";
-    //testAppArgs.loadableName = "mio_loadable.nvdla";
-
     testAppArgs.rawOutputDump = true;
-
-    if (serverMode)
-    {
-        e = launchServer(&testAppArgs);
-    }
-    else
-    {
-        // Launch
-        e = launchTest(&testAppArgs);
-    }
-
+    //PROPAGATE_ERROR_FAIL(runImage(&testAppArgs, &testInfo));
+    e = runImage(&testAppArgs, &testInfo);
     if (e != NvDlaSuccess)
     {
         //return EXIT_FAILURE;
@@ -129,11 +112,37 @@ void runImageonNVDLA(std::string iImage) {
     }
     else
     {
-        NvDlaDebugPrintf("Test pass\n");
-       // return EXIT_SUCCESS;
+        NvDlaDebugPrintf("Image Processed, Test Passed\n");
     }
 
-    //return EXIT_SUCCESS; 
+}
+
+// This function reads the loadable and creates a new runtime context
+void initNVDLA() {
+
+    NvDlaError e = NvDlaError_TestApplicationFailed;
+//    TestAppArgs testAppArgs = defaultTestAppArgs;
+    bool serverMode = false;
+    bool inputPathSet = false;
+    NVDLA_UNUSED(inputPathSet);
+
+    //testAppArgs.loadableName = "mnist_loadable2.nvdla";
+    testAppArgs.loadableName = "hpvm-mod.nvdla";
+
+
+        // Launch
+    e = launchTest(&testAppArgs);
+
+    if (e != NvDlaSuccess)
+    {
+        //return EXIT_FAILURE;
+        NvDlaDebugPrintf("Runtime creation failed and loadable not read\n");
+    }
+    else
+    {
+        NvDlaDebugPrintf("Loadable read and Runtime creation successful\n");
+    }
+
 }
 
 

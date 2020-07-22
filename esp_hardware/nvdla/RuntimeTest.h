@@ -95,3 +95,4 @@ struct TestInfo
 
 // Test
 NvDlaError run(const TestAppArgs* appArgs, TestInfo* i);
+NvDlaError runImage(const TestAppArgs* appArgs, TestInfo* i);
