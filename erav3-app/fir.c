@@ -12,7 +12,7 @@ void fir(fx_pt1 output[FIR_MAVG64_MAX_SIZE], fx_pt1 input_sample[FIR_MAVG64_MAX_
   static fx_pt1_ext buffer[COEFF_LENGTH];
   static bool init = true;
 
-  if(init) {
+  if (init) {
     /* init: */
     for(unsigned i = 0; i < COEFF_LENGTH; i++) {
       buffer[i] = 0;

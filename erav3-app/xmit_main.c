@@ -54,7 +54,6 @@ uint32_t xmit_msg_len = 0;
 bool show_main_output = true;
 bool show_xmit_output = false;
 bool do_add_pre_pad = false;
-bool show_recv_output = true;
 
 
 void print_usage(char * pname) {
@@ -66,7 +65,7 @@ void print_usage(char * pname) {
   printf("    -T \"S\"     : Use message S (No longer than 1500 chars)\n");
   printf("    -M <0|1>   : 0=disable 1=enable output of Messages (input and output) per time step\n");
   printf("    -x <0|1>   : 0=disable 1=enable output of XMIT output per time step\n");
-  printf("    -r <0|1>   : 0=disable 1=enable output of RECV output per time step\n");
+  printf("    -o <FN>    : Output the encoded message data to file <FN>\n");
 }
 
 
@@ -74,11 +73,13 @@ int main(int argc, char *argv[])
 {
   int opt;
   int set_last_message = 0;
+  char out_fname[256];
 
+  out_fname[0] = '\0';
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hs:m:M:x:r:T:")) != -1) {
+  while((opt = getopt(argc, argv, ":hs:m:M:x:r:T:o:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -92,9 +93,6 @@ int main(int argc, char *argv[])
       break;
     case 'x':
       show_xmit_output = (atoi(optarg) != 0);
-      break;
-    case 'r':
-      show_recv_output = (atoi(optarg) != 0);
       break;
     case 'm':
       use_xmit_message = atoi(optarg);
@@ -113,6 +111,9 @@ int main(int argc, char *argv[])
       do_add_pre_pad = atoi(optarg);
       //printf("Setting do_add_pre_pad to %u\n", do_add_pre_pad);
       break;
+    case 'o':
+      snprintf(out_fname, 255, "%s", optarg);
+      break;
     case ':':
       printf("option needs a value\n");
       break;
@@ -128,9 +129,7 @@ int main(int argc, char *argv[])
     printf("extra arguments: %s\n", argv[optind]);
   }
 
-
   printf("Set show_xmit_output = %u\n", show_xmit_output);
-  printf("Set show_recv_output = %u\n", show_recv_output);
   printf("Running for %u time steps\n", max_time_steps);
   if (use_xmit_message >= XMIT_LIBRARY_SIZE) {
     if ((set_last_message) && (use_xmit_message == XMIT_LIBRARY_SIZE)) {
@@ -142,7 +141,6 @@ int main(int argc, char *argv[])
   } else {
     printf("Using XMIT message %u (0 ='x', 1 = '0123456789')\n", use_xmit_message);
   }
-  printf("RECV message is taken from XMIT output...\n");
 
   xmit_msg_len = xmit_msg_library[use_xmit_message].msg_len;
   xmit_msg = xmit_msg_library[use_xmit_message].msg_text;
@@ -156,24 +154,16 @@ int main(int argc, char *argv[])
     printf("Error: the computer vision kernel couldn't be initialized properly.\n");
     return 1;
   }
-  printf("Initializing the Receive kernel...\n");
-  if (!init_recv_kernel()) {
-    printf("Error: the receive kernel couldn't be initialized properly.\n");
-    return 1;
-  }
 
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
  #ifdef TIME
   struct timeval stop, start;
 
   struct timeval stop_exec_xmit, start_exec_xmit;
-  struct timeval stop_exec_recv, start_exec_recv;
 
   uint64_t exec_xmit_sec  = 0LL;
-  uint64_t exec_recv_sec = 0LL;
 
   uint64_t exec_xmit_usec  = 0LL;
-  uint64_t exec_recv_usec = 0LL;
  #endif // TIME
 
   printf("Starting the main loop...\n");
@@ -205,23 +195,21 @@ int main(int argc, char *argv[])
       }
       printf("\n");
     }
-    
-    /* The receive kernel does a receive of one message */
-    int  recv_msg_len;
-    char recv_msg[MAX_MESSAGE_LEN];
-   #ifdef TIME
-    gettimeofday(&start_exec_recv, NULL);
-   #endif
-    execute_recv_kernel(xmit_msg_len, xmit_num_out, xmit_out_real, xmit_out_imag, &recv_msg_len, recv_msg);    
-   #ifdef TIME
-    gettimeofday(&stop_exec_recv, NULL);
-    exec_recv_sec  += stop_exec_recv.tv_sec  - start_exec_recv.tv_sec;
-    exec_recv_usec += stop_exec_recv.tv_usec - start_exec_recv.tv_usec;
-   #endif
 
-    if (show_main_output) {
-      printf("Iteration %u : RECV_MSG:\n'%s'\n", time_step, recv_msg);
+    // Check whether we are to save this encoding into a file (for use by the receiver stand-alone)
+    if ((time_step == 0) && (out_fname[0] != '\0')) {
+      FILE *outF = fopen(out_fname, "w");
+      if (!outF) {
+	printf("Error: unable to open output encoded message file %s\n", out_fname);
+	return error;
+      }
+      fprintf(outF, "%u %u\n", xmit_msg_len, xmit_num_out);
+      for (int i = 0; i < xmit_num_out; i++) {
+	fprintf(outF, "%12.8f %12.8f", xmit_out_real[i], xmit_out_imag[i]);
+      }
+      fclose(outF);
     }
+
     /* // POST-EXECUTE each kernels to gather stats, etc. */
     /* post_execute_xmit_kernel(xmit_tr_label, label); */
     /* post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance); */
@@ -234,35 +222,21 @@ int main(int argc, char *argv[])
   gettimeofday(&stop, NULL);
  #endif
 
+  
   /* All the traces have been fully consumed. Quitting... */
   closeout_xmit_kernel();
-  closeout_recv_kernel();
 
   #ifdef TIME
   {
     uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
     uint64_t exec_xmit    = (uint64_t) (exec_xmit_sec)  * 1000000 + (uint64_t) (exec_xmit_usec);
-    uint64_t exec_recv   = (uint64_t) (exec_recv_sec) * 1000000 + (uint64_t) (exec_recv_usec);
     printf("\nProgram total execution time     %lu usec\n", total_exec);
     printf("  execute_xmit_kernel run time     %lu usec\n", exec_xmit);
-    printf("  execute_recv_kernel run time    %lu usec\n", exec_recv);
   }
  #endif // TIME
  #ifdef INT_TIME
   // These are timings taken from called routines...
   printf("\n");
-  /* uint64_t fft    = (uint64_t) (fft_sec)  * 1000000 + (uint64_t) (fft_usec); */
-  /* printf("  fft-total   run time    %lu usec\n", fft); */
-  /* uint64_t bitrev    = (uint64_t) (bitrev_sec)  * 1000000 + (uint64_t) (bitrev_usec); */
-  /* printf("  bit-reverse run time    %lu usec\n", bitrev); */
-  /* uint64_t cdfmcw    = (uint64_t) (cdfmcw_sec)  * 1000000 + (uint64_t) (cdfmcw_usec); */
-  /* printf("  calc-dist   run time    %lu usec\n", cdfmcw); */
-
-  /* printf("\n"); */
-  /* uint64_t depunc    = (uint64_t) (depunc_sec)  * 1000000 + (uint64_t) (depunc_usec); */
-  /* printf("  depuncture  run time    %lu usec\n", depunc); */
-  /* uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec); */
-  /* printf("  do-decoding run time    %lu usec\n", dodec); */
  #endif // INT_TIME
 
   printf("\nDone.\n");

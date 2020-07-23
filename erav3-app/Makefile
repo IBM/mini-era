@@ -19,13 +19,22 @@ LIBS     = -lm
 
 OBJDIR      = obj
 V_OBJDIR    = obj_v
+X_OBJDIR    = obj_x
+VX_OBJDIR   = obj_vx
+R_OBJDIR    = obj_r
+VR_OBJDIR   = obj_vr
 
 # The full mini-era target, etc.
-TARGET = erav3c
-V_TARGET = verbose_erav3c
+TARGET    = erav3c
+X_TARGET  = xmit_erav3c
+R_TARGET  = recv_erav3c
+V_TARGET  = verbose_erav3c
+VX_TARGET = verbose_xmit_erav3c
+VR_TARGET = verbose_recv_erav3c
 
 XMIT_SRC = xmit_pipe.c \
 	   crc.c
+
 RECV_SRC = recv_pipe.c\
 	   complex_ops.c \
 	   delay.c \
@@ -36,18 +45,25 @@ RECV_SRC = recv_pipe.c\
 	   sync_short.c \
 	   viterbi_flat.c \
 	   descrambler_function.c \
-	   simple_dft.c \
-	   fft-1d.c 
+	   simple_dft.c
 
-SRC    = main.c kernels_api.c $(XMIT_SRC) $(RECV_SRC)
+COMMON_SRC = fft-1d.c 
+
+SRC    = main.c kernels_api.c $(XMIT_SRC) $(RECV_SRC) $(COMMON_SRC)
+X_SRC  = xmit_main.c kernels_api.c $(XMIT_SRC) $(COMMON_SRC)
+R_SRC  = recv_main.c kernels_api.c $(RECV_SRC) $(COMMON_SRC)
 OBJ    = $(SRC:%.c=$(OBJDIR)/%.o)
 OBJ_V  = $(SRC:%.c=$(V_OBJDIR)/%.o)
+X_OBJ    = $(X_SRC:%.c=$(X_OBJDIR)/%.o)
+X_OBJ_V  = $(X_SRC:%.c=$(VX_OBJDIR)/%.o)
+R_OBJ    = $(R_SRC:%.c=$(R_OBJDIR)/%.o)
+R_OBJ_V  = $(R_SRC:%.c=$(VR_OBJDIR)/%.o)
 
 #$(info $$SRC is [${SRC}])
 #$(info $$OBJ is [${OBJ}])
 
 
-all: $(TARGET) $(V_TARGET)
+all: $(TARGET) $(V_TARGET) $(X_TARGET) $(VX_TARGET) $(R_TARGET) $(VR_TARGET)
 
 $(TARGET): $(OBJDIR)  $(OBJ) 
 	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
@@ -55,6 +71,19 @@ $(TARGET): $(OBJDIR)  $(OBJ)
 $(V_TARGET): $(V_OBJDIR)  $(OBJ_V) 
 	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
 
+
+$(X_TARGET): $(X_OBJDIR)  $(X_OBJ) 
+	$(CC) $(X_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VX_TARGET): $(VX_OBJDIR)  $(X_OBJ_V) 
+	$(CC) $(X_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
+$(R_TARGET): $(R_OBJDIR)  $(R_OBJ) 
+	$(CC) $(R_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VR_TARGET): $(VR_OBJDIR)  $(R_OBJ_V) 
+	$(CC) $(R_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
 
 
 
@@ -64,20 +93,48 @@ $(OBJDIR):
 $(V_OBJDIR):
 	mkdir $@
 
+$(R_OBJDIR):
+	mkdir $@
+
+$(VR_OBJDIR):
+	mkdir $@
+
+$(X_OBJDIR):
+	mkdir $@
+
+$(VX_OBJDIR):
+	mkdir $@
+
 
 
 $(OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DUSE_RECV_PIPE -o $@ $(PYTHONLIBS) -c $<
 
 $(V_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(X_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VX_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(R_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_RECV_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VR_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
 
 
 clean:
-	$(RM) $(TARGET) $(OBJ) $(V_TARGET) $(V_OBJ)
+	$(RM) $(TARGET)   $(OBJ)   $(V_TARGET)  $(V_OBJ) 
+	$(RM) $(X_TARGET) $(X_OBJ) $(VX_TARGET) $(VX_OBJ) 
+	$(RM) $(R_TARGET) $(R_OBJ) $(VR_TARGET) $(VR_OBJ) 
 
 clobber: clean
-	$(RM) -rf $(OBJDIR) $(V_OBJDIR)
+	$(RM) -rf $(OBJDIR)   $(V_OBJDIR)
+	$(RM) -rf $(X_OBJDIR) $(VX_OBJDIR)
+	$(RM) -rf $(R_OBJDIR) $(VR_OBJDIR)
 
 allclean: clobber
 

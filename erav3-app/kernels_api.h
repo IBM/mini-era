@@ -21,23 +21,23 @@
 #define TIME
 
 #include "base.h"
+#ifdef USE_XMIT_PIPE
 #include "xmit_pipe.h"
-#include "recv_pipe.h"
-
-/* Kernels initialization */
-
 status_t init_xmit_kernel(void);
 void     iterate_xmit_kernel(void);
 void     execute_xmit_kernel(int in_msg_len, char* in_msg, int* n_out, float* out_real, float* out_imag);
 void     post_execute_xmit_kernel(void);
+void     closeout_xmit_kernel(void);
+#endif
 
+#ifdef USE_RECV_PIPE
+#include "recv_pipe.h"
 status_t init_recv_kernel(void);
 void     iterate_recv_kernel(void);
 void     execute_recv_kernel(int in_msg_len, int n_in, float* in_real, float* in_imag, int* out_msg_len, char* out_msg);
 void     post_execute_recv_kernel(void);
+void     closeout_recv_kernel(void);
+#endif
 
-// These routines are used for any final, end-of-run operations/output
-void closeout_xmit_kernel(void);
-void closeout_recv_kernel(void);
 
 #endif
