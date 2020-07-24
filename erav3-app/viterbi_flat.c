@@ -231,16 +231,11 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   int n_decoded = 0;
 
 #ifdef USE_ESP_INTERFACE
-  /* int* inWords = (int*)inMemory; */
-
-  /* int  in_cbps        = inWords[  0]; // inMemory[    0] */
-  /* int  in_ntraceback  = inWords[  1]; // inMemory[    4] */
-  /* int  in_n_data_bits = inWords[  2]; // inMemory[    8] */
   unsigned char* d_brtab27[2] = {      &(inMemory[    0]), 
                                        &(inMemory[   32]) };
   unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
   uint8_t* depd_data          = &(inMemory[   72]);
-  uint8_t* l_decoded          = &(inMemory[24852]);
+  uint8_t* l_decoded          = &(outMemory[   0]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
@@ -622,8 +617,8 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	//std::cout << "OUTPUT: " << (unsigned int)c << std::endl; 
 	if (out_count >= in_ntraceback) {
 	  for (int i= 0; i < 8; i++) {
+	    //printf("Writing l_decoded[ %u ] to be %u\n", (out_count - in_ntraceback) * 8 + i, (c >> (7 - i)) & 0x1);  fflush(stdout);
 	    l_decoded[(out_count - in_ntraceback) * 8 + i] = (c >> (7 - i)) & 0x1;
-	    //printf("l_decoded[ %u ] written as %u\n", (out_count - in_ntraceback) * 8 + i, l_decoded[(out_count - in_ntraceback) * 8 + i]);
 	    n_decoded++;
 	  }
 	}
@@ -825,7 +820,7 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
     do_decoding_hw(&vitHW_fd, &vitHW_desc);
    #else
     // Call the viterbi_butterfly2_generic function using ESP interface
-    printf("Calling do_decoding with frame->n_data_bits = %u  ofdm->n_cbps = %u d_ntraceback = %u \n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
+    DEBUG(printf("ESP_INTFC: Calling do_decoding with frame->n_data_bits = %u  ofdm->n_cbps = %u d_ntraceback = %u \n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback));
     do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
    #endif
    #ifdef INT_TIME
