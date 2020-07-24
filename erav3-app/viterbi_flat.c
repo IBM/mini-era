@@ -827,7 +827,7 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
     do_decoding_hw(&vitHW_fd, &vitHW_desc);
    #else
     // Call the viterbi_butterfly2_generic function using ESP interface
-    printf("Calling so_decoding with frame->n_data_bits = %u  ofdm->n_cbps = %u d_ntraceback = %u \n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
+    printf("Calling do_decoding with frame->n_data_bits = %u  ofdm->n_cbps = %u d_ntraceback = %u \n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
     do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
    #endif
    #ifdef INT_TIME
