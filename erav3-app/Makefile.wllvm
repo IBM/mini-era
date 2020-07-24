@@ -23,14 +23,18 @@ X_OBJDIR    = obj_x
 VX_OBJDIR   = obj_vx
 R_OBJDIR    = obj_r
 VR_OBJDIR   = obj_vr
+RE_OBJDIR   = obj_re
+VRE_OBJDIR  = obj_vre
 
 # The full mini-era target, etc.
-TARGET    = erav3c
-X_TARGET  = xmit_erav3c
-R_TARGET  = recv_erav3c
-V_TARGET  = verbose_erav3c
-VX_TARGET = verbose_xmit_erav3c
-VR_TARGET = verbose_recv_erav3c
+TARGET    =  erav3c
+X_TARGET   = xmit_erav3c
+R_TARGET   = recv_erav3c
+RE_TARGET  = recv_erav3c_esp
+V_TARGET   = verbose_erav3c
+VX_TARGET  = verbose_xmit_erav3c
+VR_TARGET  = verbose_recv_erav3c
+VRE_TARGET = verbose_recv_erav3c_esp
 
 XMIT_SRC = xmit_pipe.c \
 	   crc.c
@@ -58,12 +62,14 @@ X_OBJ    = $(X_SRC:%.c=$(X_OBJDIR)/%.o)
 X_OBJ_V  = $(X_SRC:%.c=$(VX_OBJDIR)/%.o)
 R_OBJ    = $(R_SRC:%.c=$(R_OBJDIR)/%.o)
 R_OBJ_V  = $(R_SRC:%.c=$(VR_OBJDIR)/%.o)
+RE_OBJ   = $(R_SRC:%.c=$(RE_OBJDIR)/%.o)
+RE_OBJ_V = $(R_SRC:%.c=$(VRE_OBJDIR)/%.o)
 
 #$(info $$SRC is [${SRC}])
 #$(info $$OBJ is [${OBJ}])
 
 
-all: $(TARGET) $(V_TARGET) $(X_TARGET) $(VX_TARGET) $(R_TARGET) $(VR_TARGET)
+all: $(TARGET) $(V_TARGET) $(X_TARGET) $(VX_TARGET) $(R_TARGET) $(VR_TARGET) $(RE_TARGET) $(VRE_TARGET)
 
 $(TARGET): $(OBJDIR)  $(OBJ) 
 	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
@@ -86,6 +92,13 @@ $(VR_TARGET): $(VR_OBJDIR)  $(R_OBJ_V)
 	$(CC) $(R_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
 
 
+$(RE_TARGET): $(RE_OBJDIR)  $(RE_OBJ) 
+	$(CC) $(RE_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VRE_TARGET): $(VRE_OBJDIR)  $(RE_OBJ_V) 
+	$(CC) $(RE_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
 
 $(OBJDIR):
 	mkdir $@
@@ -97,6 +110,12 @@ $(R_OBJDIR):
 	mkdir $@
 
 $(VR_OBJDIR):
+	mkdir $@
+
+$(RE_OBJDIR):
+	mkdir $@
+
+$(VRE_OBJDIR):
 	mkdir $@
 
 $(X_OBJDIR):
@@ -125,16 +144,24 @@ $(R_OBJDIR)/%.o: %.c
 $(VR_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
 
+$(RE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_ESP_INTERFACE -DUSE_RECV_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VRE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_ESP_INTERFACE -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
 
 clean:
-	$(RM) $(TARGET)   $(OBJ)   $(V_TARGET)  $(V_OBJ) 
-	$(RM) $(X_TARGET) $(X_OBJ) $(VX_TARGET) $(VX_OBJ) 
-	$(RM) $(R_TARGET) $(R_OBJ) $(VR_TARGET) $(VR_OBJ) 
+	$(RM) $(TARGET)    $(OBJ)    $(V_TARGET)   $(V_OBJ) 
+	$(RM) $(X_TARGET)  $(X_OBJ)  $(VX_TARGET)  $(VX_OBJ) 
+	$(RM) $(R_TARGET)  $(R_OBJ)  $(VR_TARGET)  $(VR_OBJ) 
+	$(RM) $(RE_TARGET) $(RE_OBJ) $(VRE_TARGET) $(VRE_OBJ) 
 
 clobber: clean
-	$(RM) -rf $(OBJDIR)   $(V_OBJDIR)
-	$(RM) -rf $(X_OBJDIR) $(VX_OBJDIR)
-	$(RM) -rf $(R_OBJDIR) $(VR_OBJDIR)
+	$(RM) -rf $(OBJDIR)    $(V_OBJDIR)
+	$(RM) -rf $(X_OBJDIR)  $(VX_OBJDIR)
+	$(RM) -rf $(R_OBJDIR)  $(VR_OBJDIR)
+	$(RM) -rf $(RE_OBJDIR) $(VRE_OBJDIR)
 
 allclean: clobber
 
