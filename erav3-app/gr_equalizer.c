@@ -131,55 +131,55 @@ decode_signal_field(uint8_t *rx_bits) {
     d_frame_encoding = 0;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 24);
     //d_frame_mod = d_bpsk;
-    printf("Encoding: 3 Mbit/s with d_frame_enc %u d_frame_sym %u d_frame_bytes %u\n", d_frame_encoding, d_frame_symbols, d_frame_bytes);
+    DEBUG(printf("Encoding: 3 Mbit/s with d_frame_enc %u d_frame_sym %u d_frame_bytes %u\n", d_frame_encoding, d_frame_symbols, d_frame_bytes));
     break;
   case 15:
     d_frame_encoding = 1;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 36);
     //d_frame_mod = d_bpsk;
-    printf("Encoding: 4.5 Mbit/s   \n");
+    DEBUG(printf("Encoding: 4.5 Mbit/s   \n"));
     return false;
     break;
   case 10:
     d_frame_encoding = 2;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 48);
     //d_frame_mod = d_qpsk;
-    printf("Encoding: 6 Mbit/s   \n");
+    DEBUG(printf("Encoding: 6 Mbit/s   \n"));
     return false;
     break;
   case 14:
     d_frame_encoding = 3;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 72);
     //d_frame_mod = d_qpsk;
-    printf("Encoding: 9 Mbit/s   \n");
+    DEBUG(printf("Encoding: 9 Mbit/s   \n"));
     return false;
     break;
   case 9:
     d_frame_encoding = 4;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 96);
     //d_frame_mod = d_16qam;
-    printf("Encoding: 12 Mbit/s   \n");
+    DEBUG(printf("Encoding: 12 Mbit/s   \n"));
     return false;
     break;
   case 13:
     d_frame_encoding = 5;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 144);
     //d_frame_mod = d_16qam;
-    printf("Encoding: 18 Mbit/s   \n");
+    DEBUG(printf("Encoding: 18 Mbit/s   \n"));
     return false;
     break;
   case 8:
     d_frame_encoding = 6;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 192);
     //d_frame_mod = d_64qam;
-    printf("Encoding: 24 Mbit/s   \n");
+    DEBUG(printf("Encoding: 24 Mbit/s   \n"));
     return false;
     break;
   case 12:
     d_frame_encoding = 7;
     d_frame_symbols = (int) ceil((16 + 8 * d_frame_bytes + 6) / (double) 216);
     //d_frame_mod = d_64qam;
-    printf("Encoding: 27 Mbit/s   \n");
+    DEBUG(printf("Encoding: 27 Mbit/s   \n"));
     return false;
     break;
   default:
