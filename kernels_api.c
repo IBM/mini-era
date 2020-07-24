@@ -316,11 +316,13 @@ status_t init_vit_kernel(char* dict_fn)
     int mnum, mid;
     if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
       printf("Error reading viterbi kernel dictionary enry %u header: Message_number and Message_id\n", i);
+      fclose(dictF);
       exit(-6);
     }
     DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
     if (mnum != i) {
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
+      fclose(dictF);
       exit(-5);
     }
     the_viterbi_trace_dict[i].msg_num = mnum;
@@ -329,6 +331,7 @@ status_t init_vit_kernel(char* dict_fn)
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
     if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate) != 5) {
       printf("Error reading viterbi kernel dictionary entry %u bpsc, cbps, dbps, encoding and rate info\n", i);
+      fclose(dictF);
       exit(-2);
     }
 
@@ -342,6 +345,7 @@ status_t init_vit_kernel(char* dict_fn)
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
     if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits) != 5) {
       printf("Error reading viterbi kernel dictionary entry %u psdu num_sym, pad, n_encoded_bits and n_data_bits\n", i);
+      fclose(dictF);
       exit(-2);
     }
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
@@ -357,6 +361,7 @@ status_t init_vit_kernel(char* dict_fn)
       unsigned c;
       if (fscanf(dictF, "%u ", &c) != 1) {
 	printf("Error reading viterbi kernel dictionary entry %u data\n", i);
+	fclose(dictF);
 	exit(-6);
       }
       #ifdef SUPER_VERBOSE

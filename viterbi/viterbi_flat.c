@@ -754,7 +754,7 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
     // Reset the output space (for cleaner testing results)
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-      inMemory[imi++] = 0;
+      outMemory[ti] = 0;
     }
 
 #ifdef GENERATE_CHECK_VALUES
