@@ -30,9 +30,9 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-/* #ifndef DEBUG_MODE */
-/*  #define DEBUG_MODE */
-/* #endif */
+/*#ifndef DEBUG_MODE 
+ #define DEBUG_MODE
+ #endif*/
 #include "debug.h"
 
 #ifdef HW_VIT
@@ -96,7 +96,9 @@ static frame_param *d_frame;
 static const unsigned char *d_depuncture_pattern;
 
 static uint8_t d_depunctured[MAX_ENCODED_BITS];
+#ifndef USE_ESP_INTERFACE
 static uint8_t d_decoded[MAX_ENCODED_BITS * 3 / 4];
+#endif
 
 static const unsigned char PARTAB[256] = {
          0, 1, 1, 0, 1, 0, 0, 1,
@@ -237,8 +239,8 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   unsigned char* d_brtab27[2] = {      &(inMemory[    0]), 
                                        &(inMemory[   32]) };
   unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
-  uint8_t* depd_data                 = &(inMemory[   72]);
-  uint8_t* l_decoded                 = &(inMemory[24852]);
+  uint8_t* depd_data          = &(inMemory[   72]);
+  uint8_t* l_decoded          = &(inMemory[24852]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
@@ -246,6 +248,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 
 #if(0)
   {
+    printf("IN do_decoding:\n");
     printf(" d_brtab27_0 = ");
     for (int li = 0; li < 32; li++) {
       printf("%u,", d_brtab27[0][li]);
@@ -266,13 +269,13 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
     printf("\n");
 
     printf("\n dep_data    = ");
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", depd_data[li]);
+    for (int li = 0; li < 128; li++) {
+      printf("%5u : %u\n", li, depd_data[li]);
     }
     printf("\n");
     printf("\n");
 
-#ifdef USE_ESP_INTERFACE
+    /**#ifdef USE_ESP_INTERFACE
     printf(" plm_in_ping = ");
     int limi = 0;
     for (int li = 0; li < 32; li++) {
@@ -292,15 +295,10 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
       printf("%u,", inMemory[limi++]);
     }
     printf("\n");
-#endif
+    #endif **/
   }
 #endif
 
-  /**
-     printf("\nVBS: in_cbps        = %u\n", in_cbps);
-     printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
-     printf("VBS: in_n_data_bits = %u\n", in_n_data_bits);
-  **/
   DEBUG({
       printf("\nVBS: in_cbps        = %u\n", in_cbps);
       printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
@@ -323,7 +321,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
       {
 	int per_row = 0;
 	//printf("%p : ", (void*)(&depd_data[0]));
-	for (int ti = 0; ti < (2* in_n_data_bits) /*MAX_ENCODED_BITS*/; ti++) {
+	for (int ti = 0; ti < (2* in_n_data_bits) + 80 /*MAX_ENCODED_BITS*/; ti++) {
 	  if ((per_row % 8) == 0) {
 	    printf(" ");
 	  }
@@ -444,8 +442,8 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	}
 
 	DEBUG(for (int ti = 0; ti < 4; ti++) {
-	    printf(" VF in_ct %u + %u : symbol %u %u\n", in_count, ti, symbols[ti], depd_data[(in_count & 0xfffffffc) + ti]);
-	  });
+	    printf(" VF in_ct %u + %u : symbol %u %up\n", in_count, ti, symbols[ti], depd_data[(in_count & 0xfffffffc) + ti]);
+	});
 	for (int s = 0; s < 2; s++) { // iterate across the 2 symbol groups
 	  // This is the basic viterbi butterfly for 2 symbols (we need therefore 2 passes for 4 total symbols)
 	  for (int i = 0; i < 2; i++) {
@@ -460,7 +458,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	      for (int j = 0; j < 16; j++) {
 		//metsvm[j] = d_branchtab27_generic[0].c[(i*16) + j] ^ sym0v[j];
 		metsvm[j] = d_brtab27[0][(i*16) + j] ^ sym0v[j];
-		metsv[j] = 1 - metsvm[j];
+		metsv[j]  = 1 - metsvm[j];
 	      }
 	    }
 	    else {
@@ -803,7 +801,7 @@ void decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char, 
     // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
     // Reset the output space (for cleaner testing results)
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-      inMemory[imi++] = 0;
+      outMemory[ti] = 0;
     }
 
    #ifdef GENERATE_CHECK_VALUES
