@@ -12,7 +12,7 @@ ifeq ($(TARGET),)
 	TARGET = seq
 endif
 
-ifneq ($(TARGET),seq)
+ifeq ($(TARGET),epochs)
 ifeq ($(APPROXHPVM_DIR),)
     $(error APPROXHPVM_DIR must be set!)
 endif
@@ -38,7 +38,7 @@ BUILD_DIR = build/$(TARGET)
 
 INCLUDES +=  -I$(SRC_DIR) 
 
-EXE = miniera-hpvm-$(TARGET)
+EXE = miniera-hpvm-seq
 RISCVEXE = miniera-hpvm-riscv
 EPOCHSEXE = miniera-hpvm-epochs
 
