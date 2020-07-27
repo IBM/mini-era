@@ -8,8 +8,14 @@ ifeq ($(HPVM_DIR),)
     $(error HPVM_DIR must be set!)
 endif
 
+ifeq ($(TARGET),)
+	TARGET = seq
+endif
+
+ifneq ($(TARGET),seq)
 ifeq ($(APPROXHPVM_DIR),)
     $(error APPROXHPVM_DIR must be set!)
+endif
 endif
 
 CONFIG_FILE := $(HPVM_DIR)/test/benchmarks/include/Makefile.config
@@ -24,10 +30,6 @@ CUR_DIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 # Compiler Flags
 
 LFLAGS += -lm -lrt
-
-ifeq ($(TARGET),)
-	TARGET = seq
-endif
 
 
 # Build dirs
