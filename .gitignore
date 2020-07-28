@@ -23,7 +23,7 @@ __pycache__/
 
 # Libraries
 *.lib
-*.a
+
 *.la
 *.lo
 

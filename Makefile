@@ -4,163 +4,84 @@
 # Paths to some dependencies (e.g., HPVM, LLVM) must exist in Makefile.config,
 # which can be copied from Makefile.config.example for a start.
 
-CONFIG_FILE := Makefile.config
+ifeq ($(HPVM_DIR),)
+    $(error HPVM_DIR must be set!)
+endif
+
+ifeq ($(TARGET),)
+	TARGET = seq
+endif
+
+ifeq ($(TARGET),epochs)
+ifeq ($(APPROXHPVM_DIR),)
+    $(error APPROXHPVM_DIR must be set!)
+endif
+endif
+
+CONFIG_FILE := $(HPVM_DIR)/test/benchmarks/include/Makefile.config
 
 ifeq ($(wildcard $(CONFIG_FILE)),)
     $(error $(CONFIG_FILE) not found. See $(CONFIG_FILE).example)
 endif
 include $(CONFIG_FILE)
 
+CUR_DIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+
 # Compiler Flags
 
-DLEVEL ?= 0
 LFLAGS += -lm -lrt
 
+
 # Build dirs
-ifeq ($(VERSION),)
-    VERSION = Default
-endif
 SRC_DIR = src/
-CAM_PIPE_SRC_DIR = $(SRC_DIR)
-BUILD_DIR = build/$(TARGET)_$(VERSION)
-CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR = build/$(TARGET)
 
 INCLUDES +=  -I$(SRC_DIR) 
 
-ifneq ($(CONFUSE_ROOT),)
-INCLUDES += -I$(CONFUSE_ROOT)/include
-LFLAGS += -L$(CONFUSE_ROOT)/lib
-endif
+EXE = miniera-hpvm-seq
+RISCVEXE = miniera-hpvm-riscv
+EPOCHSEXE = miniera-hpvm-epochs
 
-EXE = miniera-visc-trace-$(VERSION)-$(TARGET)
-
-CAM_CFLAGS += -mf16c -flax-vector-conversions
 LFLAGS += -pthread
 
-#$(DEBUG): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
-#	@echo Building benchmark for native machine with debug support.
-#	#@mkdir -p $(BUILD_DIR)
-#	@$(CC) $(CAM_CFLAGS) -ggdb3 $(INCLUDES) -DGEM5 -DDMA_MODE -DDMA_INTERFACE_V3 -o $(DEBUG) $^ $(LFLAGS)
-#
-#clean-native:
-#	rm -f $(NATIVE) $(DEBUG)
 
 ## BEGIN HPVM MAKEFILE
-LANGUAGE=visc
 SRCDIR_OBJS=read_trace.ll
 OBJS_SRC=$(wildcard $(SRC_DIR)/*.c)
-VISC_OBJS=main.visc.ll
+HPVM_OBJS=main.hpvm.ll
 APP = $(EXE)
-APP_CUDALDFLAGS=-lm -lstdc++
-APP_CFLAGS= $(INCLUDES) -DDMA_MODE -DDMA_INTERFACE_V3
-APP_CXXFLAGS=-ffast-math -O0 -I/opt/opencv/include
+APP_CFLAGS= -ffast-math $(INCLUDES)
 APP_LDFLAGS=$(LFLAGS)
-OPT_FLAGS = -tti -targetlibinfo -tbaa -scoped-noalias -assumption-cache-tracker -profile-summary-info -forceattrs -inferattrs -ipsccp -globalopt -domtree -mem2reg -deadargelim -domtree -basicaa -aa -simplifycfg -pgo-icall-prom -basiccg -globals-aa -prune-eh -always-inline -functionattrs -domtree -sroa -early-cse -lazy-value-info -jump-threading -correlated-propagation -simplifycfg -domtree -basicaa -aa -libcalls-shrinkwrap -tailcallelim -simplifycfg -reassociate -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -licm -loop-unswitch -simplifycfg -domtree -basicaa -aa -loops -loop-simplify -lcssa-verification -lcssa -scalar-evolution -indvars -loop-idiom -loop-deletion -memdep -memcpyopt -sccp -domtree -demanded-bits -bdce -basicaa -aa -lazy-value-info -jump-threading -correlated-propagation -domtree -basicaa -aa -memdep -dse -loops -loop-simplify -lcssa-verification -lcssa -aa -scalar-evolution -licm -postdomtree -adce -simplifycfg -domtree -basicaa -aa -barrier -basiccg -rpo-functionattrs -globals-aa -float2int -domtree -loops -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -loop-rotate -loop-accesses -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-distribute -loop-simplify -lcssa-verification -lcssa -branch-prob -block-freq -scalar-evolution -basicaa -aa -loop-accesses -demanded-bits -lazy-branch-prob -lazy-block-freq -opt-remark-emitter -loop-vectorize -loop-simplify -scalar-evolution -aa -loop-accesses -loop-load-elim -basicaa -aa -simplifycfg -domtree -basicaa -aa -loops -scalar-evolution -alignment-from-assumptions -strip-dead-prototypes -domtree -loops -branch-prob -block-freq -loop-simplify -lcssa-verification -lcssa -basicaa -aa -scalar-evolution -branch-prob -block-freq -loop-sink -instsimplify 
 
 CFLAGS = -O1 $(APP_CFLAGS) $(PLATFORM_CFLAGS)
 OBJS_CFLAGS = -O1 $(APP_CFLAGS) $(PLATFORM_CFLAGS)
-CXXFLAGS = $(APP_CXXFLAGS) $(PLATFORM_CXXFLAGS)
 LDFLAGS= $(APP_LDFLAGS) $(PLATFORM_LDFLAGS)
 
-LIBCLC_LIB_PATH = $(LLVM_SRC_ROOT)/../libclc/built_libs
-VISC_RT_PATH = $(LLVM_SRC_ROOT)/projects/visc-rt
+HPVM_RT_PATH = $(LLVM_BUILD_DIR)/tools/hpvm/projects/hpvm-rt
+HPVM_RT_LIB = $(HPVM_RT_PATH)/hpvm-rt.bc
 
-VISC_RT_LIB = $(VISC_RT_PATH)/visc-rt.ll
-#LIBCLC_NVPTX_LIB = $(LIBCLC_LIB_PATH)/nvptx--nvidiacl.bc
-LIBCLC_NVPTX_LIB = $(LIBCLC_LIB_PATH)/nvptx64--nvidiacl.bc
-#LIBCLC_NVPTX_LIB = nvptx64--nvidiacl.bc
-
-LLVM_34_AS = $(LLVM_34_ROOT)/build/bin/llvm-as
-
-TESTGEN_OPTFLAGS = -load LLVMGenVISC.so -genvisc -globaldce
-KERNEL_GEN_FLAGS = -O3 -target nvptx64-nvidia-nvcl
-
-ifeq ($(TARGET),x86)
-  DEVICE = SPIR_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_SPIR.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-spir -dfg2llvm-x86 -clearDFG
-  CFLAGS += -DOPENCL_CPU
-  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
-else ifeq ($(TARGET),seq)
-  DEVICE = CPU_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -dfg2llvm-x86 -clearDFG
-  VISC_OPTFLAGS += -visc-timers-x86
-else ifeq ($(TARGET),fpga)
-  DEVICE = FPGA_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_FPGA.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-fpga -dfg2llvm-x86 -clearDFG
-  CFLAGS += -DOPENCL_CPU
-  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-fpga
-else
-  DEVICE = GPU_TARGET
-  VISC_OPTFLAGS = -load LLVMBuildDFG.so -load LLVMLocalMem.so -load LLVMDFG2LLVM_NVPTX.so -load LLVMDFG2LLVM_X86.so -load LLVMClearDFG.so -localmem -dfg2llvm-nvptx -dfg2llvm-x86 -clearDFG
-  VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
-endif
-  TESTGEN_OPTFLAGS += -visc-timers-gen
-
+DEVICE = CPU_TARGET
 CFLAGS += -DDEVICE=$(DEVICE)
 CXXFLAGS += -DDEVICE=$(DEVICE)
-
-#ifeq ($(TIMER),x86)
-#  VISC_OPTFLAGS += -visc-timers-x86
-#else ifeq ($(TIMER),ptx)
-#  VISC_OPTFLAGS += -visc-timers-ptx
-#else ifeq ($(TIMER),gen)
-#  TESTGEN_OPTFLAGS += -visc-timers-gen
-#else ifeq ($(TIMER),spir)
-#  TESTGEN_OPTFLAGS += -visc-timers-spir
-#else ifeq ($(TIMER),fpga)
-#  TESTGEN_OPTFLAGS += -visc-timers-fpga
-#else ifeq ($(TIMER),no)
-#else
-#  ifeq ($(TARGET),x86)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
-#  else ifeq ($(TARGET),seq)
-#    VISC_OPTFLAGS += -visc-timers-x86
-#  else ifeq ($(TARGET),fpga)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-fpga
-#  else ifeq ($(TARGET),seqx86)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-spir
-#  else ifeq ($(TARGET),seqgpu)
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
-#  else
-#    VISC_OPTFLAGS += -visc-timers-x86 -visc-timers-ptx
-#  endif
-#  TESTGEN_OPTFLAGS += -visc-timers-gen
-#endif
 
 # Add BUILDDIR as a prefix to each element of $1
 INBUILDDIR=$(addprefix $(BUILD_DIR)/,$(1))
 
-# Add SRCDIR as a prefix to each element of $1
-#INSRCDIR=$(addprefix $(SRCDIR)/,$(1))
-
-PYTHON_LLVM_40_34 = ../llvm-40-34.py
-
 .PRECIOUS: $(BUILD_DIR)/%.ll
 
 OBJS = $(call INBUILDDIR,$(SRCDIR_OBJS))
-TEST_OBJS = $(call INBUILDDIR,$(VISC_OBJS))
-KERNEL = $(TEST_OBJS).kernels.ll
+TEST_OBJS = $(call INBUILDDIR,$(HPVM_OBJS))
 
-ifeq ($(TARGET),x86)
-  SPIR_ASSEMBLY = $(TEST_OBJS).kernels.bc
-else ifeq ($(TARGET),seq)
-else ifeq ($(TARGET),fpga)
-  AOC_CL = $(TEST_OBJS).kernels.cl
-  AOCL_ASSEMBLY = $(TEST_OBJS).kernels.aocx
-  BOARD = a10gx
-  ifeq ($(EMULATION),1)
-    EXE = cava-visc-emu
-    AOC_EMU = -march=emulator
-    BUILD_DIR = build/$(TARGET)-emu
-  endif
-else
-  KERNEL_LINKED = $(BUILD_DIR)/$(APP).kernels.linked.ll
-  #KERNEL = $(TEST_OBJS).kernels.ll
-  PTX_ASSEMBLY = $(TEST_OBJS).nvptx.s
-endif
+KERNEL = $(TEST_OBJS).kernels.ll
+HOST = $(BUILD_DIR)/$(APP).host.ll
+
+EPOCHS_HOST = $(BUILD_DIR)/$(APP).host.epochs.ll
 
 HOST_LINKED = $(BUILD_DIR)/$(APP).linked.ll
-HOST = $(BUILD_DIR)/$(APP).host.ll
+EPOCHS_LINKED = $(BUILD_DIR)/$(APP).linked.epochs.ll
+
+NVDLA_MODULE = hpvm-mod.nvdla
+NVDLA_DIR = $(APPROXHPVM_DIR)/llvm/test/VISC/DNN_Benchmarks/benchmarks/miniera-hpvm
 
 ifeq ($(OPENCL_PATH),)
 FAILSAFE=no_opencl
@@ -168,55 +89,84 @@ else
 FAILSAFE=
 endif
 
+YEL='\033[0;33m'
+NC='\033[0m'
+
 # Targets
 default: $(FAILSAFE) $(BUILD_DIR) $(EXE)
-#default: $(FAILSAFE) $(BUILD_DIR) $(PTX_ASSEMBLY) $(SPIR_ASSEMBLY) $(AOC_CL) $(AOCL_ASSEMBLY) $(EXE)
+riscv: $(FAILSAFE) $(BUILD_DIR) $(RISCVEXE)
+#epochs: $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE)
+epochs: $(NVDLA_MODULE) $(FAILSAFE) $(BUILD_DIR) $(EPOCHSEXE) 
 
-$(PTX_ASSEMBLY) : $(KERNEL_LINKED)
-	$(CC) $(KERNEL_GEN_FLAGS) -S $< -o $@
+$(NVDLA_MODULE):
+	@echo -e ${YEL}Compiling HPVM Module for NVDLA${NC}
+	@cd $(APPROXHPVM_DIR)/llvm/test/VISC/DNN_Benchmarks/benchmarks/miniera-hpvm && make && cp $(NVDLA_MODULE) $(CUR_DIR)
 
-$(KERNEL_LINKED) : $(KERNEL)
-	$(LLVM_LINK) $(LIBCLC_NVPTX_LIB) -S $< -o $@
+$(EPOCHSEXE) : $(EPOCHS_LINKED)
+	@echo -e -n ${YEL}Cross-compiling for RISCV: ${NC}
+	@echo -e ${YEL}1\) Use Clang to generate object file${NC}
+	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
+	@echo -e ${YEL}Cross-compiling for RISCV: 2\) Use GCC cross-compiler to link the binary \(linking with ESP libraries required\)${NC}
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -LESP/lib -lm -lrt -lpthread -lesp -ltest -lcontig -mabi=lp64d -march=rv64g	
+	rm test.o
 
-$(SPIR_ASSEMBLY) : $(KERNEL)
-	python $(PYTHON_LLVM_40_34) $< $(BUILD_DIR)/kernel_34.ll
-	$(LLVM_34_AS) $(BUILD_DIR)/kernel_34.ll -o $@
+$(EPOCHS_LINKED) : $(EPOCHS_HOST) $(OBJS) $(HPVM_RT_LIB)
+	@echo -e ${YEL}Compile hook function for accelerator: fft${NC}
+	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/fft_hook_impl.c -IESP/include -o $(BUILD_DIR)/fft_hook.ll
+	@echo -e ${YEL}Compile hook function for accelerator: viterbi${NC}
+	$(CC) -S -O0 -emit-llvm $(SRC_DIR)/viterbi_hook_impl.c -IESP/include -o $(BUILD_DIR)/viterbi_hook.ll
+	@echo -e ${YEL}Link main application with hook function, other necessary object files, and HPVM runtime library${NC}
+	$(LLVM_LINK) $^ $(BUILD_DIR)/fft_hook.ll $(BUILD_DIR)/viterbi_hook.ll -S -o $@
 
-$(AOCL_ASSEMBLY) : $(AOC_CL)
-	aoc --report $(AOC_EMU) $(AOC_CL) -o $(AOCL_ASSEMBLY) -board=$(BOARD)
+$(EPOCHS_HOST) : $(HOST)
+	@echo -e ${YEL}Generate .ll file for accelerator spec: fft_spec.c${NC}
+	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/fft_spec.c -o $(BUILD_DIR)/fft_spec.ll
+	@echo -e ${YEL}Accelerator code-gen for: fft_spec.ll${NC}
+	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $< --targetspec $(BUILD_DIR)/fft_spec.ll:fft -o $@ 
+	@echo -e ${YEL}Generate .ll file for accelerator spec: viterbi_spec.c${NC}
+	$(CC) $(CFLAGS) -emit-llvm -S $(SRC_DIR)/viterbi_spec.c -o $(BUILD_DIR)/viterbi_spec.ll
+	@echo -e ${YEL}Accelerator code-gen for: viterbi_spec.ll${NC}
+	$(OPT) -S -load LLVMesp_codegen.so -esp_codegen $@ --targetspec $(BUILD_DIR)/viterbi_spec.ll:do_decoding -o $@ 
 
-$(AOC_CL) : $(KERNEL)
-	llvm-cbe --debug $(KERNEL)
+$(RISCVEXE) : $(HOST_LINKED)
+	@echo -e -n ${YEL}Cross-compiling for RISCV: ${NC}
+	@echo -e ${YEL}1\) Use Clang to generate object file${NC}
+	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
+	@echo -e ${YEL}Then gcc cross-compiler is used to link the binary${NC}
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	rm test.o
 
 $(EXE) : $(HOST_LINKED)
+	@echo -e ${YEL}Generating native executable${NC}
 	$(CXX) -O3 $(LDFLAGS) $< -o $@
 
-$(HOST_LINKED) : $(HOST) $(OBJS) $(VISC_RT_LIB)
+$(HOST_LINKED) : $(HOST) $(OBJS) $(HPVM_RT_LIB)
+	@echo -e ${YEL}Link main application with other necessary object files and HPVM runtime library${NC}
 	$(LLVM_LINK) $^ -S -o $@
 
-$(VISC_RT_LIB) : $(VISC_RT_PATH)/visc-rt.cpp
-	make -C $(LLVM_LIB_PATH)
-
-$(HOST) $(KERNEL): $(BUILD_DIR)/$(VISC_OBJS)
-	$(OPT) -debug $(VISC_OPTFLAGS) -S $< -o $(HOST)
-#	mv *.ll $(BUILD_DIR) 
-#	$(OPT) -debug-only=DFG2LLVM_SPIR,DFG2LLVM_X86,DFG2LLVM_FPGA,GENVISC $(VISC_OPTFLAGS) -S $< -o $(HOST)
-#$(OBJS): $(OBJS_SRC)
-#	$(CC) $(OBJS_CFLAGS) -emit-llvm -S -o $@ $<
+$(HOST) $(KERNEL): $(BUILD_DIR)/$(HPVM_OBJS)
+	@echo -e ${YEL}Build HPVM DFG and compile for CPU Backend${NC}
+	$(OPT) -load LLVMBuildDFG.so -load LLVMDFG2LLVM_CPU.so -load LLVMClearDFG.so -dfg2llvm-cpu -clearDFG -S $< -o $(HOST)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(BUILD_DIR)/%.ll : $(SRC_DIR)/%.c
+	@echo -e ${YEL}Building other source files${NC}
 	$(CC) $(OBJS_CFLAGS) -emit-llvm -S -o $@ $<
 
 $(BUILD_DIR)/main.ll : $(SRC_DIR)/main.c
+	@echo -e ${YEL}Compiling main application code into LLVM${NC}
 	$(CC) $(CFLAGS) -emit-llvm -S -o $@ $<
 
-#$(BUILD_DIR)/main.opt.ll : $(BUILD_DIR)/main.ll
-#	$(OPT) $(OPT_FLAGS) $< -S -o $@
+$(BUILD_DIR)/main.hpvm.ll : $(BUILD_DIR)/main.ll
+	@echo -e ${YEL}Run GenHPVM on module to convert HPVM-C function calls into HPVM intrinsics${NC}
+	$(OPT) -load LLVMGenHPVM.so -genhpvm -globaldce $< -S -o $@
 
-$(BUILD_DIR)/main.visc.ll : $(BUILD_DIR)/main.ll
-	$(OPT) -debug-only=genvisc $(TESTGEN_OPTFLAGS) $< -S -o $@
-
+clean:
+	if [ -d "$(BUILD_DIR)" ]; then rm -r $(BUILD_DIR); fi
+	if [ -f "$(EXE)" ]; then rm $(EXE); fi
+	if [ -f "$(EPOCHSEXE)" ]; then rm $(EPOCHSEXE); fi
+	if [ -f "$(RISCVEXE)" ]; then rm $(RISCVEXE); fi
+	if [ -f "$(NVDLA_MODULE)" ]; then rm $(NVDLA_MODULE); fi
 ## END HPVM MAKEFILE
