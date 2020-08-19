@@ -113,6 +113,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("MAX_OBJECT_SIZE %.1f\n", MAX_OBJECT_SIZE);
   } else {
     printf("Error: unable to read MAX_OBJECT_SIZE from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
 
@@ -120,6 +121,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("MIN_OBJECT_DIST %.1f\n", MIN_OBJECT_DIST);
   } else {
     printf("Error: unable to read MIN_OBJECT_DIST from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
 
@@ -127,6 +129,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("IMPACT_DISTANCE %.1f\n", IMPACT_DISTANCE);
   } else {
     printf("Error: unable to read IMPACT_DISTANCE from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
 
@@ -135,6 +138,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("NEW_OBJ_THRESHOLD %u\n", NEW_OBJ_THRESHOLD);
   } else {
     printf("Error: unable to read NEW_OBJ_THRESHOLD from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
 
@@ -146,6 +150,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("NEW_OBJ: CAR %u TRUCK %u BIKE %u\n", NEW_OBJ_CAR_THRESHOLD, NEW_OBJ_TRUCK_THRESHOLD, NEW_OBJ_BIKE_THRESHOLD);
   } else {
     printf("Error: unable to read NEW_OBJ CAR TRUCK and BIKE THRESHOLDS from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
 
@@ -154,6 +159,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("NUM_CAR_SPEEDS %u\n", NUM_CAR_SPEEDS);
   } else {
     printf("Error: unable to read NUM_CAR_SPEEDS from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   /* unsigned car_speeds[NUM_CAR_SPEEDS]        = { 45, 40, 35, 30, 25 };  // The possible speeds */
@@ -161,11 +167,13 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   car_speeds = (float *)calloc(NUM_CAR_SPEEDS, sizeof(float));
   if (car_speeds == NULL) {
     printf("Error: unable to allocate %u car_speeds array\n", NUM_CAR_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   car_sp_thds = (unsigned *)calloc(NUM_CAR_SPEEDS, sizeof(unsigned));
   if (car_sp_thds == NULL) {
     printf("Error: unable to allocate %u car_sp_thds array\n", NUM_CAR_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   for (int i = 0; i < NUM_CAR_SPEEDS; i++) {
@@ -173,6 +181,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
       printf(" CAR_SPEED %.1f PROB %u\n", car_speeds[i], car_sp_thds[i]);
     } else {
       printf("Error: unable to read CAR_SPEEDS %u from %s\n", i, wdesc_fn);
+      fclose(wdescF);
       return error;
     }
   }
@@ -182,6 +191,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("NUM_TRUCK_SPEEDS %u\n", NUM_TRUCK_SPEEDS);
   } else {
     printf("Error: unable to read NUM_TRUCK_SPEEDS from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   /* unsigned truck_speeds[NUM_TRUCK_SPEEDS]    = { 40, 35, 30, 25 }; */
@@ -189,11 +199,13 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   truck_speeds = (float *)calloc(NUM_TRUCK_SPEEDS, sizeof(float));
   if (truck_speeds == NULL) {
     printf("Error: unable to allocate %u truck_speeds array\n", NUM_TRUCK_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   truck_sp_thds = (unsigned *)calloc(NUM_TRUCK_SPEEDS, sizeof(unsigned));
   if (truck_sp_thds == NULL) {
     printf("Error: unable to allocate %u truck_sp_thds array\n", NUM_TRUCK_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   for (int i = 0; i < NUM_TRUCK_SPEEDS; i++) {
@@ -201,6 +213,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
       printf(" TRUCK_SPEED %.1f PROB %u\n", truck_speeds[i], truck_sp_thds[i]);
     } else {
       printf("Error: unable to read TRUCK_SPEEDS %u from %s\n", i, wdesc_fn);
+      fclose(wdescF);
       return error;
     }
   }
@@ -210,6 +223,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("NUM_BIKE_SPEEDS %u\n", NUM_BIKE_SPEEDS);
   } else {
     printf("Error: unable to read NUM_BIKE_SPEEDS from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   /* unsigned bike_speeds[NUM_BIKE_SPEEDS]      = { 35, 30, 20 }; */
@@ -217,11 +231,13 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   bike_speeds = (float *)calloc(NUM_BIKE_SPEEDS, sizeof(float));
   if (bike_speeds == NULL) {
     printf("Error: unable to allocate %u bike_speeds array\n", NUM_BIKE_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   bike_sp_thds = (unsigned *)calloc(NUM_BIKE_SPEEDS, sizeof(unsigned));
   if (bike_sp_thds == NULL) {
     printf("Error: unable to allocate %u bike_sp_thds array\n", NUM_BIKE_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   for (int i = 0; i < NUM_BIKE_SPEEDS; i++) {
@@ -229,6 +245,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
       printf(" BIKE_SPEED %.1f PROB %u\n", bike_speeds[i], bike_sp_thds[i]);
     } else {
       printf("Error: unable to read BIKE_SPEEDS %u from %s\n", i, wdesc_fn);
+      fclose(wdescF);
       return error;
     }
   }
@@ -238,6 +255,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("NUM_PERSON_SPEEDS %u\n", NUM_PERSON_SPEEDS);
   } else {
     printf("Error: unable to read NUM_PERSON_SPEEDS from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   /* unsigned person_speeds[NUM_PERSON_SPEEDS]  = { 15, 10 }; */
@@ -245,11 +263,13 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
   person_speeds = (float *)calloc(NUM_PERSON_SPEEDS, sizeof(float));
   if (person_speeds == NULL) {
     printf("Error: unable to allocate %u person_speeds array\n", NUM_PERSON_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   person_sp_thds = (unsigned *)calloc(NUM_PERSON_SPEEDS, sizeof(unsigned));
   if (person_sp_thds == NULL) {
     printf("Error: unable to allocate %u person_sp_thds array\n", NUM_PERSON_SPEEDS);
+    fclose(wdescF);
     return error;
   }
   for (int i = 0; i < NUM_PERSON_SPEEDS; i++) {
@@ -257,6 +277,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
       printf(" PERSON_SPEED %.1f PROB %u\n", person_speeds[i], person_sp_thds[i]);
     } else {
       printf("Error: unable to read PERSON_SPEEDS %u from %s\n", i, wdesc_fn);
+      fclose(wdescF);
       return error;
     }
   }
@@ -273,18 +294,21 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     printf("MY_CAR GOAL SPEED %.1f\n", car_goal_speed);
   } else {
     printf("Error: unable to read MY_CAR GOAL SPEED from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   if (fscanf(wdescF, "MY_CAR ACCEL RATE %f\n", &(car_accel_rate)) == 1) {
     printf("MY_CAR ACCEL RATE %.1f\n", car_accel_rate);
   } else {
     printf("Error: unable to read MY_CAR ACCEL RATE from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   if (fscanf(wdescF, "MY_CAR DECEL RATE %f\n", &(car_decel_rate)) == 1) {
     printf("MY_CAR DECEL RATE %.1f\n", car_decel_rate);
   } else {
     printf("Error: unable to read MY_CAR DECEL RATE from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
 
@@ -295,6 +319,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     vehicle_state->speed = my_car.speed;    
   } else {
     printf("Error: unable to read MY_CAR LANE and SPEED from %s\n", wdesc_fn);
+    fclose(wdescF);
     return error;
   }
   printf("\n");
@@ -317,6 +342,7 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     min_obst_lane  = 1;
     max_obst_lane = (NUM_LANES - 1);
   }
+  fclose(wdescF);
   return success;
 }
 
