@@ -9,6 +9,9 @@ This should include both the transmit and receive functional pipelines, and the 
 
 This code serves as a first "Stake in the ground" implementation, which is conformant to the
 previous mini-era (https://github.com/IBM/mini-era) formulation.
+Currently, this code includes the IEEE 802.11p WiFi transceiver
+functionality translated from the GnuRadio environment to a more standard,
+stand-alone C implementation.
 
 ## Requirements
 
@@ -25,28 +28,118 @@ make
   
 ## Usage
 
-The standard build creates two executables: ```erav3c``` and ```verbose_erav3c```
-which have the exact same functionality, but the ```verbose_erav3c``` also outputs (a lot of)
-debugging information/messages (to standard out).
+The standard build creates six executables:
+ - ```xmit_erav3c``` which is the IEEE802.11p transmit function
+ - ```recv_erav3c``` which is the IEEE802.11p treceiver function
+ - ```erav3c``` which is the full IEEE802.11p transmit -> receive loop
+ - ```verbose_xmit_erav3c``` which is ```xmit_erav3c``` with lots of debug type output
+ - ```verbose_recv_erav3c``` which is ```recv_erav3c``` with lots of debug type output
+ - ```verbose_erav3c``` which is the ```erav3c``` with lots of debug type output
 
+Each of these three main programs has similar usage; help information is accesible
+for any of them via the ```-h``` option.
 
+### erav3c
+
+ The ```erav3c``` encodes a complete transmit-receive loop, by employing
+ the ```xmit_erav3c`` code which then feeds its output (encoded message)
+ to the ```recv_erav3c``` code, which decodes the
+ received message back to ascii text.
+ 
 ```
 ./erav3c -h
-Usage: ./erav3c.exe <OPTIONS>
+Usage: ./erav3c <OPTIONS>
  OPTIONS:
-    -h         : Print this helpful usage info
-    -s <N>     : Sets the max number of time steps to simulate
-    -m <N>     : Use message <N> (0 = 1500 'x' chars, 1 = 1500 '0123456789', 2 = long quote, 3 = "Msg0")
+    -h         : print this helpful usage info
+    -s <N>     : Run the simulation for <N> time steps
+    -m <N>     : Use message <N> (0 = 1500 'x' chars, 1 = 1500 '0123456789', 2 = quote)
+    -T "S"     : Use message S (No longer than 1500 chars)
     -M <0|1>   : 0=disable 1=enable output of Messages (input and output) per time step
     -x <0|1>   : 0=disable 1=enable output of XMIT output per time step
     -r <0|1>   : 0=disable 1=enable output of RECV output per time step
 ```
+The ```-s``` option indicates a number of "time steps" to run, which really indicates
+the number of times to repeat the translation process.  This is useful for profiling runs
+to generate a longer run-time and thus more data samples, etc.
+
+The ```-m``` option selects from among the built-in messages.  See the section on messages below for details.
+
+The ```-T``` option allows a user to type in (within quotes) an ascii message up to 1500 characters long, which the code will then encode.
+
+The ```-M``` option turns off the printing of the original message each time step,
+the ```-x``` option turns off the printing of the xmit message each time step, and
+the ```-r``` option turns off the printing of the received message each time step.
+These message outputs give visual confirmation of proper operation, but turning them off
+removes this test-type output and streamlines operation just a bit further.
+
+
+### xmit_erav3c
+
+The ```xmit_erav3c`` encodes the outgoing message encoder functionality.   Given a message,
+this code encodes it in a manner consistent with the IEEE 802.11p protocol.
+
+```
+./xmit_erav3c -h
+Usage: ./xmit_erav3c <OPTIONS>
+ OPTIONS:
+    -h         : print this helpful usage info
+    -s <N>     : Run the simulation for <N> time steps
+    -m <N>     : Use message <N> (0 = 1500 'x' chars, 1 = 1500 '0123456789', 2 = quote)
+    -T "S"     : Use message S (No longer than 1500 chars)
+    -M <0|1>   : 0=disable 1=enable output of Messages (input and output) per time step
+    -x <0|1>   : 0=disable 1=enable output of XMIT output per time step
+    -o <FN>    : Output the encoded message data to file <FN>
+```
+The ```-s``` option indicates a number of "time steps" to run, which really indicates
+the number of times to repeat the translation process.  This is useful for profiling runs
+to generate a longer run-time and thus more data samples, etc.
+
+The ```-m``` option selects from among the built-in messages.  See the section on messages below for details.
+
+The ```-T``` option allows a user to type in (within quotes) an ascii message up to 1500 characters long, which the code will then encode.
+
+The ```-x``` option turns off the printing of the xmit message each time step.
+
+The ```-o``` option allows the user to provide a target file name, and the output
+of the encoded message will be written to that file (for later use, e.g. as input to
+a ```recv_erav3c``` program run).
+
+### recv_erav3c
+The ```recv_erav3c`` decodes an incoming message using the decoder functionality.
+Given an incoming encoded  message, this code decodes it in a manner consistent
+with the IEEE 802.11p protocol back to an ASCII text message.
+
+```
+./recv_erav3c -h
+Usage: ./recv_erav3c <OPTIONS>
+ OPTIONS:
+    -h         : print this helpful usage info
+    -s <N>     : Run the simulation for <N> time steps
+    -f <FN>    : Use file <FN> as input encoded message source
+    -M <0|1>   : 0=disable 1=enable output of Messages (input and output) per time step
+    -r <0|1>   : 0=disable 1=enable output of RECV output per time step
+```
+The ```-s``` option indicates a number of "time steps" to run, which really indicates
+the number of times to repeat the translation process.  This is useful for profiling runs
+to generate a longer run-time and thus more data samples, etc.
+
+The ```-f``` option specifies a file name that holds the input encoded message data.
+
+The ```-M``` option turns off the printing of the original message each time step,
+the ```-r``` option turns off the printing of the received message each time step.
+These message outputs give visual confirmation of proper operation, but turning them off
+removes this test-type output and streamlines operation just a bit further.
 
 ## Design Details
 
+This code is derived from the GnuRadio IEEE 802.11p protocol code,
+derived from GnuRadio's IEEE802.11 pipelines, implemented by
+Bastian Bloessl ad et. al. (https://github.com/bastibl/gr-ieee802-11).
+
+The GnuRadio code has been translated from the GnuRadio environment and
+C++ into simpler C code, that can run stand-alone, and then has been integrated into
+a test framework derived from the Mini-ERA ```kernels_api``` design.
 We should really fill this in more; this is a sketch of the operations of the transmit
-and receive pipelines (derived from GnuRadio's IEEE802.11 pipelines, implemented by
-Bastian Bloessl ad et. al. (https://github.com/bastibl/gr-ieee802-11)
 
 
 ### TRANSMIT:
@@ -91,7 +184,8 @@ This code has been lightly tested, primarily for a single time-step using the fo
 currently are encoded in the ```main.c``` code as an ```xmit_messages``` dictionary, and
 from which the ```-m``` option selects a message.
 
-More development is needed and expected.
+More development is needed and expected, including integration of additional new
+kernels representing other functionality of the latest ERA V3 design.
 
 ## Contacts and Current Maintainers
 
