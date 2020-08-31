@@ -21,7 +21,9 @@
  **    1. We set punctured_data == encoded_data (no puncturing effect) -- TRUE only for BPSK_1_2, QPSK_1_2, and QAM16_1_2
  **    2. We skip the actual "puncturing" code (at this time)
  **    3. In generate_signal_field we explicitly set the BPSK_1_2 parameters, etc.
+ **         Actually, this might be general -- I think this is for the header, which is always BPSK_1_2 encoded...?
  **    4. We don't use "chunks_to_symbols" routine -- we use the simple mapping of BPSK_1_2 directly in xmit_pipe code for now
+ **         Not sure this matters -- I don't see where the d_mapping is used?
  **
  ** If we decide to go to a more general implementation of the pipeline, then we'll need to address these issues.
  **/
