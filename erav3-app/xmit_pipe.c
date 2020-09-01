@@ -1301,7 +1301,7 @@ do_ofdm_carrier_allocator_cvc_impl_work (int noutput_items,
 
 
 void
-do_fft_work(int n_inputs, float scale, float *input_real, float * input_imag, float* output_real, float*output_imag)
+do_xmit_fft_work(int n_inputs, float scale, float *input_real, float * input_imag, float* output_real, float*output_imag)
 {
   // Do the FFT in 64-entry windows, and add the "shift" operation to each
   //   Also add the weighting/scaling for the window
@@ -1320,7 +1320,7 @@ do_fft_work(int n_inputs, float scale, float *input_real, float * input_imag, fl
   if (swap_odd_signs) {
     recluster[1] = -1.0;
   }
-  DEBUG(printf("Starting do_fft_work with size %u inverse %u shift %u on n_inputs %u\n", size, inverse, shift, n_inputs));
+  DEBUG(printf("Starting do_xmit_fft_work with size %u inverse %u shift %u on n_inputs %u\n", size, inverse, shift, n_inputs));
   for (int k = 0; k < (n_inputs+(size-1)); k += size) {
 
     DEBUG(printf(" Prepping for FFT call starting at %u\n", k));
@@ -1549,13 +1549,13 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
 
   // The FFT operation...  This is where we are currently "broken"
   //   The outputs match for the first one or two 64-entry windows, and then diverge a lot...
-  DEBUG(printf("\nCalling do_fft_work for %u data values\n", ofdm_max_out_size));
+  DEBUG(printf("\nCalling do_xmit_fft_work for %u data values\n", ofdm_max_out_size));
   int   n_ins = ofc_res * d_fft_len;  // max is ofdm_max_out_size
   float fft_out_real[ofdm_max_out_size];
   float fft_out_imag[ofdm_max_out_size];
   float scale = 1/sqrt(52.0);
 
-  do_fft_work(n_ins, scale, ofdm_car_str_real, ofdm_car_str_imag, fft_out_real, fft_out_imag);
+  do_xmit_fft_work(n_ins, scale, ofdm_car_str_real, ofdm_car_str_imag, fft_out_real, fft_out_imag);
   DEBUG(for (int i = 0; i < n_ins; i++) {
       printf(" fft_out %6u : %11.8f + %11.8f i\n", i, fft_out_real[i], fft_out_imag[i]);
     });

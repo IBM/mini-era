@@ -62,6 +62,100 @@ recv_pipe_init() {
 }
 
 
+unsigned 
+do_rcv_fft_work(unsigned num_fft_frames, fx_pt1 fft_ar_r[FRAME_EQ_IN_MAX_SIZE], fx_pt1 fft_ar_i[FRAME_EQ_IN_MAX_SIZE] ) {
+    DEBUG(printf("\nSetting up for FFT...\n"));
+  // FFT
+  // Here we do the FFT calls in 64-sample chunks... using a "window.rectangluar(64)" and forward fft with "Shift = true"
+
+  unsigned num_fft_outs = 0;
+  if (num_fft_frames > MAX_FFT_FRAMES) {
+    printf("ERROR : FFT generated %u frames which exceeds current MAX_FFT_FRAMES %u\n", num_fft_frames, MAX_FFT_FRAMES);
+    exit(-7);
+  }
+  DEBUG(printf("FFT_COMP : num_fft_frames = %u\n", num_fft_frames));
+  { // The simple_DFT uses an array of input real, imag, and output real, imag all in floats
+    // The FFT only uses one set of input/outputs (the fft_in) and overwrites the inputs with outputs
+    float fft_in_real[64];
+    float fft_in_imag[64];
+   #ifdef USE_SIMPLE_DFT
+    float fft_out_real[64];
+    float fft_out_imag[64];
+   #endif
+    const bool shift_inputs = false;
+    for (unsigned i = 0; i < num_fft_frames /*SYNC_L_OUT_MAX_SIZE/64*/; i++) { // This is the "spin" to invoke the FFT
+      if (shift_inputs) { // This is FALSE for this usage
+	// Effectively "rotate" the input window to re-center
+	for (unsigned j = 0; j < 32; j++) {
+	  fx_pt fftSample;
+	  fftSample = d_sync_long_out_frames[64*i + j]; // 64 * invocations + offset_j
+	  fft_in_real[32 + j] = (float)creal(fftSample);
+	  fft_in_imag[32 + j] = (float)cimagf(fftSample);
+         #ifdef USE_SIMPLE_DFT
+	  fft_out_real[32 + j] = 0.0;
+	  fft_out_imag[32 + j] = 0.0;
+         #endif
+	  
+	  fftSample = d_sync_long_out_frames[64*i + 32 + j]; // 64 * invocations + offset_j
+	  fft_in_real[j] = (float)crealf(fftSample);
+	  fft_in_imag[j] = (float)cimagf(fftSample);
+         #ifdef USE_SIMPLE_DFT
+	  fft_out_real[j] = 0.0;
+	  fft_out_imag[j] = 0.0;
+	 #endif
+	}
+      } else {
+	for (unsigned j = 0; j < 64; j++) {
+	  fx_pt fftSample;
+	  fftSample = d_sync_long_out_frames[64*i + j]; // 64 * invocations + offset_j
+	  fft_in_real[j] = (float)crealf(fftSample);
+	  fft_in_imag[j] = (float)cimagf(fftSample);
+         #ifdef USE_SIMPLE_DFT
+	  fft_out_real[j] = 0.0;
+	  fft_out_imag[j] = 0.0;
+	 #endif
+	}
+      }
+      // Now we have the data ready -- invoke simple_DFT
+      DEBUG(printf("\n FFT Call %5u \n", i);
+	    for (unsigned j = 0; j < 64; j++) {
+	      printf("   FFT_IN %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
+	    });
+     #ifdef USE_SIMPLE_DFT
+      simple_dft(fft_in_real, fft_in_imag, fft_out_real, fft_out_imag, false, true, 64); // not-inverse, not-shifting
+      DEBUG(printf("  FFT Output %4u \n", i);
+	    for (unsigned j = 0; j < 64; j++) {
+	      printf("   FFT_OUT %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_out_real[j], fft_out_imag[j]);
+	    });
+      // Now put the fft outputs into the full FFT results...
+      for (unsigned j = 0; j < 64; j++) {
+	fft_ar_r[64*i + j] = fft_out_real[j];
+	fft_ar_i[64*i + j] = fft_out_imag[j];
+      }
+     #else
+      fft(fft_in_real, fft_in_imag, false, true, 64, 6); // not-inverse, not-shifting
+      DEBUG(printf("  FFT Output %4u \n", i);
+	    for (unsigned j = 0; j < 64; j++) {
+	      printf("   FFT_OUT %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
+	    });
+      // Now put the fft outputs into the full FFT results...
+      for (unsigned j = 0; j < 64; j++) {
+	fft_ar_r[64*i + j] = fft_in_real[j];
+	fft_ar_i[64*i + j] = fft_in_imag[j];
+      }
+     #endif
+      num_fft_outs += 64;
+    } // for (i = 0 to CHUNK/64) (FFT invocations loop)
+  }
+  DEBUG(printf(" num_fft_outs = %u  vs  %u = %u * 64\n", num_fft_outs, num_fft_frames*64, num_fft_frames));
+  DEBUG(printf("\nFFT Results at Frame-Eq interface:\n");
+	for (unsigned j = 0; j < num_fft_outs /*FRAME_EQ_IN_MAX_SIZE*/; j++) {
+	  printf("  FFT-to-FEQ %6u : %12.8f %12.8f\n", j, fft_ar_r[j], fft_ar_i[j]);
+	}
+	printf("\n"));
+
+  return num_fft_outs;
+}
 
 /********************************************************************************
  * This routine manages the transmit pipeline functions and components
@@ -188,100 +282,12 @@ void compute(unsigned in_msg_len, unsigned num_inputs, fx_pt *input_data, uint8_
 	  printf("  SYNC_LONG_OUT %5u  %12.8f %12.8f : FR_D %12.8f %12.8f : D_FR_L %12.8f %12.8f\n", ti, crealf(sync_short_out_frames[ti]), cimagf(sync_short_out_frames[ti]), crealf(frame_d[ti]), cimagf(frame_d[ti]), crealf(d_sync_long_out_frames[ti]), cimagf(d_sync_long_out_frames[ti])); 
 	});
 
-  DEBUG(printf("\nSetting up for FFT...\n"));
-  // FFT
-  // Here we do the FFT calls in 64-sample chunks... using a "window.rectangluar(64)" and forward fft with "Shift = true"
-
   fx_pt1 fft_ar_r[FRAME_EQ_IN_MAX_SIZE];
   fx_pt1 fft_ar_i[FRAME_EQ_IN_MAX_SIZE];
-  unsigned num_fft_outs = 0;
   unsigned num_fft_frames = num_sync_long_vals / 64;
-  if (num_fft_frames > MAX_FFT_FRAMES) {
-    printf("ERROR : FFT generated %u frames which exceeds current MAX_FFT_FRAMES %u\n", num_fft_frames, MAX_FFT_FRAMES);
-    exit(-7);
-  }
-  DEBUG(printf("FFT_COMP : num_fft_frames = %u / 64 = %u\n", num_sync_long_vals, num_fft_frames));
-  { // The simple_DFT uses an array of input real, imag, and output real, imag all in floats
-    // The FFT only uses one set of input/outputs (the fft_in) and overwrites the inputs with outputs
-    float fft_in_real[64];
-    float fft_in_imag[64];
-   #ifdef USE_SIMPLE_DFT
-    float fft_out_real[64];
-    float fft_out_imag[64];
-   #endif
-    const bool shift_inputs = false;
-    for (unsigned i = 0; i < num_fft_frames /*SYNC_L_OUT_MAX_SIZE/64*/; i++) { // This is the "spin" to invoke the FFT
-      if (shift_inputs) { // This is FALSE for this usage
-	// Effectively "rotate" the input window to re-center
-	for (unsigned j = 0; j < 32; j++) {
-	  fx_pt fftSample;
-	  fftSample = d_sync_long_out_frames[64*i + j]; // 64 * invocations + offset_j
-	  fft_in_real[32 + j] = (float)creal(fftSample);
-	  fft_in_imag[32 + j] = (float)cimagf(fftSample);
-         #ifdef USE_SIMPLE_DFT
-	  fft_out_real[32 + j] = 0.0;
-	  fft_out_imag[32 + j] = 0.0;
-         #endif
-	  
-	  fftSample = d_sync_long_out_frames[64*i + 32 + j]; // 64 * invocations + offset_j
-	  fft_in_real[j] = (float)crealf(fftSample);
-	  fft_in_imag[j] = (float)cimagf(fftSample);
-         #ifdef USE_SIMPLE_DFT
-	  fft_out_real[j] = 0.0;
-	  fft_out_imag[j] = 0.0;
-	 #endif
-	}
-      } else {
-	for (unsigned j = 0; j < 64; j++) {
-	  fx_pt fftSample;
-	  fftSample = d_sync_long_out_frames[64*i + j]; // 64 * invocations + offset_j
-	  fft_in_real[j] = (float)crealf(fftSample);
-	  fft_in_imag[j] = (float)cimagf(fftSample);
-         #ifdef USE_SIMPLE_DFT
-	  fft_out_real[j] = 0.0;
-	  fft_out_imag[j] = 0.0;
-	 #endif
-	}
-      }
-      // Now we have the data ready -- invoke simple_DFT
-      DEBUG(printf("\n FFT Call %5u \n", i);
-	    for (unsigned j = 0; j < 64; j++) {
-	      printf("   FFT_IN %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
-	    });
-     #ifdef USE_SIMPLE_DFT
-      simple_dft(fft_in_real, fft_in_imag, fft_out_real, fft_out_imag, false, true, 64); // not-inverse, not-shifting
-      DEBUG(printf("  FFT Output %4u \n", i);
-	    for (unsigned j = 0; j < 64; j++) {
-	      printf("   FFT_OUT %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_out_real[j], fft_out_imag[j]);
-	    });
-      // Now put the fft outputs into the full FFT results...
-      for (unsigned j = 0; j < 64; j++) {
-	fft_ar_r[64*i + j] = fft_out_real[j];
-	fft_ar_i[64*i + j] = fft_out_imag[j];
-      }
-     #else
-      fft(fft_in_real, fft_in_imag, false, true, 64, 6); // not-inverse, not-shifting
-      DEBUG(printf("  FFT Output %4u \n", i);
-	    for (unsigned j = 0; j < 64; j++) {
-	      printf("   FFT_OUT %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
-	    });
-      // Now put the fft outputs into the full FFT results...
-      for (unsigned j = 0; j < 64; j++) {
-	fft_ar_r[64*i + j] = fft_in_real[j];
-	fft_ar_i[64*i + j] = fft_in_imag[j];
-      }
-     #endif
-      num_fft_outs += 64;
-    } // for (i = 0 to CHUNK/64) (FFT invocations loop)
-  }
-  DEBUG(printf(" num_fft_outs = %u  vs  %u = %u * 64\n", num_fft_outs, num_fft_frames*64, num_fft_frames));
-  DEBUG(printf("\nFFT Results at Frame-Eq interface:\n");
-	for (unsigned j = 0; j < num_fft_outs /*FRAME_EQ_IN_MAX_SIZE*/; j++) {
-	  printf("  FFT-to-FEQ %6u : %12.8f %12.8f\n", j, fft_ar_r[j], fft_ar_i[j]);
-	}
-	printf("\n"));
-
-
+  DEBUG(printf("FFT_COMP : num_fft_frames = %u / 64 = %u\n", num_sync_long_vals,  num_fft_frames));
+  unsigned num_fft_outs = do_rcv_fft_work(num_fft_frames, fft_ar_r, fft_ar_i);
+ 
   // equalize
   fx_pt toBeEqualized[FRAME_EQ_IN_MAX_SIZE];
   fx_pt equalized[FRAME_EQ_OUT_MAX_SIZE];
