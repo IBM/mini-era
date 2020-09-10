@@ -32,11 +32,13 @@ The standard build creates three primary executables:
  - ```xmit_erav3c``` which is the IEEE802.11p transmit function
  - ```recv_erav3c``` which is the IEEE802.11p treceiver function
  - ```erav3c``` which is the full IEEE802.11p transmit -> receive loop
+
 It also builds a set of alternate-interface, supplemental executables that use an
 alternative interface (coded to compatibility with the ESP Viterbi decoder hardware):
  - ```xmit_erav3c_esp``` which is the IEEE802.11p transmit function using ESP interfaces
  - ```recv_erav3c_esp``` which is the IEEE802.11p treceiver function using ESP interfaces
  - ```erav3c_esp``` which is the full IEEE802.11p transmit -> receive loop using ESP interfaces
+
 These executables should be functionally identical, i.e. the same inputs yield the same exact
 outputs, etc.  These ESP versions are intended to act as a functional verification of the
 workload when set up to utilize the ESP hardware accelerators.
