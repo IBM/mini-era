@@ -231,11 +231,11 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   int n_decoded = 0;
 
 #ifdef USE_ESP_INTERFACE
-  unsigned char* d_brtab27[2] = {      &(inMemory[    0]), 
-                                       &(inMemory[   32]) };
-  unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
-  uint8_t* depd_data          = &(inMemory[   72]);
-  uint8_t* l_decoded          = &(outMemory[   0]);
+  unsigned char* d_brtab27[2]        = { &(inMemory[    0]), 
+                                         &(inMemory[   32]) };
+  unsigned char* in_depuncture_pattern = &(inMemory[   64]);
+  uint8_t* depd_data                   = &(inMemory[   72]);
+  uint8_t* l_decoded                   = &(outMemory[   0]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
