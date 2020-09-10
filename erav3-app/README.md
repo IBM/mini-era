@@ -28,13 +28,27 @@ make
   
 ## Usage
 
-The standard build creates six executables:
+The standard build creates three primary executables:
  - ```xmit_erav3c``` which is the IEEE802.11p transmit function
  - ```recv_erav3c``` which is the IEEE802.11p treceiver function
  - ```erav3c``` which is the full IEEE802.11p transmit -> receive loop
+It also builds a set of alternate-interface, supplemental executables that use an
+alternative interface (coded to compatibility with the ESP Viterbi decoder hardware):
+ - ```xmit_erav3c_esp``` which is the IEEE802.11p transmit function using ESP interfaces
+ - ```recv_erav3c_esp``` which is the IEEE802.11p treceiver function using ESP interfaces
+ - ```erav3c_esp``` which is the full IEEE802.11p transmit -> receive loop using ESP interfaces
+These executables should be functionally identical, i.e. the same inputs yield the same exact
+outputs, etc.  These ESP versions are intended to act as a functional verification of the
+workload when set up to utilize the ESP hardware accelerators.
+
+Finally, the build also generates a full set of "verbose" versions of these executables, which
+include a lot of debugging (printf type) outputs:
  - ```verbose_xmit_erav3c``` which is ```xmit_erav3c``` with lots of debug type output
  - ```verbose_recv_erav3c``` which is ```recv_erav3c``` with lots of debug type output
  - ```verbose_erav3c``` which is the ```erav3c``` with lots of debug type output
+ - ```verbose_xmit_erav3c_esp``` which is ```xmit_erav3c``` using ESP interfaces, and with lots of debug type output
+ - ```verbose_recv_erav3c_esp``` which is ```recv_erav3c``` using ESP interfaces, and with lots of debug type output
+ - ```verbose_erav3c_esp``` which is the ```erav3c``` using ESP interfaces, and with lots of debug type output
 
 Each of these three main programs has similar usage; help information is accesible
 for any of them via the ```-h``` option.
