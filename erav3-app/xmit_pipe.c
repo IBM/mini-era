@@ -1,7 +1,7 @@
 /** This code represents the current ERA-V3 GnuRadio ieee802_11 TRANSMIT pipeline 
     TRANSMIT:
     1. Form a message : input string up to 1500 characters : char[1501] (terminating '\0')? [Input]
-    2. WiFi-MAC : gr-ieee802-11/mac.cc             do_wifi_mac
+    2. WiFi-MAC : gr-ieee802-11/mac.cc             generate_mac_data_frame (was do_wifi_mac)
     3. Wifi-Mapper : gr-ieee802-11/mapper.cc       do_mapper_work
     4. Packet-Header Generator : gnuradio/gr-digital/lib/packet_headergenerator_bb_impl.cc    
     5a. Chunks-to-Symbols : gnuradio/gr-digital/lib/chunks_to_symbols_impl.*
@@ -285,12 +285,12 @@ void generate_mac_data_frame(const char *msdu, int msdu_size, int *psdu_size) {
 }
 
 
-// This is the app_in work from gr-ieee802_11/mac.cc
-void do_wifi_mac(int msg_len, char * in_msg, int* psdu_length) {
-  // The gr-ieee802.11p code for app_in calls generate_mac_data_frame and then publishes the resulting d_psdu to phy_out
-  generate_mac_data_frame(in_msg, msg_len, psdu_length);
-  // I think the rest is just setting up output port xfer data, etc.
-}
+/* // This is the app_in work from gr-ieee802_11/mac.cc */
+/* void do_wifi_mac(int msg_len, char * in_msg, int* psdu_length) { */
+/*   // The gr-ieee802.11p code for app_in calls generate_mac_data_frame and then publishes the resulting d_psdu to phy_out */
+/*   generate_mac_data_frame(in_msg, msg_len, psdu_length); */
+/*   // I think the rest is just setting up output port xfer data, etc. */
+/* } */
 
 
 
@@ -1483,7 +1483,8 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
 	printf("\n"); fflush(stdout));
   
   int psdu_len = 0;
-  do_wifi_mac(in_msg_len, in_msg, &psdu_len);
+  //do_wifi_mac(in_msg_len, in_msg, &psdu_len);
+  generate_mac_data_frame(in_msg, in_msg_len, &psdu_len);
 
   //do_mapper_work(32768, psdu_len); // noutput always seems to be 32768 ? Actualy data size is 24528 ?
   do_mapper_work(psdu_len); // noutput always seems to be 32768 ? Actualy data size is 24528 ?
