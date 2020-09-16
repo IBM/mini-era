@@ -123,7 +123,7 @@ bit_reverse (float * w, unsigned int N, unsigned int bits)
 
 
 int
-fft (float * data, unsigned int N, unsigned int logn, int sign)
+fft(float * data, unsigned int N, unsigned int logn, int sign)
 {
   unsigned int transform_length;
   unsigned int a, b, i, j, bit;
@@ -143,6 +143,7 @@ fft (float * data, unsigned int N, unsigned int logn, int sign)
 #endif
 
   /* calculation */
+  //printf("\nSTART,A,B,I,J,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n", "2*j", "Data", "2*j+1", "Data", "2*i", "Data", "2*i+1", "Data", "t_real", "t_imag");
   for (bit = 0; bit < logn; bit++) {
     w_real = 1.0;
     w_imag = 0.0;
@@ -169,6 +170,8 @@ fft (float * data, unsigned int N, unsigned int logn, int sign)
 	data[2*j+1]  = data[2*i+1] - t_imag;
 	data[2*i  ] += t_real;
 	data[2*i+1] += t_imag;
+
+	//printf(",%u,%u,%u,%u,%u,%f,%u,%f,%u,%f,%u,%f,%f,%f\n", a, b, i, j, 2*j, data[2*j], 2*j+1, data[2*j+1], 2*i, data[2*i], 2*i+1, data[2*i+1], t_real, t_imag);
       }
 
       /* adjust w */

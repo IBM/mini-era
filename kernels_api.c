@@ -258,7 +258,7 @@ status_t init_rad_kernel(char* dict_fn)
     }
   }
 
-    //Clear the inputs (injected) histogram
+  //Clear the inputs (injected) histogram
   for (int i = 0; i < MAX_RDICT_SAMPLE_SETS; i++) {
     for (int j = 0; j < MAX_RDICT_ENTRIES; j++) {
       radar_inputs_histogram[i][j] = 0;
@@ -484,10 +484,11 @@ status_t init_h264_kernel(char* dict_fn)
   return success;
 }
 
+
 status_t init_cv_kernel(char* py_file, char* dict_fn)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
-  /* The CV kernel uses a different method to select appropriate inputs; dictionary not needed currently
+  /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
   // Read in the object images dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
@@ -1013,10 +1014,10 @@ void closeout_cv_kernel()
     }
   }
 
-#ifndef BYPASS_KERAS_CV_CODE
+ #ifndef BYPASS_KERAS_CV_CODE
   Py_DECREF(pModule);
   Py_Finalize();
-#endif   
+ #endif   
 }
 
 void closeout_rad_kernel()

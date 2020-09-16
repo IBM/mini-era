@@ -164,7 +164,7 @@ static void do_decoding_hw(int *fd, struct vitdodec_access *desc)
 
 
 #ifdef USE_ESP_INTERFACE
-void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory )
+void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory)
 #else
 uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
 #endif
@@ -183,7 +183,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
                                        &(inMemory[   32]) };
   unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
   uint8_t* depd_data                 = &(inMemory[   72]);
-  uint8_t* l_decoded                 = &(inMemory[24852]);
+  uint8_t* l_decoded                 = &(outMemory[   0]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
@@ -725,13 +725,14 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 #ifdef USE_ESP_INTERFACE
   {
     // Copy inputs into the inMemory for esp-interface version
-    #ifdef HW_VIT
+   #ifdef HW_VIT
     uint8_t* inMemory  = vitHW_li_mem;
     uint8_t* outMemory = vitHW_lo_mem;
-    #else
+    //printf("HW : inMemory = %p v %p AND outMemory = %p v %p\n", inMemory, vitHW_li_mem, outMemory, vitHW_lo_mem);
+   #else
     uint8_t inMemory[24852];  // This is "minimally sized for max entries"
     uint8_t outMemory[18585]; // This is "minimally sized for max entries"
-    #endif
+   #endif
 
     int imi = 0;
     for (int ti = 0; ti < 2; ti ++) {
@@ -772,13 +773,14 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     gettimeofday(&dodec_start, NULL);
 #endif
 #ifdef HW_VIT
-        vitHW_desc.cbps = ofdm->n_cbps;
-	vitHW_desc.ntraceback = d_ntraceback;
-        vitHW_desc.data_bits = frame->n_data_bits;
-	do_decoding_hw(&vitHW_fd, &vitHW_desc);
+    vitHW_desc.cbps = ofdm->n_cbps;
+    vitHW_desc.ntraceback = d_ntraceback;
+    vitHW_desc.data_bits = frame->n_data_bits;
+    //printf(" vitHW_desc.cbps = %u   ntr = %u   dbits = %u\n", vitHW_desc.cbps, vitHW_desc.ntraceback, vitHW_desc.data_bits);
+    do_decoding_hw(&vitHW_fd, &vitHW_desc);
 #else
-	// Call the viterbi_butterfly2_generic function using ESP interface
-	do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
+    // Call the viterbi_butterfly2_generic function using ESP interface
+    do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
 #endif
 #ifdef INT_TIME
     gettimeofday(&dodec_stop, NULL);
@@ -786,24 +788,32 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
 #endif
 
+#ifndef HW_VIT
     // Copy the outputs back into the composite locations
     imi = 0; // start of the outputs
 #ifdef GENERATE_CHECK_VALUES
     printf("\n\nOUTPUTS-FROM-DO-DECODING:\n");
 #endif
+    //printf(" OUTPUT: ");
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
 #ifdef GENERATE_CHECK_VALUES
       printf("%u\n", outMemory[imi]);
 #endif
       d_decoded[ti] = outMemory[imi++];
+      //if (ti < 80) { printf("%u", d_decoded[ti]); }
     }
-
+    //printf("\n\n");
+#endif
   }
 #ifdef GENERATE_CHECK_VALUES
   printf("LAST-OUTPUT\n\n");
 #endif
-  return d_decoded;
+#if HW_VIT
+  return vitHW_lo_mem; // outMemory;
 #else
+  return d_decoded;
+#endif
+#else // NOT in ESP mode
   {
 #ifdef INT_TIME
      gettimeofday(&dodec_start, NULL);
