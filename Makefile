@@ -9,7 +9,7 @@ CFLAGS = -pedantic -Wall -g $(COPTF2)
 #CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
 CFLAGS +=  -Xlinker -export-dynamic
 
-INCLUDES = -Iradar -Ifft/fft-1d -Iviterbi
+INCLUDES = -Iinclude -Iinclude/radar -Iinclude/h264 -Iinclude/viterbi
 CFLAGS += $(INCLUDES)
 
 #PYTHONINCLUDES = $(shell /usr/bin/python-config --cflags)
