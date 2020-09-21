@@ -4,12 +4,9 @@ OBJDIR      = obj
 IT_OBJDIR   = obj_it
 C_OBJDIR    = obj_c
 ITC_OBJDIR  = obj_itc
-FC_OBJDIR   = obj_fc
-ITFC_OBJDIR = obj_itfc
 
 OBJ_V_DIR     = obj_v
 C_OBJ_V_DIR   = obj_cv
-FC_OBJ_V_DIR  = obj_fcv
 
 OBJ_G_DIR    = obj_gp
 C_OBJ_G_DIR  = obj_cgp
@@ -39,6 +36,7 @@ SRC    = src/kernels_api.c \
 	 src/h264/slice.c \
 	 src/h264/vlc.c \
 	 src/h264/do_h264_decode.c \
+	 src/lz4/lz4.c \
 	 src/read_trace.c
 
 
@@ -121,7 +119,7 @@ cver: cobjdirs ctrace
 
 objdirs: $(OBJDIR) $(IT_OBJDIR) $(OBJ_V_DIR) $(OBJ_G_DIR) $(S_OBJDIR) $(ITS_OBJDIR) $(S_OBJ_V_DIR) $(S_OBJ_G_DIR)
 
-cobjdirs: $(C_OBJDIR) $(FC_OBJDIR) $(ITC_OBJDIR) $(ITFC_OBJDIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR) $(C_OBJ_G_DIR)
+cobjdirs: $(C_OBJDIR) $(ITC_OBJDIR) $(C_OBJ_V_DIR) $(C_OBJ_G_DIR)
 
 
 
@@ -144,114 +142,63 @@ $(OBJDIR):
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
-
-$(T_OBJDIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(IT_OBJDIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(C_OBJDIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
-
-$(TC_OBJDIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(ITC_OBJDIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
-
-$(FC_OBJDIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
-
-$(TFC_OBJDIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
-
-$(ITFC_OBJDIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(T_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(C_OBJ_V_DIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
-
-$(TC_OBJ_V_DIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
-
-$(FC_OBJ_V_DIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
-
-$(TFC_OBJ_V_DIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(OBJ_G_DIR):
 	mkdir $@
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
-
-$(T_OBJ_G_DIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 $(C_OBJ_G_DIR):
-	mkdir $@
+	mkdir $@	
 	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
-
-$(TC_OBJ_G_DIR):
-	mkdir $@
-	mkdir -p $@/src/viterbi
-	mkdir -p $@/src/radar
-	mkdir -p $@/src/h264
+	mkdir -p $@/src/lz4
 
 
 
@@ -274,22 +221,10 @@ $(TC_OBJDIR)/%.o: %.c
 $(ITC_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
-$(FC_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
-
-$(TFC_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
-
-$(ITFC_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
-
 $(OBJ_V_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 $(C_OBJ_V_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
-
-$(FC_OBJ_V_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 $(OBJ_G_DIR)/%.o: %.c
@@ -329,8 +264,7 @@ clean:
 clobber: clean
 	$(RM) -rf $(OBJDIR) $(IT_OBJDIR)
 	$(RM) -rf $(C_OBJDIR) $(ITC_OBJDIR)
-	$(RM) -rf $(FC_OBJDIR) $(ITFC_OBJDIR)
-	$(RM) -rf $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR)
+	$(RM) -rf $(OBJ_V_DIR) $(C_OBJ_V_DIR)
 	$(RM) -rf $(OBJ_G_DIR) $(C_OBJ_G_DIR)
 
 allclean: clobber
@@ -374,6 +308,7 @@ $(OBJDIR)/h264/vlc.o: include/h264/global.h
 $(OBJDIR)/h264/do_h264_decode.o: h264/global.h 
 $(OBJDIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(OBJDIR)/h264/do_h264_decode.o: include/h264/decode.h
+$(OBJDIR)/lv4/lv4.o: include/lv4/lv4.h
 
 $(C_OBJDIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJDIR)/kernels_api.o: include/read_trace.h
@@ -410,6 +345,7 @@ $(C_OBJDIR)/h264/vlc.o: include/h264/global.h
 $(C_OBJDIR)/h264/do_h264_decode.o: h264/global.h 
 $(C_OBJDIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(C_OBJDIR)/h264/do_h264_decode.o: include/h264/decode.h
+$(C_OBJDIR)/lv4/lv4.o: include/lv4/lv4.h
 
 $(OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_V_DIR)/kernels_api.o: include/read_trace.h
@@ -446,6 +382,7 @@ $(OBJ_V_DIR)/h264/vlc.o: include/h264/global.h
 $(OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h 
 $(OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/decode.h
+$(OBJ_V_DIR)/lv4/lv4.o: include/lv4/lv4.h
 
 $(C_OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/read_trace.h
@@ -482,6 +419,7 @@ $(C_OBJ_V_DIR)/h264/vlc.o: include/h264/global.h
 $(C_OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h 
 $(C_OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(C_OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/decode.h
+$(C_OBJ_V_DIR)/lv4/lv4.o: include/lv4/lv4.h
 
 
 $(OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
@@ -519,6 +457,7 @@ $(OBJ_G_DIR)/h264/vlc.o: include/h264/global.h
 $(OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h 
 $(OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/decode.h
+$(OBJ_G_DIR)/lv4/lv4.o: include/lv4/lv4.h
 
 $(C_OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/read_trace.h
@@ -555,4 +494,5 @@ $(C_OBJ_G_DIR)/h264/vlc.o: include/h264/global.h
 $(C_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h 
 $(C_OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(C_OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/decode.h
+$(C_OBJ_G_DIR)/lv4/lv4.o: include/lv4/lv4.h
 
