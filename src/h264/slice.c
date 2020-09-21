@@ -33,17 +33,17 @@ void write_luma
  int starty,
  unsigned char skip)
 {
-#pragma HLS ARRAY_PARTITION variable=rMb complete dim=1
-#pragma HLS ARRAY_PARTITION variable=rMb complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMb complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMb complete dim=2)
 
-#pragma HLS ARRAY_PARTITION variable=pred complete dim=1
-#pragma HLS ARRAY_PARTITION variable=pred complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=pred complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=pred complete dim=2)
   int i,j;
 
   for(i=0;i<4;i++)
     for(j=0;j<4;j++)
     {
-      #pragma HLS PIPELINE rewind
+      ON_HLS(#pragma HLS PIPELINE rewind)
       Sluma[startx+i][starty+j]=Clip1y( skip*rMb[i][j]+pred[i][j]);
     }
 
@@ -60,17 +60,17 @@ void write_Chroma
  unsigned char skip
  )
 {
-#pragma HLS ARRAY_PARTITION variable=rMb complete dim=1
-#pragma HLS ARRAY_PARTITION variable=rMb complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMb complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMb complete dim=2)
 
-#pragma HLS ARRAY_PARTITION variable=pred complete dim=1
-#pragma HLS ARRAY_PARTITION variable=pred complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=pred complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=pred complete dim=2)
   int i,j;
 
   for(i=0;i<4;i++)
     for(j=0;j<4;j++)
     {
-      #pragma HLS PIPELINE rewind
+      ON_HLS(#pragma HLS PIPELINE rewind)
       SChroma[startx+i][starty+j]=Clip1y((skip==0)*rMb[i][j]+pred[i][j]);
     }
 }
@@ -107,37 +107,37 @@ void process_luma(
   int i,j;
 
   int coeffACL[4][4];
-#pragma HLS ARRAY_PARTITION variable=coeffACL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffACL complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACL complete dim=2)
   unsigned char predL4x4[4][4];
-#pragma HLS ARRAY_PARTITION variable=predL4x4 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffACL complete dim=2
-  int xint0,yint0,xfrac0,yfrac0;
-  int xint1,yint1,xfrac1,yfrac1;
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predL4x4 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACL complete dim=2)
+  int xint0 = 0,yint0 = 0,xfrac0 = 0,yfrac0 = 0; // Add initialization to quiet compiler complaint
+  int xint1 = 0,yint1 = 0,xfrac1 = 0,yfrac1 = 0; // Add initialization to quiet compiler complaint
 
   int rMbL[4][4];
   unsigned char avaimode;
 
-  int tmpidx0;
-  int tmpidx1;
-#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=2
+  int tmpidx0 = 0; // Add initialization to quiet compiler complaint
+  int tmpidx1 = 0; // Add initialization to quiet compiler complaint
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=2)
 
 
-#pragma HLS ARRAY_PARTITION variable=predL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=predL complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predL complete dim=2)
 
   unsigned char inter_temp0[9][9];
   unsigned char inter_temp1[9][9];
 
-#pragma HLS ARRAY_PARTITION variable=inter_temp0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=inter_temp0 complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=inter_temp0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=inter_temp0 complete dim=2)
 
-#pragma HLS ARRAY_PARTITION variable=inter_temp1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=inter_temp1 complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=inter_temp1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=inter_temp1 complete dim=2)
 
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=1
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=1)
 
   //processing luma component of each block
   if(CodedPatternLuma& (1<<(k/4)))
@@ -150,7 +150,7 @@ void process_luma(
   {
     NzLuma[mbaddrx*4+x][mbaddry*4+y]=0;
     for(i=0;i<4;i++)
-      #pragma HLS PIPELINE
+      ON_HLS(#pragma HLS PIPELINE)
       for(j=0;j<4;j++)
       {
         coeffACL[i][j]=0;
@@ -297,49 +297,49 @@ void process_chroma
  )
 
 {
-#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=3
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=3)
 
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=2)
 
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=3
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=3)
 
   int nC;
   int coeffACC_0[2][2][4][4];
   int coeffACC_1[2][2][4][4];
-#pragma HLS ARRAY_PARTITION variable=coeffACC_0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=coeffACC_0 complete dim=4
-#pragma HLS ARRAY_PARTITION variable=coeffACC_1 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=coeffACC_1 complete dim=4
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACC_0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACC_0 complete dim=4)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACC_1 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffACC_1 complete dim=4)
 
   int i,j;
   int rMbC_0[2][2][4][4];
   int rMbC_1[2][2][4][4];
-#pragma HLS ARRAY_PARTITION variable=rMbC_0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=rMbC_0 complete dim=4
-#pragma HLS ARRAY_PARTITION variable=rMbC_1 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=rMbC_1 complete dim=4
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbC_0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbC_0 complete dim=4)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbC_1 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbC_1 complete dim=4)
 
   int mvdC0[2][2][2];
   int mvdC1[2][2][2];
-#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=3
-  int tmpidx0;
-  int tmpidx1;
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=3)
+  int tmpidx0 = 0; // Add initialization to quiet compiler complaint
+  int tmpidx1 = 0; // Add initialization to quiet compiler complaint
   int x, y;
   //processing CR component of each sample
   //first channel
@@ -356,7 +356,7 @@ void process_chroma
     {
       NzChroma[0][mbaddrx*2+x][mbaddry*2+y]=0;
       for(i=0;i<4;i++)
-        #pragma HLS PIPELINE
+	ON_HLS(#pragma HLS PIPELINE)
         for(j=0;j<4;j++)
         {
           rMbC_0[x][y][i][j]=0;
@@ -379,7 +379,7 @@ void process_chroma
     {
       NzChroma[1][mbaddrx*2+x][mbaddry*2+y]=0;
       for(i=0;i<4;i++)
-        #pragma HLS PIPELINE
+	ON_HLS(#pragma HLS PIPELINE)
         for(j=0;j<4;j++)
         {
           rMbC_1[x][y][i][j]=0;
@@ -400,8 +400,8 @@ void process_chroma
     }
     if(refidx0[x][y]>=0 && refidx1[x][y]>=0)
     {
-      LOOP_COPY: for(i=0;i<2;i++)
-        #pragma HLS PIPELINE
+      ON_HLS(LOOP_COPY:) for(i=0;i<2;i++)
+	ON_HLS(#pragma HLS PIPELINE)
         for(j=0;j<2;j++)
         {
           mvdC0[i][j][0]=mvd0[x*2+i][y*2+j][0];
@@ -409,30 +409,30 @@ void process_chroma
           mvdC0[i][j][1]=mvd0[x*2+i][y*2+j][1];
           mvdC1[i][j][1]=mvd1[x*2+i][y*2+j][1];
         }
-      tmpidx0=img->list0[refidx0[x][y]];
-      tmpidx1=img->list1[refidx1[x][y]];
+      tmpidx0=img->list0[(int)refidx0[x][y]];
+      tmpidx1=img->list1[(int)refidx1[x][y]];
     }
     else if(refidx0[x][y]>=0 && refidx1[x][y]<0)
     {
-      LOOP_COPY2: for(i=0;i<2;i++)
-        #pragma HLS PIPELINE
+      ON_HLS(LOOP_COPY2:) for(i=0;i<2;i++)
+	ON_HLS(#pragma HLS PIPELINE)
         for(j=0;j<2;j++)
         {
           mvdC0[i][j][0]=mvd0[x*2+i][y*2+j][0];
           mvdC0[i][j][1]=mvd0[x*2+i][y*2+j][1];
         }
-      tmpidx0=img->list0[refidx0[x][y]];
+      tmpidx0=img->list0[(int)refidx0[x][y]];
     }
     else if(refidx0[x][y]<0 && refidx1[x][y]>=0)
     {
-      LOOP_COPY3: for(i=0;i<2;i++)
-        #pragma HLS PIPELINE
+      ON_HLS(LOOP_COPY3:) for(i=0;i<2;i++)
+	ON_HLS(#pragma HLS PIPELINE)
         for(j=0;j<2;j++)
         {
           mvdC0[i][j][0]=mvd1[x*2+i][y*2+j][0];
           mvdC0[i][j][1]=mvd1[x*2+i][y*2+j][1];
         }
-      tmpidx0=img->list1[refidx1[x][y]];
+      tmpidx0=img->list1[(int)refidx1[x][y]];
     }
 
     if(tmpImode==INTRA4x4 || tmpImode== INTRA16x16)
@@ -485,16 +485,16 @@ void ProcessSlice
 
   unsigned char nC;
 
-  unsigned char tmpmbtp;
-  unsigned char avaimode;
-  int tmpidx0=0;
-  int tmpidx1=0;
+  unsigned char tmpmbtp = 0; // Add initialization to quiet compiler complaint
+  /*unsigned char avaimode;*/ // Unused reported by compiler...
+  /*int tmpidx0=0;*/ // Unused reported by compiler...
+  /*int tmpidx1=0;*/ // Unused reported by compiler...
 
   //tempsyntaxes
   unsigned char coded_block_pattern;
-  unsigned char CodedPatternLuma;
-  unsigned char CodedPatternChroma;
-  unsigned char IntraChromaPredMode;
+  unsigned char CodedPatternLuma = 0; // Add initialization to quiet compiler complaint
+  unsigned char CodedPatternChroma = 0; // Add initialization to quiet compiler complaint
+  unsigned char IntraChromaPredMode = 0; // Add initialization to quiet compiler complaint
   unsigned char Intra16x16PredMode;
   int mb_qp_delta;
 
@@ -505,39 +505,39 @@ void ProcessSlice
 
   //inter pred info matrix
   char refCOL[2][2];
-#pragma HLS ARRAY_PARTITION variable=refCOL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=refCOL complete dim=1
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=refCOL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=refCOL complete dim=1)
 
   int mvCOL[4][4][2];
-#pragma HLS ARRAY_PARTITION variable=mvCOL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvCOL complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvCOL complete dim=3
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvCOL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvCOL complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvCOL complete dim=3)
 
   char refidx0[2][2];
   char refidx1[2][2];
-#pragma HLS ARRAY_PARTITION variable=refidx0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=refidx0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=refidx1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=refidx1 complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=refidx0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=refidx0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=refidx1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=refidx1 complete dim=2)
 
   int mvd0[4][4][2];
   int mvd1[4][4][2];
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=3
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvd1 complete dim=3)
 
-  int mvdC0[2][2][2];
-  int mvdC1[2][2][2];
+  /*int mvdC0[2][2][2];*/ // Unused reported by compiler...
+  /*int mvdC1[2][2][2];*/ // Unused reported by compiler...
 
-#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=1
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=mvdC1 complete dim=1)
 
   //intra pred info array
   char intra4x4predmode[16];
@@ -546,43 +546,43 @@ void ProcessSlice
   unsigned char predL[16][4][4];
   unsigned char predC_0[4][4][4];
   unsigned char predC_1[4][4][4];
-#pragma HLS ARRAY_PARTITION variable=predL complete dim=2
-#pragma HLS ARRAY_PARTITION variable=predL complete dim=3
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predL complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predL complete dim=3)
 
-#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=3
-#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=3
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_0 complete dim=3)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=predC_1 complete dim=3)
 
   //quant temp
 
-  char qPm6,qPi,qPy,qPc,qPcm6;
-  char temp1l,temp2l,temp3l;
-  char temp1c,temp2c,temp3c;
-  char scale1,scale2,scale3;
+  char qPm6=0,qPi=0,qPy=0,qPc=0,qPcm6=0; // Add initialization to quiet compiler complaint
+  char temp1l=0,temp2l=0,temp3l=0; // Add initialization to quiet compiler complaint
+  char temp1c=0,temp2c=0,temp3c=0; // Add initialization to quiet compiler complaint
+  char scale1=0,scale2=0,scale3=0; // Add initialization to quiet compiler complaint
   //residual matrix
   int coeffDCL[4][4];
-#pragma HLS ARRAY_PARTITION variable=coeffDCL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffDCL complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCL complete dim=2)
 
 
   int coeffDCC_0[4][2];
   int coeffDCC_1[4][2];
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=2
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=1
-#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_0 complete dim=2)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=coeffDCC_1 complete dim=2)
 
-  int rMbL[4][4];
-  int rMbC[4][4];
-#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=1
-#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=2
+  /*int rMbL[4][4];*/ // Unused reported by compiler...
+  /*int rMbC[4][4];*/ // Unused reported by compiler...
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbL complete dim=2)
 
-#pragma HLS ARRAY_PARTITION variable=rMbC complete dim=1
-#pragma HLS ARRAY_PARTITION variable=rMbC complete dim=2
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbC complete dim=1)
+  ON_HLS(#pragma HLS ARRAY_PARTITION variable=rMbC complete dim=2)
   //inter mediate residual
   for(mbaddry=0;mbaddry<FrameHeightInMbs;mbaddry++)
-    LOOP_MACROBLOCK:for(mbaddrx=0;mbaddrx<PicWidthInMBs;mbaddrx++)
+    ON_HLS(LOOP_MACROBLOCK:) for(mbaddrx=0;mbaddrx<PicWidthInMBs;mbaddrx++)
     {
 #if _N_HLS_
       fprintf(trace_bit,"\nMbaddr %d\n",mbaddry*PicWidthInMBs+mbaddrx);
@@ -674,9 +674,9 @@ void ProcessSlice
 
         }
         // Set Intra prediction info
-        LOOP_ZERO_INTRAMODED:for(i=0;i<4;i++)
+	ON_HLS(LOOP_ZERO_INTRAMODED:)for(i=0;i<4;i++)
         {
-          #pragma HLS UNROLL
+	  ON_HLS(#pragma HLS UNROLL)
           IntraPredMode[mbaddrx*4+3][mbaddry*4+i]=2;
           IntraPredMode[mbaddrx*4+i][mbaddry*4+3]=2;
         }
@@ -715,7 +715,7 @@ void ProcessSlice
         {
           for(i=0;i<4;i++)
           {
-            #pragma HLS UNROLL
+	    ON_HLS(#pragma HLS UNROLL)
             IntraPredMode[mbaddrx*4+3][mbaddry*4+i]=2;
             IntraPredMode[mbaddrx*4+i][mbaddry*4+3]=2;
           }
@@ -793,7 +793,7 @@ void ProcessSlice
           predict_intra16x16_luma_NonField(predL,PIC[img->mem_idx].Sluma,Intra16x16PredMode,(mbaddrx>0)*2+(mbaddry>0),mbaddrx*16,mbaddry*16);
         }
 
-        LOOP_LUMA_SUBBLOCK:for(k=0;k<16;k++)
+        ON_HLS(LOOP_LUMA_SUBBLOCK:)for(k=0;k<16;k++)
         {
           x=KTOX(k);
           y=KTOY(k);
