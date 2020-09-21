@@ -1,5 +1,4 @@
-/Users/wellman/.ssh/known_hosts
-]Copyright (c) <2016> <University of Illinois at Urbana-Champaign>
+Copyright (c) <2016> <University of Illinois at Urbana-Champaign>
 All rights reserved.
 
 Developed by: 		
@@ -25,5 +24,3 @@ When referencing this application in a publication, please cite:
 
 X. Liu, Y. Chen, T. Nguyen, S. Gurumani, K. Rupnow, and D. Chen, “High Level Synthesis of Complex Applications: An H.264 Video Decoder”, Proceedings of ACM/SIGDA International Symposium on Field Programmable Gate Arrays, February 2016. 
 
-
- 
