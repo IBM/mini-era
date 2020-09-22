@@ -808,7 +808,8 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
 message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
 {
   // Send each message (here they are all the same) through the viterbi decoder
-  message_t msg = num_message_t;
+  message_t msg = trace_msg->msg_id; //num_message_t;
+#if(0)
   uint8_t *result;
   char     msg_text[1600]; // Big enough to hold largest message (1500?)
   for (int mi = 0; mi < num_msgs; mi++) {
@@ -839,6 +840,7 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
       }
     } // if (mi == 0)
   }
+#endif
   DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
   return msg;
 }

@@ -21,9 +21,6 @@ SRC    = src/kernels_api.c \
          src/radar/fft.c \
          src/radar/octave.c \
          src/radar/timer.c \
-	 src/viterbi/descrambler_function.c \
-         src/viterbi/viterbi_flat.c \
-         src/viterbi/viterbi_parms.c \
 	 src/h264/cavlc.c \
 	 src/h264/decode.c \
 	 src/h264/framealloc.c \
@@ -146,7 +143,6 @@ tracegen:
 
 $(OBJDIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -154,7 +150,6 @@ $(OBJDIR):
 
 $(IT_OBJDIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -162,7 +157,6 @@ $(IT_OBJDIR):
 
 $(C_OBJDIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -170,7 +164,6 @@ $(C_OBJDIR):
 
 $(ITC_OBJDIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -178,7 +171,6 @@ $(ITC_OBJDIR):
 
 $(OBJ_V_DIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -186,7 +178,6 @@ $(OBJ_V_DIR):
 
 $(T_OBJ_V_DIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -194,7 +185,6 @@ $(T_OBJ_V_DIR):
 
 $(C_OBJ_V_DIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -202,7 +192,6 @@ $(C_OBJ_V_DIR):
 
 $(OBJ_G_DIR):
 	mkdir $@
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -210,7 +199,6 @@ $(OBJ_G_DIR):
 
 $(C_OBJ_G_DIR):
 	mkdir $@	
-	mkdir -p $@/src/viterbi
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
@@ -272,15 +260,11 @@ clobber: clean
 	$(RM) -rf $(OBJ_G_DIR) $(C_OBJ_G_DIR)
 
 allclean: clobber
-	cd utils; make -f $(MFILE) allclean
-	cd radar; make -f $(MFILE) clean
-	cd viterbi; make -f $(MFILE) clean
+
 
 
 $(OBJDIR)/kernels_api.o: include/kernels_api.h
 $(OBJDIR)/kernels_api.o: include/read_trace.h
-$(OBJDIR)/kernels_api.o: include/viterbi/utils.h
-$(OBJDIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(OBJDIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(OBJDIR)/read_trace.o: include/kernels_api.h
 $(OBJDIR)/read_trace.o: include/read_trace.h
@@ -374,8 +358,6 @@ $(OBJDIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(C_OBJDIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJDIR)/kernels_api.o: include/read_trace.h
-$(C_OBJDIR)/kernels_api.o: include/viterbi/utils.h
-$(C_OBJDIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(C_OBJDIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(C_OBJDIR)/read_trace.o: include/kernels_api.h
 $(C_OBJDIR)/read_trace.o: include/read_trace.h
@@ -469,8 +451,6 @@ $(C_OBJDIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_V_DIR)/kernels_api.o: include/read_trace.h
-$(OBJ_V_DIR)/kernels_api.o: include/viterbi/utils.h
-$(OBJ_V_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(OBJ_V_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(OBJ_V_DIR)/read_trace.o: include/kernels_api.h
 $(OBJ_V_DIR)/read_trace.o: include/read_trace.h
@@ -564,8 +544,6 @@ $(OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(C_OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/read_trace.h
-$(C_OBJ_V_DIR)/kernels_api.o: include/viterbi/utils.h
-$(C_OBJ_V_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(C_OBJ_V_DIR)/read_trace.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/read_trace.o: include/read_trace.h
@@ -660,8 +638,6 @@ $(C_OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_G_DIR)/kernels_api.o: include/read_trace.h
-$(OBJ_G_DIR)/kernels_api.o: include/viterbi/utils.h
-$(OBJ_G_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(OBJ_G_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(OBJ_G_DIR)/read_trace.o: include/kernels_api.h
 $(OBJ_G_DIR)/read_trace.o: include/read_trace.h
@@ -755,8 +731,6 @@ $(OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(C_OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/read_trace.h
-$(C_OBJ_G_DIR)/kernels_api.o: include/viterbi/utils.h
-$(C_OBJ_G_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(C_OBJ_G_DIR)/read_trace.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/read_trace.o: include/read_trace.h

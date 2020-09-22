@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
       }
       break;
     case 'S':
-      show_main_output = (atoi(optarg) != 0);
+      //show_main_output = (atoi(optarg) != 0);
       show_xmit_output = (atoi(optarg) != 0);
       show_recv_output = (atoi(optarg) != 0);
       break;
@@ -295,6 +295,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  printf("Set show_main_output = %u\n", show_main_output);
   printf("Set show_xmit_output = %u\n", show_xmit_output);
   printf("Set show_recv_output = %u\n", show_recv_output);
 
@@ -548,7 +549,7 @@ int main(int argc, char *argv[])
     exec_recv_usec += stop_exec_recv.tv_usec - start_exec_recv.tv_usec;
    #endif
 
-    if (show_main_output) {
+    if (show_recv_output) {
       printf("Iteration %u : RECV_MSG:\n'%s'\n", time_step, recv_msg);
     }
 

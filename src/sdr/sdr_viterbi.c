@@ -69,13 +69,13 @@ extern struct vitdodec_access vitHW_desc;
 #endif
 
 #ifdef INT_TIME
-struct timeval sdr_dodec_stop, sdr_dodec_start;
-uint64_t sdr_dodec_sec  = 0LL;
-uint64_t sdr_dodec_usec = 0LL;
+struct timeval dodec_stop, dodec_start;
+uint64_t dodec_sec  = 0LL;
+uint64_t dodec_usec = 0LL;
 
-struct timeval sdr_depunc_stop, sdr_depunc_start;
-uint64_t sdr_depunc_sec  = 0LL;
-uint64_t sdr_depunc_usec = 0LL;
+struct timeval depunc_stop, depunc_start;
+uint64_t depunc_sec  = 0LL;
+uint64_t depunc_usec = 0LL;
 #endif
 
 #undef  GENERATE_CHECK_VALUES
@@ -151,7 +151,7 @@ unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16)));
 // This routine "depunctures" the input data stream according to the 
 //  relevant encoding parameters, etc. and returns the depunctured data.
 
-uint8_t* sdr_depuncture(uint8_t *in) {
+uint8_t* depuncture(uint8_t *in) {
   int count;
   int n_cbps = d_ofdm->n_cbps;
   uint8_t *depunctured;
@@ -744,13 +744,13 @@ void sdr_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 #endif
   
 #ifdef INT_TIME
-  gettimeofday(&sdr_depunc_start, NULL);
+  gettimeofday(&depunc_start, NULL);
 #endif
-  uint8_t *depunctured = sdr_depuncture(in);
+  uint8_t *depunctured = depuncture(in);
 #ifdef INT_TIME
-  gettimeofday(&sdr_depunc_stop, NULL);
-  sdr_depunc_sec  += sdr_depunc_stop.tv_sec  - sdr_depunc_start.tv_sec;
-  sdr_depunc_usec += sdr_depunc_stop.tv_usec - sdr_depunc_start.tv_usec;
+  gettimeofday(&depunc_stop, NULL);
+  depunc_sec  += depunc_stop.tv_sec  - depunc_start.tv_sec;
+  depunc_usec += depunc_stop.tv_usec - depunc_start.tv_usec;
 #endif
 
   DEBUG({
@@ -811,7 +811,7 @@ void sdr_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     //void do_sdr_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
     //printf("Calling do_sdr_decoding: data_bits %d  cbps %d ntraceback %d\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
    #ifdef INT_TIME
-    gettimeofday(&sdr_dodec_start, NULL);
+    gettimeofday(&dodec_start, NULL);
    #endif
    #ifdef HW_VIT
     vitHW_desc.cbps = ofdm->n_cbps;
@@ -824,9 +824,9 @@ void sdr_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
     do_sdr_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
    #endif
    #ifdef INT_TIME
-    gettimeofday(&sdr_dodec_stop, NULL);
-    sdr_dodec_sec  += sdr_dodec_stop.tv_sec  - sdr_dodec_start.tv_sec;
-    sdr_dodec_usec += sdr_dodec_stop.tv_usec - sdr_dodec_start.tv_usec;
+    gettimeofday(&dodec_stop, NULL);
+    dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
+    dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
    #endif
 
     // Copy the outputs back into the composite locations
@@ -849,13 +849,13 @@ void sdr_decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
  #else // of USE_ESP_INTERFACE
   {
    #ifdef INT_TIME
-    gettimeofday(&sdr_dodec_start, NULL);
+    gettimeofday(&dodec_start, NULL);
    #endif
     uint8_t* tval = do_sdr_decoding(ofdm->n_cbps, d_ntraceback, d_depuncture_pattern, frame->n_data_bits, depunctured);
    #ifdef INT_TIME
-    gettimeofday(&sdr_dodec_stop, NULL);
-    sdr_dodec_sec  += sdr_dodec_stop.tv_sec  - sdr_dodec_start.tv_sec;
-    sdr_dodec_usec += sdr_dodec_stop.tv_usec - sdr_dodec_start.tv_usec;
+    gettimeofday(&dodec_stop, NULL);
+    dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
+    dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
    #endif
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) {
      #ifdef GENERATE_CHECK_VALUES
