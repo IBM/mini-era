@@ -10,10 +10,10 @@
 /* #endif */
 #include "debug.h"
 
-#include "type.h"
-#include "base.h"
+#include "sdr_type.h"
+#include "sdr_base.h"
 #include "ofdm.h"
-#include "viterbi_flat.h"
+#include "sdr_viterbi.h"
 
 // typedef ap_fixed<32,15> fx_pt1_ext1;
 // typedef ap_fixed<64,16> fx_pt1_ext2;
@@ -87,7 +87,7 @@ void decode_signal( unsigned num_inputs, fx_pt constellation[DECODE_IN_SIZE_MAX]
     /* 	  printf("OFDM : enc %u   rate %u  n_bpsc %u  n_cbps %u  n_dbps %u\n", ofdm.encoding, ofdm.rate_field, ofdm.n_bpsc, ofdm.n_cbps, ofdm.n_dbps); */
     /* 	  printf("FRAME: psdu %u  n_sym %u  n_pad %u  n_encb %u  n_dtab %u\n", frame.psdu_size, frame.n_sym, frame.n_pad, frame.n_encoded_bits, frame.n_data_bits)); */
     
-    decode(&ofdm, &frame, bit /*input_data*/, &n_res_char, output_data);
+    sdr_decode(&ofdm, &frame, bit /*input_data*/, &n_res_char, output_data);
     // end of decode (viterbi) function, but result bits need to be "descrambled"
     *num_outputs = num_out_bits;
   }

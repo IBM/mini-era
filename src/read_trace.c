@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "kernels_api.h"
-#include "sim_environs.h"
 
 /* File pointer to the input trace */
 FILE *input_trace = NULL;

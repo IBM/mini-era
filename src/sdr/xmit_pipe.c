@@ -40,14 +40,10 @@
 #include <assert.h>
 
 #include "debug.h"
-#include "base.h"
+#include "sdr_base.h"
 #include "xmit_pipe.h"
 
-#ifdef USE_SIMPLE_DFT
- #include "simple_dft.h"
-#else
- #include "fft-1d.h"
-#endif
+#include "sdr_fft.h"
 
 extern bool show_output;
 extern bool do_add_pre_pad;
@@ -1307,10 +1303,6 @@ do_xmit_fft_work(int n_inputs, float scale, float *input_real, float * input_ima
   //   Also add the weighting/scaling for the window
   float fft_in_real[64];
   float fft_in_imag[64];
-#ifdef USE_SIMPLE_DFT
-  float fft_out_real[64];
-  float fft_out_imag[64];
-#endif
   bool inverse = true;
   bool shift = true;
   bool swap_odd_signs = false; // We shift the inputs instead?
@@ -1352,26 +1344,14 @@ do_xmit_fft_work(int n_inputs, float scale, float *input_real, float * input_ima
 	}
 	printf("\nCalling FFT function with inverse = %u size = %u\n", inverse, size);
       });
-#ifdef USE_SIMPLE_DFT
-    simple_dft(fft_in_real, fft_in_imag, fft_out_real, fft_out_imag, inverse, false /*shift*/, size);
-    for (int i = 0; i < size; i++) {
-      // Swap sign on the "odd" FFT results (re-cluster energy around zero?)
-      output_real[k + i] = recluster[i&0x1]*fft_out_real[i];
-      output_imag[k + i] = recluster[i&0x1]*fft_out_imag[i];
-      /* DEBUG(if (k < 256) { */
-      /*   printf(" FFT_%u_OUT[ %2u : %5u ] = %11.8f + %11.8f i\n", k, i, k+i, output_real[k+i], output_imag[k+i]); */
-      /* }); */
-    }
-#else
     // NOTE: This version over-writes the input data with output data
-    fft(fft_in_real, fft_in_imag, inverse, false, size, log_size);
+    sdr_fft(fft_in_real, fft_in_imag, inverse, false, size, log_size);
     for (int i = 0; i < size; i++) {
       // Swap sign on the "odd" FFT results (re-cluster energy around zero?)
       output_real[k + i] = recluster[i&0x1]*fft_in_real[i];
       output_imag[k + i] = recluster[i&0x1]*fft_in_imag[i];
     }
 
-#endif
     DEBUG(if (k < 256) {
 	for (int i = 0; i < size; i++) {
 	  printf(" FFT_%u_OUT[ %2u : %5u ] = %11.8f + %11.8f i\n", k, i, k+i, output_real[k+i], output_imag[k+i]);
@@ -1578,6 +1558,7 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
   // The next "stage" is the "packet_pad2" which adds 500 zeros to the front (and no zeros to the rear) of the output
   //   This block may also add some time-stamp tags (for UHD?) for GnuRadio use?
   //   Not sure we care about this padding?
+  bool do_add_pre_pad = false;
   DEBUG(printf("\nAdd the pre-padding : %u\n", do_add_pre_pad));
   int num_pre_pad = do_add_pre_pad ? 500 : 0;
   int num_post_pad = 0;

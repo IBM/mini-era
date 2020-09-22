@@ -18,7 +18,7 @@
 #ifndef _kernels_api_h
 #define _kernels_api_h
 
-#ifdef VERBOSE
+#ifdef VERBOSE_MODE
 #define DEBUG(x) x
 #else
 #define DEBUG(x)
@@ -193,5 +193,33 @@ void closeout_cv_kernel(void);
 void closeout_h264_kernel(void);
 void closeout_rad_kernel(void);
 void closeout_vit_kernel(void);
+
+
+//
+// This supports the IEEE 802.11p Transmit/Receive (Software-Defined Radio) Code
+//  That code is in the sdr subdirectory.
+//
+#include "base.h"
+
+#define USE_XMIT_PIPE
+#define USE_RECV_PIPE
+
+#ifdef USE_XMIT_PIPE
+#include "xmit_pipe.h"
+status_t init_xmit_kernel(void);
+void     iterate_xmit_kernel(void);
+void     execute_xmit_kernel(int in_msg_len, char* in_msg, int* n_out, float* out_real, float* out_imag);
+void     post_execute_xmit_kernel(void);
+void     closeout_xmit_kernel(void);
+#endif
+
+#ifdef USE_RECV_PIPE
+#include "recv_pipe.h"
+status_t init_recv_kernel(void);
+void     iterate_recv_kernel(void);
+void     execute_recv_kernel(int in_msg_len, int n_in, float* in_real, float* in_imag, int* out_msg_len, char* out_msg);
+void     post_execute_recv_kernel(void);
+void     closeout_recv_kernel(void);
+#endif
 
 #endif

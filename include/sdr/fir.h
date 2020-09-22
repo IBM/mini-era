@@ -1,7 +1,7 @@
 #ifndef INC_FIR
 #define INC_FIR
-#include "type.h"
-#include "base.h"
+#include "sdr_type.h"
+#include "sdr_base.h"
 
 void fir(fx_pt1 output[FIR_MAVG64_MAX_SIZE],fx_pt1 input_sample[FIR_MAVG64_MAX_SIZE], const fx_pt1 coefficient[COEFF_LENGTH]);
 void firc(fx_pt output[FIRC_MAVG48_MAX_SIZE],fx_pt input_sample[FIRC_MAVG48_MAX_SIZE]);

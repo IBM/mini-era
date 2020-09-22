@@ -37,6 +37,19 @@ SRC    = src/kernels_api.c \
 	 src/h264/vlc.c \
 	 src/h264/do_h264_decode.c \
 	 src/lz4/lz4.c \
+	 src/sdr/xmit_pipe.c \
+	 src/sdr/crc.c \
+	 src/sdr/recv_pipe.c \
+         src/sdr/complex_ops.c \
+	 src/sdr/delay.c \
+	 src/sdr/gr_equalizer.c \
+	 src/sdr/ofdm.c \
+	 src/sdr/sync_long.c \
+	 src/sdr/fir.c \
+	 src/sdr/sync_short.c \
+	 src/sdr/sdr_viterbi.c \
+	 src/sdr/descrambler_function.c \
+	 src/sdr/sdr_fft.c \
 	 src/read_trace.c
 
 
@@ -100,12 +113,6 @@ gp_$(C_TARGET): $(C_OBJ_G_DIR) $(C_OBJ_G)
 	$(CC) $(C_OBJ_G) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -pg -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
 
 
-$(S_TARGET): $(S_OBJDIR)  $(S_OBJ) 
-	$(CC) $(S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
-
-it-$(S_TARGET): $(ITS_OBJDIR)  $(ITS_OBJ) 
-	$(CC) $(ITS_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
-
 
 
 
@@ -117,7 +124,7 @@ all: objdirs trace cver
 
 cver: cobjdirs ctrace 
 
-objdirs: $(OBJDIR) $(IT_OBJDIR) $(OBJ_V_DIR) $(OBJ_G_DIR) $(S_OBJDIR) $(ITS_OBJDIR) $(S_OBJ_V_DIR) $(S_OBJ_G_DIR)
+objdirs: $(OBJDIR) $(IT_OBJDIR) $(OBJ_V_DIR) $(OBJ_G_DIR) 
 
 cobjdirs: $(C_OBJDIR) $(ITC_OBJDIR) $(C_OBJ_V_DIR) $(C_OBJ_G_DIR)
 
@@ -143,6 +150,7 @@ $(OBJDIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(IT_OBJDIR):
 	mkdir $@
@@ -150,6 +158,7 @@ $(IT_OBJDIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(C_OBJDIR):
 	mkdir $@
@@ -157,6 +166,7 @@ $(C_OBJDIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(ITC_OBJDIR):
 	mkdir $@
@@ -164,6 +174,7 @@ $(ITC_OBJDIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(OBJ_V_DIR):
 	mkdir $@
@@ -171,6 +182,7 @@ $(OBJ_V_DIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(T_OBJ_V_DIR):
 	mkdir $@
@@ -178,6 +190,7 @@ $(T_OBJ_V_DIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(C_OBJ_V_DIR):
 	mkdir $@
@@ -185,6 +198,7 @@ $(C_OBJ_V_DIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(OBJ_G_DIR):
 	mkdir $@
@@ -192,6 +206,7 @@ $(OBJ_G_DIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 $(C_OBJ_G_DIR):
 	mkdir $@	
@@ -199,6 +214,7 @@ $(C_OBJ_G_DIR):
 	mkdir -p $@/src/radar
 	mkdir -p $@/src/h264
 	mkdir -p $@/src/lz4
+	mkdir -p $@/src/sdr
 
 
 
@@ -222,10 +238,10 @@ $(ITC_OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 $(OBJ_V_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE_MODE -o $@ $(PYTHONLIBS) -c $<
 
 $(C_OBJ_V_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE_MODE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
 
 $(OBJ_G_DIR)/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -g -pg -o $@ $(PYTHONLIBS) -c $<
@@ -235,17 +251,6 @@ $(C_OBJ_G_DIR)/%.o: %.c
 
 
 
-$(S_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
-
-$(TS_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
-
-$(ITS_OBJDIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
-
-$(S_OBJ_V_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 
 
@@ -259,7 +264,6 @@ clean:
 	$(RM) v$(C_TARGET).exe $(C_OBJ_V)
 	$(RM) gp_$(TARGET).exe $(OBJ_G)
 	$(RM) gp_$(C_TARGET).exe $(C_OBJ_G)
-	$(RM) $(S_TARGET).exe $(S_OBJ)
 
 clobber: clean
 	$(RM) -rf $(OBJDIR) $(IT_OBJDIR)
@@ -276,7 +280,7 @@ allclean: clobber
 $(OBJDIR)/kernels_api.o: include/kernels_api.h
 $(OBJDIR)/kernels_api.o: include/read_trace.h
 $(OBJDIR)/kernels_api.o: include/viterbi/utils.h
-$(OBJDIR)/kernels_api.o: include/viterbi/viterbi_decoder_generic.h
+$(OBJDIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(OBJDIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(OBJDIR)/read_trace.o: include/kernels_api.h
 $(OBJDIR)/read_trace.o: include/read_trace.h
@@ -309,11 +313,69 @@ $(OBJDIR)/h264/do_h264_decode.o: h264/global.h
 $(OBJDIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(OBJDIR)/h264/do_h264_decode.o: include/h264/decode.h
 $(OBJDIR)/lv4/lv4.o: include/lv4/lv4.h
+$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/debug.h
+$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/base.h
+$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
+$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/crc.h
+$(OBJDIR)/sdr/crc.o: include/sdr/crc.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/debug.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/type.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/base.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/delay.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/complex_ops.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/fir.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/sync_short.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/sync_long.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/gr_equalizer.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/ofdm.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(OBJDIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(OBJDIR)/sdr/complex_ops.o: include/sdr/complex_ops.h
+$(OBJDIR)/sdr/complex_ops.o: include/sdr/type.h
+$(OBJDIR)/sdr/complex_ops.o: include/sdr/base.h
+$(OBJDIR)/sdr/delay.o: include/sdr/debug.h
+$(OBJDIR)/sdr/delay.o: include/sdr/delay.h
+$(OBJDIR)/sdr/delay.o: include/sdr/type.h
+$(OBJDIR)/sdr/delay.o: include/sdr/base.h
+$(OBJDIR)/sdr/gr_equalizer.o: include/sdr/debug.h
+$(OBJDIR)/sdr/gr_equalizer.o: include/sdr/type.h
+$(OBJDIR)/sdr/gr_equalizer.o: include/sdr/base.h
+$(OBJDIR)/sdr/gr_equalizer.o: include/sdr/sdr_viterbi.h
+$(OBJDIR)/sdr/gr_equalizer.o: include/sdr/gr_equalizer.h
+$(OBJDIR)/sdr/ofdm.o: include/sdr/debug.h
+$(OBJDIR)/sdr/ofdm.o: include/sdr/type.h
+$(OBJDIR)/sdr/ofdm.o: include/sdr/base.h
+$(OBJDIR)/sdr/ofdm.o: include/sdr/ofdm.h
+$(OBJDIR)/sdr/ofdm.o: include/sdr/sdr_viterbi.h
+$(OBJDIR)/sdr/sync_long.o: include/sdr/debug.h
+$(OBJDIR)/sdr/sync_long.o: include/sdr/complex_ops.h
+$(OBJDIR)/sdr/sync_long.o: include/sdr/type.h
+$(OBJDIR)/sdr/sync_long.o: include/sdr/base.h
+$(OBJDIR)/sdr/sync_long.o: include/sdr/sync_long.h
+$(OBJDIR)/sdr/fir.o: include/sdr/debug.h
+$(OBJDIR)/sdr/fir.o: include/sdr/type.h
+$(OBJDIR)/sdr/fir.o: include/sdr/sync_short.h
+$(OBJDIR)/sdr/fir.o: include/sdr/base.h
+$(OBJDIR)/sdr/fir.o: include/sdr/fir.h
+$(OBJDIR)/sdr/sync_short.o: include/sdr/debug.h
+$(OBJDIR)/sdr/sync_short.o: include/sdr/sync_short.h
+$(OBJDIR)/sdr/sync_short.o: include/sdr/type.h
+$(OBJDIR)/sdr/sync_short.o: include/sdr/base.h
+$(OBJDIR)/sdr/sdr_viterbi.o: include/sdr/debug.h 
+$(OBJDIR)/sdr/sdr_viterbi.o: include/sdr/base.h 
+$(OBJDIR)/sdr/sdr_viterbi.o: include/sdr/sdr_viterbi.h
+$(OBJDIR)/sdr/descrambler_function.o: include/sdr/debug.h 
+$(OBJDIR)/sdr/descrambler_function.o: include/sdr/base.h
+$(OBJDIR)/sdr/simple_dft.o: include/sdr/debug.h
+$(OBJDIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
+$(OBJDIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
+$(OBJDIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(C_OBJDIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJDIR)/kernels_api.o: include/read_trace.h
 $(C_OBJDIR)/kernels_api.o: include/viterbi/utils.h
-$(C_OBJDIR)/kernels_api.o: include/viterbi/viterbi_decoder_generic.h
+$(C_OBJDIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(C_OBJDIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(C_OBJDIR)/read_trace.o: include/kernels_api.h
 $(C_OBJDIR)/read_trace.o: include/read_trace.h
@@ -346,11 +408,69 @@ $(C_OBJDIR)/h264/do_h264_decode.o: h264/global.h
 $(C_OBJDIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(C_OBJDIR)/h264/do_h264_decode.o: include/h264/decode.h
 $(C_OBJDIR)/lv4/lv4.o: include/lv4/lv4.h
+$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
+$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/crc.h
+$(C_OBJDIR)/sdr/crc.o: include/sdr/crc.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/delay.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/complex_ops.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/fir.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/sync_short.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/sync_long.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/gr_equalizer.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/ofdm.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(C_OBJDIR)/sdr/complex_ops.o: include/sdr/complex_ops.h
+$(C_OBJDIR)/sdr/complex_ops.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/complex_ops.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/delay.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/delay.o: include/sdr/delay.h
+$(C_OBJDIR)/sdr/delay.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/delay.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/gr_equalizer.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/gr_equalizer.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/gr_equalizer.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/gr_equalizer.o: include/sdr/sdr_viterbi.h
+$(C_OBJDIR)/sdr/gr_equalizer.o: include/sdr/gr_equalizer.h
+$(C_OBJDIR)/sdr/ofdm.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/ofdm.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/ofdm.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/ofdm.o: include/sdr/ofdm.h
+$(C_OBJDIR)/sdr/ofdm.o: include/sdr/sdr_viterbi.h
+$(C_OBJDIR)/sdr/sync_long.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/sync_long.o: include/sdr/complex_ops.h
+$(C_OBJDIR)/sdr/sync_long.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/sync_long.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/sync_long.o: include/sdr/sync_long.h
+$(C_OBJDIR)/sdr/fir.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/fir.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/fir.o: include/sdr/sync_short.h
+$(C_OBJDIR)/sdr/fir.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/fir.o: include/sdr/fir.h
+$(C_OBJDIR)/sdr/sync_short.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/sync_short.o: include/sdr/sync_short.h
+$(C_OBJDIR)/sdr/sync_short.o: include/sdr/type.h
+$(C_OBJDIR)/sdr/sync_short.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/sdr_viterbi.o: include/sdr/debug.h 
+$(C_OBJDIR)/sdr/sdr_viterbi.o: include/sdr/base.h 
+$(C_OBJDIR)/sdr/sdr_viterbi.o: include/sdr/sdr_viterbi.h
+$(C_OBJDIR)/sdr/descrambler_function.o: include/sdr/debug.h 
+$(C_OBJDIR)/sdr/descrambler_function.o: include/sdr/base.h
+$(C_OBJDIR)/sdr/simple_dft.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
+$(C_OBJDIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
+$(C_OBJDIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_V_DIR)/kernels_api.o: include/read_trace.h
 $(OBJ_V_DIR)/kernels_api.o: include/viterbi/utils.h
-$(OBJ_V_DIR)/kernels_api.o: include/viterbi/viterbi_decoder_generic.h
+$(OBJ_V_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(OBJ_V_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(OBJ_V_DIR)/read_trace.o: include/kernels_api.h
 $(OBJ_V_DIR)/read_trace.o: include/read_trace.h
@@ -383,11 +503,69 @@ $(OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h
 $(OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/decode.h
 $(OBJ_V_DIR)/lv4/lv4.o: include/lv4/lv4.h
+$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
+$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
+$(OBJ_V_DIR)/sdr/crc.o: include/sdr/crc.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/delay.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/complex_ops.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/fir.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/sync_short.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/sync_long.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/gr_equalizer.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/ofdm.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(OBJ_V_DIR)/sdr/complex_ops.o: include/sdr/complex_ops.h
+$(OBJ_V_DIR)/sdr/complex_ops.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/complex_ops.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/delay.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/delay.o: include/sdr/delay.h
+$(OBJ_V_DIR)/sdr/delay.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/delay.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/sdr_viterbi.h
+$(OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/gr_equalizer.h
+$(OBJ_V_DIR)/sdr/ofdm.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/ofdm.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/ofdm.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/ofdm.o: include/sdr/ofdm.h
+$(OBJ_V_DIR)/sdr/ofdm.o: include/sdr/sdr_viterbi.h
+$(OBJ_V_DIR)/sdr/sync_long.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/sync_long.o: include/sdr/complex_ops.h
+$(OBJ_V_DIR)/sdr/sync_long.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/sync_long.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/sync_long.o: include/sdr/sync_long.h
+$(OBJ_V_DIR)/sdr/fir.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/fir.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/fir.o: include/sdr/sync_short.h
+$(OBJ_V_DIR)/sdr/fir.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/fir.o: include/sdr/fir.h
+$(OBJ_V_DIR)/sdr/sync_short.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/sync_short.o: include/sdr/sync_short.h
+$(OBJ_V_DIR)/sdr/sync_short.o: include/sdr/type.h
+$(OBJ_V_DIR)/sdr/sync_short.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/sdr_viterbi.o: include/sdr/debug.h 
+$(OBJ_V_DIR)/sdr/sdr_viterbi.o: include/sdr/base.h 
+$(OBJ_V_DIR)/sdr/sdr_viterbi.o: include/sdr/sdr_viterbi.h
+$(OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/debug.h 
+$(OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/base.h
+$(OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
+$(OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
+$(OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(C_OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/read_trace.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/viterbi/utils.h
-$(C_OBJ_V_DIR)/kernels_api.o: include/viterbi/viterbi_decoder_generic.h
+$(C_OBJ_V_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(C_OBJ_V_DIR)/read_trace.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/read_trace.o: include/read_trace.h
@@ -420,12 +598,70 @@ $(C_OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h
 $(C_OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(C_OBJ_V_DIR)/h264/do_h264_decode.o: include/h264/decode.h
 $(C_OBJ_V_DIR)/lv4/lv4.o: include/lv4/lv4.h
+$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
+$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
+$(C_OBJ_V_DIR)/sdr/crc.o: include/sdr/crc.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/delay.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/complex_ops.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/fir.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/sync_short.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/sync_long.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/gr_equalizer.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/ofdm.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(C_OBJ_V_DIR)/sdr/complex_ops.o: include/sdr/complex_ops.h
+$(C_OBJ_V_DIR)/sdr/complex_ops.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/complex_ops.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/delay.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/delay.o: include/sdr/delay.h
+$(C_OBJ_V_DIR)/sdr/delay.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/delay.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/sdr_viterbi.h
+$(C_OBJ_V_DIR)/sdr/gr_equalizer.o: include/sdr/gr_equalizer.h
+$(C_OBJ_V_DIR)/sdr/ofdm.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/ofdm.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/ofdm.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/ofdm.o: include/sdr/ofdm.h
+$(C_OBJ_V_DIR)/sdr/ofdm.o: include/sdr/sdr_viterbi.h
+$(C_OBJ_V_DIR)/sdr/sync_long.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/sync_long.o: include/sdr/complex_ops.h
+$(C_OBJ_V_DIR)/sdr/sync_long.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/sync_long.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/sync_long.o: include/sdr/sync_long.h
+$(C_OBJ_V_DIR)/sdr/fir.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/fir.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/fir.o: include/sdr/sync_short.h
+$(C_OBJ_V_DIR)/sdr/fir.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/fir.o: include/sdr/fir.h
+$(C_OBJ_V_DIR)/sdr/sync_short.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/sync_short.o: include/sdr/sync_short.h
+$(C_OBJ_V_DIR)/sdr/sync_short.o: include/sdr/type.h
+$(C_OBJ_V_DIR)/sdr/sync_short.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/sdr_viterbi.o: include/sdr/debug.h 
+$(C_OBJ_V_DIR)/sdr/sdr_viterbi.o: include/sdr/base.h 
+$(C_OBJ_V_DIR)/sdr/sdr_viterbi.o: include/sdr/sdr_viterbi.h
+$(C_OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/debug.h 
+$(C_OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/base.h
+$(C_OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
+$(C_OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
+$(C_OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 
 $(OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_G_DIR)/kernels_api.o: include/read_trace.h
 $(OBJ_G_DIR)/kernels_api.o: include/viterbi/utils.h
-$(OBJ_G_DIR)/kernels_api.o: include/viterbi/viterbi_decoder_generic.h
+$(OBJ_G_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(OBJ_G_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(OBJ_G_DIR)/read_trace.o: include/kernels_api.h
 $(OBJ_G_DIR)/read_trace.o: include/read_trace.h
@@ -458,11 +694,69 @@ $(OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h
 $(OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/decode.h
 $(OBJ_G_DIR)/lv4/lv4.o: include/lv4/lv4.h
+$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
+$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
+$(OBJ_G_DIR)/sdr/crc.o: include/sdr/crc.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/delay.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/complex_ops.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/fir.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/sync_short.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/sync_long.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/gr_equalizer.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/ofdm.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(OBJ_G_DIR)/sdr/complex_ops.o: include/sdr/complex_ops.h
+$(OBJ_G_DIR)/sdr/complex_ops.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/complex_ops.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/delay.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/delay.o: include/sdr/delay.h
+$(OBJ_G_DIR)/sdr/delay.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/delay.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/sdr_viterbi.h
+$(OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/gr_equalizer.h
+$(OBJ_G_DIR)/sdr/ofdm.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/ofdm.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/ofdm.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/ofdm.o: include/sdr/ofdm.h
+$(OBJ_G_DIR)/sdr/ofdm.o: include/sdr/sdr_viterbi.h
+$(OBJ_G_DIR)/sdr/sync_long.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/sync_long.o: include/sdr/complex_ops.h
+$(OBJ_G_DIR)/sdr/sync_long.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/sync_long.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/sync_long.o: include/sdr/sync_long.h
+$(OBJ_G_DIR)/sdr/fir.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/fir.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/fir.o: include/sdr/sync_short.h
+$(OBJ_G_DIR)/sdr/fir.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/fir.o: include/sdr/fir.h
+$(OBJ_G_DIR)/sdr/sync_short.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/sync_short.o: include/sdr/sync_short.h
+$(OBJ_G_DIR)/sdr/sync_short.o: include/sdr/type.h
+$(OBJ_G_DIR)/sdr/sync_short.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/sdr_viterbi.o: include/sdr/debug.h 
+$(OBJ_G_DIR)/sdr/sdr_viterbi.o: include/sdr/base.h 
+$(OBJ_G_DIR)/sdr/sdr_viterbi.o: include/sdr/sdr_viterbi.h
+$(OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/debug.h 
+$(OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/base.h
+$(OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
+$(OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
+$(OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 
 $(C_OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/read_trace.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/viterbi/utils.h
-$(C_OBJ_G_DIR)/kernels_api.o: include/viterbi/viterbi_decoder_generic.h
+$(C_OBJ_G_DIR)/kernels_api.o: include/viterbi/viterbi_flat.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
 $(C_OBJ_G_DIR)/read_trace.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/read_trace.o: include/read_trace.h
@@ -495,4 +789,62 @@ $(C_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h
 $(C_OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/nalu.h 
 $(C_OBJ_G_DIR)/h264/do_h264_decode.o: include/h264/decode.h
 $(C_OBJ_G_DIR)/lv4/lv4.o: include/lv4/lv4.h
+$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
+$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
+$(C_OBJ_G_DIR)/sdr/crc.o: include/sdr/crc.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/delay.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/complex_ops.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/fir.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/sync_short.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/sync_long.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/gr_equalizer.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/ofdm.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/recv_pipe.h
+$(C_OBJ_G_DIR)/sdr/complex_ops.o: include/sdr/complex_ops.h
+$(C_OBJ_G_DIR)/sdr/complex_ops.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/complex_ops.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/delay.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/delay.o: include/sdr/delay.h
+$(C_OBJ_G_DIR)/sdr/delay.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/delay.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/sdr_viterbi.h
+$(C_OBJ_G_DIR)/sdr/gr_equalizer.o: include/sdr/gr_equalizer.h
+$(C_OBJ_G_DIR)/sdr/ofdm.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/ofdm.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/ofdm.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/ofdm.o: include/sdr/ofdm.h
+$(C_OBJ_G_DIR)/sdr/ofdm.o: include/sdr/sdr_viterbi.h
+$(C_OBJ_G_DIR)/sdr/sync_long.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/sync_long.o: include/sdr/complex_ops.h
+$(C_OBJ_G_DIR)/sdr/sync_long.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/sync_long.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/sync_long.o: include/sdr/sync_long.h
+$(C_OBJ_G_DIR)/sdr/fir.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/fir.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/fir.o: include/sdr/sync_short.h
+$(C_OBJ_G_DIR)/sdr/fir.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/fir.o: include/sdr/fir.h
+$(C_OBJ_G_DIR)/sdr/sync_short.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/sync_short.o: include/sdr/sync_short.h
+$(C_OBJ_G_DIR)/sdr/sync_short.o: include/sdr/type.h
+$(C_OBJ_G_DIR)/sdr/sync_short.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/sdr_viterbi.o: include/sdr/debug.h 
+$(C_OBJ_G_DIR)/sdr/sdr_viterbi.o: include/sdr/base.h 
+$(C_OBJ_G_DIR)/sdr/sdr_viterbi.o: include/sdr/sdr_viterbi.h
+$(C_OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/debug.h 
+$(C_OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/base.h
+$(C_OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
+$(C_OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
+$(C_OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
 

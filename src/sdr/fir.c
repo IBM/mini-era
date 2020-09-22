@@ -2,7 +2,7 @@
 //#include <cstring>
 
 #include "debug.h"
-#include "type.h"
+#include "sdr_type.h"
 #include "sync_short.h" // Pick up some #defines
 #include "fir.h"
 

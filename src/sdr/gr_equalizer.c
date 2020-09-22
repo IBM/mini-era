@@ -12,9 +12,9 @@
 /* #endif */
 #include "debug.h"
 
-#include "type.h"
-#include "base.h"
-#include "viterbi_flat.h"
+#include "sdr_type.h"
+#include "sdr_base.h"
+#include "sdr_viterbi.h"
 #include "gr_equalizer.h"
 
 #ifndef M_PI
@@ -95,7 +95,7 @@ decode_signal_field(uint8_t *rx_bits) {
   uint8_t decoded_bits[48]; // extra-big for now (should need 48 bytes)
   int n_bits;
   DEBUG(printf("DSF: Calling decode...\n"));
-  decode(&ofdm, &frame, d_deinterleaved, &n_bits, decoded_bits);
+  sdr_decode(&ofdm, &frame, d_deinterleaved, &n_bits, decoded_bits);
   DEBUG(printf("\nDSF: Back from decode\n");
 	for (int i = 0; i < 48; i++) {
 	  printf("DSF: decoded_bits[%u] = %u\n", i, decoded_bits[i]);

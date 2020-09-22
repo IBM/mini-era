@@ -1,5 +1,5 @@
-#ifndef INCLUDED_VITERBI_GENERIC_H
-#define INCLUDED_VITERBI_GENERIC_H
+#ifndef INCLUDED_VITERBI_FLAT_H
+#define INCLUDED_VITERBI_FLAT_H
 
 /*
  * Copyright (C) 2016 Bastian Bloessl <bloessl@ccs-labs.org>
@@ -19,7 +19,7 @@
  */
 #include "base.h"
 
-#ifdef VERBOSE_OUTPUT
+#ifdef VERBOSE_MODE
  #define SHOW_VERBOSE(_x_) _x_;
 #else
  #define SHOW_VERBOSE(_x_) ;
@@ -33,7 +33,7 @@
 uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char);
 
 typedef union branchtab27_u {
-	unsigned char c[32];
+  unsigned char c[32];
 } t_branchtab27;
 
 extern t_branchtab27 d_branchtab27_generic[2];

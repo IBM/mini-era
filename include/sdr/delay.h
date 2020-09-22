@@ -1,8 +1,8 @@
 #ifndef INC_DELAY_H
 #define INC_DELAY_H
 
-#include "type.h"
-#include "base.h"
+#include "sdr_type.h"
+#include "sdr_base.h"
 
 #define DELAY 16
 

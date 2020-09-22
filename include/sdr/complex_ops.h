@@ -1,8 +1,8 @@
 #ifndef INC_COMPLEX
 #define INC_COMPLEX
 
-#include "type.h"
-#include "base.h"
+#include "sdr_type.h"
+#include "sdr_base.h"
 
 void complex_conjugate(fx_pt out[CMP_CONJ_MAX_SIZE], unsigned num_ins, fx_pt data[CMP_CONJ_MAX_SIZE]);
 void complex_to_mag_squared(fx_pt1 out[CMP2MAGSQ_MAX_SIZE], unsigned num_ins, fx_pt data[CMP2MAGSQ_MAX_SIZE]); // signal_power

@@ -24,7 +24,6 @@
 #include <getopt.h>
 
 #include "kernels_api.h"
-#include "sim_environs.h"
 
 #define TIME
 

@@ -19,13 +19,13 @@
 #include <ctype.h>
 
 #include "debug.h"
-#include "base.h"
+#include "sdr_base.h"
 
 
 
 typedef unsigned char   uint8_t;
 
-void descrambler(uint8_t* in, int psdusize, char* out_msg) //definition
+void sdr_descrambler(uint8_t* in, int psdusize, char* out_msg) //definition
 {
   uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
   uint32_t msg_length = (psdusize)-28;
