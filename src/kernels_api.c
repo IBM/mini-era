@@ -1112,7 +1112,7 @@ void iterate_xmit_kernel()
 
 void execute_xmit_kernel(int in_msg_len, char * in_msg, int* n_out, float* out_real, float* out_imag)
 {
-  DEBUG(printf("In execute_xmit_kernel\n"));
+  DEBUG(printf("\nIn execute_xmit_kernel\n"));
   do_xmit_pipeline(in_msg_len, in_msg, n_out, out_real, out_imag);
   return;
 }
@@ -1188,7 +1188,7 @@ void iterate_recv_kernel()
 
 void execute_recv_kernel(int in_msg_len, int n_in, float* in_real, float* in_imag, int* out_msg_len, char* out_msg)
 {
-  DEBUG(printf("In execute_recv_kernel\n"));
+  DEBUG(printf("\nIn execute_recv_kernel\n"));
   do_recv_pipeline(in_msg_len, n_in, in_real, in_imag, out_msg_len, out_msg);
   return;
 }

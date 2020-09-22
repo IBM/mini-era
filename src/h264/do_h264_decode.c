@@ -21,7 +21,7 @@
 #include "nalu.h"
 #include "decode.h"
 
-#ifdef VERBOSE
+#ifdef DEBUG_MODE
 #define DEBUG(x) x
 #else
 #define DEBUG(x)

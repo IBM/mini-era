@@ -49,6 +49,27 @@ char cv_dict[256];
 char rad_dict[256];
 char vit_dict[256];
 
+// The "effective" testing IEEE 802.11p messages dictionary...
+unsigned use_xmit_message = 0;
+char* xmit_msg;
+
+#define XMIT_LIBRARY_SIZE      4
+msg_library_entry_t xmit_msg_library[XMIT_LIBRARY_SIZE+1] = {
+  {1500, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+  {1500, "012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"},
+  {1500, "We hold these truths to be self-evident, that all men are created equal, that they are endowed by their Creator with certain unalienable Rights, that among these are Life, Liberty and the pursuit of Happiness.--That to secure these rights, Governments are instituted among Men, deriving their just powers from the consent of the governed, --That whenever any Form of Government becomes destructive of these ends, it is the Right of the People to alter or to abolish it, and to institute new Government, laying its foundation on such principles and organizing its powers in such form, as to them shall seem most likely to effect their Safety and Happiness. Prudence, indeed, will dictate that Governments long established should not be changed for light and transient causes; and accordingly all experience hath shewn, that mankind are more disposed to suffer, while evils are sufferable, than to right themselves by abolishing the forms to which they are accustomed. But when a long train of abuses and usurpations, pursuing invariably the same Object evinces a design to reduce them under absolute Despotism, it is their right, it is their duty, to throw off such Government, and to provide new Guards for their future security.--Such has been the patient sufferance of these Colonies; and such is now the necessity which constrains them to alter their former Systems of Government. The history of the present King of Great Britain is a history of repeated injuries and usurpations, all having etc."},
+  { 4, "Msg0"},
+  { 1500, "-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" }
+};
+
+uint32_t xmit_msg_len = 0;
+
+bool show_main_output = true;
+bool show_xmit_output = false;
+bool do_add_pre_pad = false;
+bool show_recv_output = true;
+
+
 bool_t bypass_h264_functions = false; // This is a global-disable of executing H264 execution functions...
 
 bool_t all_obstacle_lanes_mode = false;
@@ -65,14 +86,7 @@ void print_usage(char * pname) {
   printf("    -C <file>  : defines the input CV/CNN dictionary file <file> to use\n");
   printf("    -H <file>  : defines the input H264 dictionary file <file> to use\n");
   printf("    -b         : Bypass (do not use) the H264 functions in this run.\n");
-#ifdef USE_SIM_ENVIRON
-  printf("    -s <N>     : Sets the max number of time steps to simulate\n");
-  printf("    -r <N>     : Sets the rand random number seed to N\n");
-  printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
-  printf("    -W <wfile> : defines the world environment parameters description file <wfile> to use\n");
-#else
   printf("    -t <trace> : defines the input trace file <trace> to use\n");
-#endif
   printf("    -p <N>     : defines the plan-and-control repeat factor (calls per time step -- default is 1)\n");
   printf("    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks\n");
   printf("               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.\n");
@@ -85,6 +99,9 @@ void print_usage(char * pname) {
   printf("               :      1 = Medium messages (500 characters)\n");
   printf("               :      2 = Long messages (1000 characters)\n");
   printf("               :      3 = Max-sized messages (1500 characters)\n");
+  printf("    -M <N>     : Use message <N> (0 = 1500 'x' chars, 1 = 1500 '0123456789', 2 = quote)\n");
+  printf("    -T \"S\"     : Use message S (No longer than 1500 chars)\n");
+  printf("    -S <0|1>   : 0=disable 1=enable output of Messages (Xmit and Recv) per time step\n");
 }
 
 
@@ -95,12 +112,9 @@ int main(int argc, char *argv[])
   label_t label;
   distance_t distance;
   message_t message;
-#ifdef USE_SIM_ENVIRON
-  char* world_desc_file_name = "default_world.desc";
-#else
   char* trace_file = "";
-#endif
   int opt;
+  int set_last_message = 0;
 
   rad_dict[0] = '\0';
   vit_dict[0] = '\0';
@@ -110,7 +124,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAbot:v:n:s:r:W:R:V:C:H:f:p:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAbot:v:n:r:W:R:V:C:H:f:p:S:M:T:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -136,12 +150,6 @@ int main(int argc, char *argv[])
     case 'b':
       bypass_h264_functions = true;
       break;
-    case 's':
-#ifdef USE_SIM_ENVIRON
-      max_time_steps = atoi(optarg);
-      printf("Using %u maximum time steps (simulation)\n", max_time_steps);
-#endif
-      break;
     case 'p':
       pandc_repeat_factor = atoi(optarg);
       printf("Using Plan-Adn-Control repeat factor %u\n", pandc_repeat_factor);
@@ -150,16 +158,9 @@ int main(int argc, char *argv[])
       crit_fft_samples_set = atoi(optarg);
       printf("Using Radar Dictionary samples set %u for the critical FFT tasks\n", crit_fft_samples_set);
       break;
-    case 'r':
-#ifdef USE_SIM_ENVIRON
-      rand_seed = atoi(optarg);
-#endif
-      break;
     case 't':
-#ifndef USE_SIM_ENVIRON
       trace_file = optarg;
       printf("Using trace file: %s\n", trace_file);
-#endif
       break;
     case 'v':
       vit_msgs_size = atoi(optarg);
@@ -179,12 +180,25 @@ int main(int argc, char *argv[])
 	printf("Using viterbi messages per step behavior %u = %s\n", vit_msgs_per_step, vit_msgs_per_step_str[vit_msgs_per_step]);
       }
       break;
-    case 'W':
-#ifdef USE_SIM_ENVIRON
-      world_desc_file_name = optarg;
-      printf("Using world description file: %s\n", world_desc_file_name);
-#endif
+    case 'S':
+      show_main_output = (atoi(optarg) != 0);
+      show_xmit_output = (atoi(optarg) != 0);
+      show_recv_output = (atoi(optarg) != 0);
       break;
+    case 'M':
+      use_xmit_message = atoi(optarg);
+      //printf("Setting use_xmit_message to %u\n", use_xmit_message);
+      break;
+    case 'T': {
+      use_xmit_message = XMIT_LIBRARY_SIZE;
+      int mlen = strlen(optarg);
+      xmit_msg_library[XMIT_LIBRARY_SIZE].msg_len = (mlen > 1500) ? 1500 : mlen;
+      strncpy(xmit_msg_library[XMIT_LIBRARY_SIZE].msg_text, optarg, 1500);
+      set_last_message = 1;
+      printf("Setting to use a custom %u byte message...\n", xmit_msg_library[XMIT_LIBRARY_SIZE].msg_len);
+    }
+      break;
+      
     case ':':
       printf("option needs a value\n");
       break;
@@ -243,18 +257,12 @@ int main(int argc, char *argv[])
   char cv_py_file[] = "../cv/keras_cnn/lenet.py";
 
   printf("Doing initialization tasks...\n");
-#ifndef USE_SIM_ENVIRON
-  /* Trace filename construction */
-  /* char * trace_file = argv[1]; */
-  //printf("Input trace file: %s\n", trace_file);
-
   /* Trace Reader initialization */
   if (!init_trace_reader(trace_file))
   {
     printf("Error: the trace reader couldn't be initialized properly.\n");
     return 1;
   }
-#endif
 
   /* Kernels initialization */
   if (bypass_h264_functions) {
@@ -287,6 +295,38 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  printf("Set show_xmit_output = %u\n", show_xmit_output);
+  printf("Set show_recv_output = %u\n", show_recv_output);
+
+  if (use_xmit_message >= XMIT_LIBRARY_SIZE) {
+    if ((set_last_message) && (use_xmit_message == XMIT_LIBRARY_SIZE)) {
+      printf("Using a Custom XMIT message..\n");
+    } else {
+      printf("ERROR - Specified an illegal message identifier: %u (There are %u in library)\n", use_xmit_message, XMIT_LIBRARY_SIZE);
+      exit(-1);
+    }
+  } else {
+    printf("Using XMIT message %u (0 ='x', 1 = '0123456789')\n", use_xmit_message);
+  }
+  printf("RECV message is taken from XMIT output...\n");
+
+  xmit_msg_len = xmit_msg_library[use_xmit_message].msg_len;
+  xmit_msg = xmit_msg_library[use_xmit_message].msg_text;
+  if (show_main_output) {
+    printf("\nXMIT_MSG:\n'%s'\n\n", xmit_msg);
+  }
+
+  printf("Initializing the XMIT kernel...\n");
+  if (!init_xmit_kernel()) {
+    printf("Error: the computer vision kernel couldn't be initialized properly.\n");
+    return 1;
+  }
+  printf("Initializing the Receive kernel...\n");
+  if (!init_recv_kernel()) {
+    printf("Error: the receive kernel couldn't be initialized properly.\n");
+    return 1;
+  }
+
   if (crit_fft_samples_set >= num_radar_samples_sets) {
     printf("ERROR : Selected FFT Tasks from Radar Dictionary Set %u but there are only %u sets in the dictionary %s\n", crit_fft_samples_set, num_radar_samples_sets, rad_dict);
     exit(-1);
@@ -300,11 +340,6 @@ int main(int argc, char *argv[])
   vehicle_state.lane    = center;
   vehicle_state.speed   = 50;
   DEBUG(printf("Vehicle starts with the following state: active: %u lane %u speed %.1f\n", vehicle_state.active, vehicle_state.lane, vehicle_state.speed));
-
-  #ifdef USE_SIM_ENVIRON
-  // In simulation mode, we could start the main car is a different state (lane, speed)
-  init_sim_environs(world_desc_file_name, &vehicle_state);
-  #endif
 
 /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   time_step = 0;
@@ -345,7 +380,14 @@ int main(int argc, char *argv[])
   uint64_t exec_pandc_sec  = 0LL;
   uint64_t exec_pandc_usec  = 0LL;
 
-  //printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+  struct timeval stop_exec_xmit, start_exec_xmit;
+  struct timeval stop_exec_recv, start_exec_recv;
+
+  uint64_t exec_xmit_sec  = 0LL;
+  uint64_t exec_recv_sec = 0LL;
+
+  uint64_t exec_xmit_usec  = 0LL;
+  uint64_t exec_recv_usec = 0LL;
  #endif // TIME
 
   printf("Starting the main loop...\n");
@@ -354,14 +396,8 @@ int main(int argc, char *argv[])
   gettimeofday(&start_prog, NULL);
  #endif
   
- #ifdef USE_SIM_ENVIRON
-  DEBUG(printf("\n\nTime Step %d\n", time_step));
-  while (iterate_sim_environs(vehicle_state))
- #else //TRACE DRIVEN MODE
   read_next_trace_record(vehicle_state);
-  while (!eof_trace_reader())
- #endif
-  {
+  while (!eof_trace_reader()) {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
     /* The computer vision kernel performs object recognition on the
@@ -478,6 +514,44 @@ int main(int argc, char *argv[])
     exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
    #endif
 
+    /* The xmit kernel does a transmission pass */
+    int xmit_num_out;
+    float xmit_out_real[MAX_XMIT_OUTPUTS];
+    float xmit_out_imag[MAX_XMIT_OUTPUTS];
+   #ifdef TIME
+    gettimeofday(&start_exec_xmit, NULL);
+   #endif
+    execute_xmit_kernel(xmit_msg_len, xmit_msg, &xmit_num_out, xmit_out_real, xmit_out_imag);
+   #ifdef TIME
+    gettimeofday(&stop_exec_xmit, NULL);
+    exec_xmit_sec  += stop_exec_xmit.tv_sec  - start_exec_xmit.tv_sec;
+    exec_xmit_usec += stop_exec_xmit.tv_usec - start_exec_xmit.tv_usec;
+   #endif
+    if (show_xmit_output) {
+      printf("\nXMIT Pipe Final output:\n");
+      for (int i = 0; i < xmit_num_out; i++) {
+        printf(" xmit_out_res %6u : %11.8f + %11.8f i\n", i, xmit_out_real[i], xmit_out_imag[i]);
+      }
+      printf("\n");
+    }
+    
+    /* The receive kernel does a receive of one message */
+    int  recv_msg_len;
+    char recv_msg[MAX_MESSAGE_LEN];
+   #ifdef TIME
+    gettimeofday(&start_exec_recv, NULL);
+   #endif
+    execute_recv_kernel(xmit_msg_len, xmit_num_out, xmit_out_real, xmit_out_imag, &recv_msg_len, recv_msg);    
+   #ifdef TIME
+    gettimeofday(&stop_exec_recv, NULL);
+    exec_recv_sec  += stop_exec_recv.tv_sec  - start_exec_recv.tv_sec;
+    exec_recv_usec += stop_exec_recv.tv_usec - start_exec_recv.tv_usec;
+   #endif
+
+    if (show_main_output) {
+      printf("Iteration %u : RECV_MSG:\n'%s'\n", time_step, recv_msg);
+    }
+
     // POST-EXECUTE each kernel to gather stats, etc.
     if (!bypass_h264_functions) {
       post_execute_h264_kernel();
@@ -513,9 +587,7 @@ int main(int argc, char *argv[])
     time_step++;
    #endif
 
-    #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
-    #endif
   }
 
  #ifdef TIME
@@ -532,7 +604,10 @@ int main(int argc, char *argv[])
   closeout_rad_kernel();
   closeout_vit_kernel();
 
-  #ifdef TIME
+  closeout_xmit_kernel();
+  closeout_recv_kernel();
+
+ #ifdef TIME
   {
     uint64_t total_exec = (uint64_t) (stop_prog.tv_sec - start_prog.tv_sec) * 1000000 + (uint64_t) (stop_prog.tv_usec - start_prog.tv_usec);
     uint64_t iter_rad   = (uint64_t) (iter_rad_sec)  * 1000000 + (uint64_t) (iter_rad_usec);

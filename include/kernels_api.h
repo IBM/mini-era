@@ -204,6 +204,14 @@ void closeout_vit_kernel(void);
 #define USE_XMIT_PIPE
 #define USE_RECV_PIPE
 
+#define MAX_XMIT_OUTPUTS   41800   // Really 41782 I think
+#define MAX_MESSAGE_LEN     1500   // Max chars in a message (payload)
+
+typedef struct msg_library_struct {
+  unsigned msg_len;
+  char     msg_text[1504];
+} msg_library_entry_t;
+
 #ifdef USE_XMIT_PIPE
 #include "xmit_pipe.h"
 status_t init_xmit_kernel(void);

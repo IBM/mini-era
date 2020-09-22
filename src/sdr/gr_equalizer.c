@@ -324,7 +324,7 @@ void gr_equalize( float wifi_start, unsigned num_inputs, fx_pt inputs[FRAME_EQ_I
       // Otherwise, I think we decode this frame, and do some checking, etc... in the decode_signal_field (above)
       DEBUG(printf("Calling decode_signal_field with out_sym = %u and d_current_symbol = %u\n", out_sym, d_current_symbol));
       if (!decode_signal_field(&(outputs[out_sym * 48]))) {
-        printf("ERROR : Bad decode_signal_filed return value ...\n");
+        printf("ERROR : Bad decode_signal_field return value ...\n");
 	exit(-20); // return false;
       }
       DEBUG(printf("Back from decode_signal_field...\n"));
