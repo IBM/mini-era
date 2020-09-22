@@ -45,19 +45,6 @@ typedef struct {
   float return_data[2 * MAX_RADAR_N];
 } radar_dict_entry_t;
 
-#include "viterbi/utils.h"
-typedef struct {
-  unsigned int msg_num;
-  unsigned int msg_id;
-  ofdm_param   ofdm_p;
-  frame_param  frame_p;
-  uint8_t      in_bits[MAX_ENCODED_BITS];
-} vit_dict_entry_t;
-
-
-#define VITERBI_MSG_LENGTHS     4
-#define VITERBI_MSGS_PER_STEP   3
-
 /* These are GLOBAL and affect the underlying world, etc. */
 #define NUM_LANES     5
 #define NUM_OBJECTS   5
@@ -76,8 +63,6 @@ typedef struct {
 #define THRESHOLD_1 155.0
 #define THRESHOLD_2 205.0
 #define THRESHOLD_3 305.0
-
-#define VIT_CLEAR_THRESHOLD  THRESHOLD_1
 
 
 typedef struct {
@@ -131,13 +116,7 @@ extern bool_t   output_viz_trace;
 extern unsigned fft_logn_samples;
 
 extern char* lane_names[NUM_LANES];
-extern char* message_names[NUM_MESSAGES];
 extern char* object_names[NUM_OBJECTS];
-
-extern unsigned vit_msgs_size;
-extern unsigned vit_msgs_per_step;
-extern const char* vit_msgs_size_str[VITERBI_MSG_LENGTHS];
-extern const char* vit_msgs_per_step_str[VITERBI_MSGS_PER_STEP];
 
 extern unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
 extern unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
@@ -165,7 +144,6 @@ void closeout_trace_reader(void);
 /* Kernels initialization */
 status_t init_cv_kernel(char* py_file, char* dict_fn);
 status_t init_rad_kernel(char* dict_fn);
-status_t init_vit_kernel(char* dict_fn);
 status_t init_h264_kernel(char* dict_fn);
 
 h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
@@ -181,10 +159,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
 distance_t execute_rad_kernel(float * inputs);
 void       post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_dist, distance_t dist);
 
-vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);
-void      post_execute_vit_kernel(message_t tr_msg, message_t dec_msg);
-
+message_t iterate_vit_kernel(vehicle_state_t vs);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
 
@@ -192,14 +167,13 @@ vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t
 void closeout_cv_kernel(void);
 void closeout_h264_kernel(void);
 void closeout_rad_kernel(void);
-void closeout_vit_kernel(void);
 
 
 //
 // This supports the IEEE 802.11p Transmit/Receive (Software-Defined Radio) Code
 //  That code is in the sdr subdirectory.
 //
-#include "base.h"
+#include "sdr_base.h"
 
 #define USE_XMIT_PIPE
 #define USE_RECV_PIPE

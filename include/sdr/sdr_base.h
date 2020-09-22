@@ -35,8 +35,6 @@
 #define MAX_SAMPLES    540 * 80  // this is 540 symbols * 80 bytes per symbol
 
 /* Types definitions */
-//typedef enum {false, true} bool_t;
-typedef enum {error, success} status_t;
 
 enum Encoding {
          BPSK_1_2  = 0,

@@ -18,7 +18,7 @@
 #ifndef _XMIT_PIPE_H
 #define _XMIT_PIPE_H
 
-#include "base.h"
+#include "sdr_base.h"
 
 #define TIME
 

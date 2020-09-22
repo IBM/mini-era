@@ -82,7 +82,6 @@ void print_usage(char * pname) {
   printf("    -h         : print this helpful usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
-  printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
   printf("    -C <file>  : defines the input CV/CNN dictionary file <file> to use\n");
   printf("    -H <file>  : defines the input H264 dictionary file <file> to use\n");
   printf("    -b         : Bypass (do not use) the H264 functions in this run.\n");
@@ -90,15 +89,6 @@ void print_usage(char * pname) {
   printf("    -p <N>     : defines the plan-and-control repeat factor (calls per time step -- default is 1)\n");
   printf("    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks\n");
   printf("               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.\n");
-  printf("    -n <N>     : defines number of Viterbi messages per time step behavior:\n");
-  printf("               :      0 = One message per time step\n");
-  printf("               :      1 = One message per obstacle per time step\n");
-  printf("               :      2 = One msg per obstacle + 1 per time step\n");
-  printf("    -v <N>     : defines Viterbi message size:\n");
-  printf("               :      0 = Short messages (4 characters)\n");
-  printf("               :      1 = Medium messages (500 characters)\n");
-  printf("               :      2 = Long messages (1000 characters)\n");
-  printf("               :      3 = Max-sized messages (1500 characters)\n");
   printf("    -M <N>     : Use message <N> (0 = 1500 'x' chars, 1 = 1500 '0123456789', 2 = quote)\n");
   printf("    -T \"S\"     : Use message S (No longer than 1500 chars)\n");
   printf("    -S <0|1>   : 0=disable 1=enable output of Messages (Xmit and Recv) per time step\n");
@@ -124,7 +114,7 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAbot:v:n:r:W:R:V:C:H:f:p:S:M:T:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAbot:r:W:R:V:C:H:f:p:S:M:T:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -161,24 +151,6 @@ int main(int argc, char *argv[])
     case 't':
       trace_file = optarg;
       printf("Using trace file: %s\n", trace_file);
-      break;
-    case 'v':
-      vit_msgs_size = atoi(optarg);
-      if (vit_msgs_size >= VITERBI_MSG_LENGTHS) {
-	printf("ERROR: Specified viterbi message size (%u) is larger than max (%u) : from the -v option\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
-	exit(-1);
-      } else {
-	printf("Using viterbi message size %u = %s\n", vit_msgs_size, vit_msgs_size_str[vit_msgs_size]);
-      }
-      break;
-    case 'n':
-      vit_msgs_per_step = atoi(optarg);
-      if (vit_msgs_size >= VITERBI_MSG_LENGTHS) {
-	printf("ERROR: Specified viterbi messages per time step behavior (%u) is larger than max (%u) : from the -n option\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
-	exit(-1);
-      } else {
-	printf("Using viterbi messages per step behavior %u = %s\n", vit_msgs_per_step, vit_msgs_per_step_str[vit_msgs_per_step]);
-      }
       break;
     case 'S':
       //show_main_output = (atoi(optarg) != 0);
@@ -288,12 +260,6 @@ int main(int argc, char *argv[])
     printf("Error: the radar kernel couldn't be initialized properly.\n");
     return 1;
   }
-  printf("Initializing the Viterbi kernel...\n");
-  if (!init_vit_kernel(vit_dict))
-  {
-    printf("Error: the Viterbi decoding kernel couldn't be initialized properly.\n");
-    return 1;
-  }
 
   printf("Set show_main_output = %u\n", show_main_output);
   printf("Set show_xmit_output = %u\n", show_xmit_output);
@@ -363,17 +329,14 @@ int main(int argc, char *argv[])
   uint64_t iter_h264_usec  = 0LL;
 
   struct timeval stop_exec_rad, start_exec_rad;
-  struct timeval stop_exec_vit, start_exec_vit;
   struct timeval stop_exec_cv , start_exec_cv;
   struct timeval stop_exec_h264 , start_exec_h264;
 
   uint64_t exec_rad_sec = 0LL;
-  uint64_t exec_vit_sec = 0LL;
   uint64_t exec_cv_sec  = 0LL;
   uint64_t exec_h264_sec  = 0LL;
 
   uint64_t exec_rad_usec = 0LL;
-  uint64_t exec_vit_usec = 0LL;
   uint64_t exec_cv_usec  = 0LL;
   uint64_t exec_h264_usec  = 0LL;
 
@@ -461,19 +424,12 @@ int main(int argc, char *argv[])
    #ifdef TIME
     gettimeofday(&start_iter_vit, NULL);
    #endif
-    vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
+    message = iterate_vit_kernel(vehicle_state);
    #ifdef TIME
     gettimeofday(&stop_iter_vit, NULL);
     iter_vit_sec  += stop_iter_vit.tv_sec  - start_iter_vit.tv_sec;
     iter_vit_usec += stop_iter_vit.tv_usec - start_iter_vit.tv_usec;
    #endif
-
-    // Here we will simulate multiple cases, based on global vit_msgs_behavior
-    int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default) 
-    switch(vit_msgs_per_step) {
-    case 1: num_vit_msgs = total_obj; break;
-    case 2: num_vit_msgs = total_obj + 1; break;
-    }
 
     // EXECUTE the kernels using the now known inputs 
    #ifdef TIME
@@ -505,16 +461,8 @@ int main(int argc, char *argv[])
     gettimeofday(&stop_exec_rad, NULL);
     exec_rad_sec  += stop_exec_rad.tv_sec  - start_exec_rad.tv_sec;
     exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
-
-    gettimeofday(&start_exec_vit, NULL);
    #endif
-    message = execute_vit_kernel(vdentry_p, num_vit_msgs);
-   #ifdef TIME
-    gettimeofday(&stop_exec_vit, NULL);
-    exec_vit_sec  += stop_exec_vit.tv_sec  - start_exec_vit.tv_sec;
-    exec_vit_usec += stop_exec_vit.tv_usec - start_exec_vit.tv_usec;
-   #endif
-
+    
     /* The xmit kernel does a transmission pass */
     int xmit_num_out;
     float xmit_out_real[MAX_XMIT_OUTPUTS];
@@ -559,9 +507,6 @@ int main(int argc, char *argv[])
     }
     post_execute_cv_kernel(cv_tr_label, label);
     post_execute_rad_kernel(rdentry_p->set, rdentry_p->index_in_set, rdict_dist, distance);
-    for (int mi = 0; mi < num_vit_msgs; mi++) {
-      post_execute_vit_kernel(vdentry_p->msg_id, message);
-    }
 
     /* The plan_and_control() function makes planning and control decisions
      * based on the currently perceived information. It returns the new
@@ -603,7 +548,6 @@ int main(int argc, char *argv[])
   }
   closeout_cv_kernel();
   closeout_rad_kernel();
-  closeout_vit_kernel();
 
   closeout_xmit_kernel();
   closeout_recv_kernel();
@@ -616,7 +560,6 @@ int main(int argc, char *argv[])
     uint64_t iter_cv    = (uint64_t) (iter_cv_sec)   * 1000000 + (uint64_t) (iter_cv_usec);
     uint64_t iter_h264  = (uint64_t) (iter_h264_sec) * 1000000 + (uint64_t) (iter_h264_usec);
     uint64_t exec_rad   = (uint64_t) (exec_rad_sec)  * 1000000 + (uint64_t) (exec_rad_usec);
-    uint64_t exec_vit   = (uint64_t) (exec_vit_sec)  * 1000000 + (uint64_t) (exec_vit_usec);
     uint64_t exec_cv    = (uint64_t) (exec_cv_sec)   * 1000000 + (uint64_t) (exec_cv_usec);
     uint64_t exec_h264  = (uint64_t) (exec_h264_sec) * 1000000 + (uint64_t) (exec_h264_usec);
     uint64_t exec_pandc = (uint64_t) (exec_pandc_sec) * 1000000 + (uint64_t) (exec_pandc_usec);
@@ -626,7 +569,6 @@ int main(int argc, char *argv[])
     printf("  iterate_h264_kernel run time   %lu usec\n", iter_h264);
     printf("  iterate_cv_kernel run time     %lu usec\n", iter_cv);
     printf("  execute_rad_kernel run time    %lu usec\n", exec_rad);
-    printf("  execute_vit_kernel run time    %lu usec\n", exec_vit);
     printf("  execute_h264_kernel run time   %lu usec\n", exec_h264);
     printf("  execute_cv_kernel run time     %lu usec\n", exec_cv);
     printf("  plan_and_control run time      %lu usec at %u factor\n", exec_pandc, pandc_repeat_factor);

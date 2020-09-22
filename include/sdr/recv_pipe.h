@@ -18,7 +18,7 @@
 #ifndef _RECV_PIPE_H
 #define _RECV_PIPE_H
 
-#include "base.h"
+#include "sdr_base.h"
 
 #define TIME
 

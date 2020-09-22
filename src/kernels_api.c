@@ -59,12 +59,6 @@ unsigned rand_seed = 0; // Only used if -r <N> option set
 float IMPACT_DISTANCE = 50.0; // Minimum distance at which an obstacle "impacts" MyCar (collision case)
 
 
-/* These are types, functions, etc. required for VITERBI */
-//#include "viterbi/utils.h"
-#include "viterbi/viterbi_flat.h"
-//#include "radar/calc_fmcw_dist.h"
-
-
 #ifndef BYPASS_KERAS_CV_CODE
 PyObject *pName, *pModule, *pFunc, *pFunc_load;
 PyObject *pArgs, *pValue, *pretValue;
@@ -113,37 +107,6 @@ unsigned hist_pct_errs[MAX_RDICT_SAMPLE_SETS][MAX_RDICT_ENTRIES][5];// = {0, 0, 
 unsigned hist_distances[MAX_RDICT_SAMPLE_SETS][MAX_RDICT_ENTRIES];
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 unsigned radar_inputs_histogram[MAX_RDICT_SAMPLE_SETS][MAX_RDICT_ENTRIES];
-
-#define VITERBI_LENGTHS  4
-unsigned viterbi_messages_histogram[VITERBI_LENGTHS][NUM_MESSAGES];
-
-/* These are some top-level defines needed for VITERBI */
-/* typedef struct { */
-/*   unsigned int msg_num; */
-/*   unsigned int msg_id; */
-/*   ofdm_param   ofdm_p; */
-/*   frame_param  frame_p; */
-/*   uint8_t      in_bits[MAX_ENCODED_BITS]; */
-/* } vit_dict_entry_t; */
-
-uint8_t descramble[1600]; // I think this covers our max use cases
-uint8_t actual_msg[1600];
-
-unsigned int      num_viterbi_dictionary_items = 0;
-vit_dict_entry_t* the_viterbi_trace_dict;
-
-unsigned vit_msgs_size;
-unsigned vit_msgs_per_step;
-const char* vit_msgs_size_str[VITERBI_MSG_LENGTHS] = {"SHORT", "MEDIUM", "LONG", "MAXIMUM"};
-const char* vit_msgs_per_step_str[VITERBI_MSGS_PER_STEP] = {"One message per time step",
-							    "One message per obstacle per time step",
-							    "One msg per obstacle + 1 per time step" };
-unsigned viterbi_messages_histogram[VITERBI_MSG_LENGTHS][NUM_MESSAGES];
-
-unsigned total_msgs = 0; // Total messages decoded during the full run
-unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
-
-extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
 
 // This is the declarations, etc. for H264 kernels.
 extern void  init_h264_decode(int argc, char **argv);
@@ -268,125 +231,6 @@ status_t init_rad_kernel(char* dict_fn)
   return success;
 }
 
-
-/* This is the initialization of the Viterbi dictionary data, etc.
- * The format is:
- *  <n> = number of dictionary entries (message types)
- * For each dictionary entry:
- *  n1 n2 n3 n4 n5 : OFDM parms: 
- *  m1 m2 m3 m4 m5 : FRAME parms:
- *  x1 x2 x3 ...   : The message bits (input to decode routine)
- */
-
-status_t init_vit_kernel(char* dict_fn)
-{
-  DEBUG(printf("In init_vit_kernel...\n"));
-  if (vit_msgs_size >= VITERBI_LENGTHS) {
-    printf("ERROR: Specified too large a vit_msgs_size (-v option): %u but max is %u\n", vit_msgs_size, VITERBI_LENGTHS);
-    exit(-1);
-  }
-  // Read in the object images dictionary file
-  FILE *dictF = fopen(dict_fn,"r");
-  if (!dictF)
-  {
-    printf("Error: unable to open viterbi dictionary definition file %s\n", dict_fn);
-    return error;
-  }
-
-  // Read in the trace message dictionary from the trace file
-  // Read the number of messages
-  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items) != 1) {
-    printf("ERROR reading the number of Viterbi Dictionary items\n");
-    exit(-2);
-  }    
-  DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
-  the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
-  if (the_viterbi_trace_dict == NULL) 
-  {
-    printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space\n");
-    fclose(dictF);
-    return error;
-  }
-
-  // Read in each dictionary item
-  for (int i = 0; i < num_viterbi_dictionary_items; i++) 
-  {
-    DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
-
-    int mnum, mid;
-    if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
-      printf("Error reading viterbi kernel dictionary enry %u header: Message_number and Message_id\n", i);
-      fclose(dictF);
-      exit(-6);
-    }
-    DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
-    if (mnum != i) {
-      printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
-      fclose(dictF);
-      exit(-5);
-    }
-    the_viterbi_trace_dict[i].msg_num = mnum;
-    the_viterbi_trace_dict[i].msg_id = mid;
-
-    int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate) != 5) {
-      printf("Error reading viterbi kernel dictionary entry %u bpsc, cbps, dbps, encoding and rate info\n", i);
-      fclose(dictF);
-      exit(-2);
-    }
-
-    DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
-    the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
-    the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
-    the_viterbi_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
-    the_viterbi_trace_dict[i].ofdm_p.n_dbps     = in_dbps;
-    the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
-
-    int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits) != 5) {
-      printf("Error reading viterbi kernel dictionary entry %u psdu num_sym, pad, n_encoded_bits and n_data_bits\n", i);
-      fclose(dictF);
-      exit(-2);
-    }
-    DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
-    the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
-    the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
-    the_viterbi_trace_dict[i].frame_p.n_pad          = in_pad;
-    the_viterbi_trace_dict[i].frame_p.n_encoded_bits = in_encoded_bits;
-    the_viterbi_trace_dict[i].frame_p.n_data_bits    = in_data_bits;
-
-    int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
-    DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
-    for (int ci = 0; ci < num_in_bits; ci++) { 
-      unsigned c;
-      if (fscanf(dictF, "%u ", &c) != 1) {
-	printf("Error reading viterbi kernel dictionary entry %u data\n", i);
-	fclose(dictF);
-	exit(-6);
-      }
-      #ifdef SUPER_VERBOSE
-      printf("%u ", c);
-      #endif
-      the_viterbi_trace_dict[i].in_bits[ci] = (uint8_t)c;
-    }
-    DEBUG(printf("\n"));
-  }
-  fclose(dictF);
-
-  //Clear the messages (injected) histogram
-  for (int i = 0; i < VITERBI_MSG_LENGTHS; i++) {
-    for (int j = 0; j < NUM_MESSAGES; j++) {
-      viterbi_messages_histogram[i][j] = 0;
-    }
-  }
-
-  for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
-    hist_total_objs[i] = 0;
-  }
-
-  DEBUG(printf("DONE with init_vit_kernel -- returning success\n"));
-  return success;
-}
 
 
 status_t init_h264_kernel(char* dict_fn)
@@ -725,7 +569,8 @@ void post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_dist, d
  * (i.e. which message if the autonomous car is in the 
  *  left, middle or right lane).
  */
-vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
+#define VIT_CLEAR_THRESHOLD  THRESHOLD_1
+message_t iterate_vit_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_vit_kernel in lane %u = %s\n", vs.lane, lane_names[vs.lane]));
   hist_total_objs[total_obj]++;
@@ -780,79 +625,8 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   }
 
   DEBUG(printf("Viterbi final message for lane %u %s = %u\n", vs.lane, lane_names[vs.lane], tr_val));	
-
-  vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
-
-  // Here we determine short or long messages, based on global vit_msgs_size; offset is into the Dictionary
-  int msg_offset = vit_msgs_size * NUM_MESSAGES; // 0 = short messages, 4 = long messages
-
-  viterbi_messages_histogram[vit_msgs_size][tr_val]++; 
-  switch(tr_val) {
-  case 0: // safe_to_move_right_or_left
-    trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);
-    break;
-  case 1: // safe_to_move_right
-    trace_msg = &(the_viterbi_trace_dict[1 + msg_offset]);
-    break;
-  case 2: // safe_to_move_left
-    trace_msg = &(the_viterbi_trace_dict[2 + msg_offset]);
-    break;
-  case 3: // unsafe_to_move_left_or_right
-    trace_msg = &(the_viterbi_trace_dict[3 + msg_offset]);
-    break;
-  }
-  DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
-  return trace_msg;
+  return tr_val;
 }
-
-message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
-{
-  // Send each message (here they are all the same) through the viterbi decoder
-  message_t msg = trace_msg->msg_id; //num_message_t;
-#if(0)
-  uint8_t *result;
-  char     msg_text[1600]; // Big enough to hold largest message (1500?)
-  for (int mi = 0; mi < num_msgs; mi++) {
-    DEBUG(printf("  Calling the viterbi decode routine for message %u iter %u\n", trace_msg->msg_num, mi));
-    viterbi_messages_histogram[vit_msgs_size][trace_msg->msg_id]++; 
-    int n_res_char;
-    result = decode(&(trace_msg->ofdm_p), &(trace_msg->frame_p), &(trace_msg->in_bits[0]), &n_res_char);
-    // descramble the output - put it in result
-    int psdusize = trace_msg->frame_p.psdu_size;
-    DEBUG(printf("  Calling the viterbi descrambler routine\n"));
-    descrambler(result, psdusize, msg_text, NULL /*descram_ref*/, NULL /*msg*/);
-
-   #if(0)
-    printf(" PSDU %u : Msg : = `", psdusize);
-    for (int ci = 0; ci < (psdusize - 26); ci++) {
-      printf("%c", msg_text[ci]);
-    }
-    printf("'\n");
-   #endif
-    if (mi == 0) { 
-      // Here we look at the message string and select proper message_t out (just for the first message)
-      switch(msg_text[3]) {
-      case '0' : msg = safe_to_move_right_or_left; break;
-      case '1' : msg = safe_to_move_right_only; break;
-      case '2' : msg = safe_to_move_left_only; break;
-      case '3' : msg = unsafe_to_move_left_or_right; break;
-      default  : msg = num_message_t; break;
-      }
-    } // if (mi == 0)
-  }
-#endif
-  DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
-  return msg;
-}
-
-void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg)
-{
-  total_msgs++;
-  if (dec_msg != tr_msg) {
-    bad_decode_msgs++;
-  }
-}
-
 
 
 /* Each time-step of the trace, we read in the 
@@ -1056,34 +830,6 @@ void closeout_rad_kernel()
   for (int si = 0; si < num_radar_samples_sets; si++) {
     for (int di = 0; di < radar_dict_items_per_set; di++) {
       printf("    %3u | %3u | %9u \n", si, di, radar_inputs_histogram[si][di]);
-    }
-  }
-  printf("\n");
-}
-
-void closeout_vit_kernel()
-{
-  // Nothing to do?
-
-  printf("\nHistogram of Total Objects:\n");
-  unsigned sum = 0;
-  for (int i = 0; i < NUM_LANES * MAX_OBJ_IN_LANE; i++) {
-    if (hist_total_objs[i] != 0) {
-      printf("%3u | %9u \n", i, hist_total_objs[i]);
-      sum += i*hist_total_objs[i];
-    }
-  }
-  double avg_objs = (1.0 * sum)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
-  printf("There were %.3lf obstacles per time step (average)\n", avg_objs);
-  double avg_msgs = (1.0 * total_msgs)/(1.0 * radar_total_calc); // radar_total_calc == total time steps
-  printf("There were %.3lf messages per time step (average)\n", avg_msgs);
-  printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
-
-  printf("\nHistogram of Viterbi Messages:\n");
-  printf("    %3s | %3s | %9s \n", "Len", "Msg", "NumOccurs");
-  for (int li = 0; li < VITERBI_MSG_LENGTHS; li++) {
-    for (int mi = 0; mi < NUM_MESSAGES; mi++) {
-      printf("    %3u | %3u | %9u \n", li, mi, viterbi_messages_histogram[li][mi]);
     }
   }
   printf("\n");
