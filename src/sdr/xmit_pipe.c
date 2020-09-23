@@ -45,6 +45,42 @@
 
 #include "fft.h"
 
+#ifdef INT_TIME
+/* This is XMIT PIPE internal Timing information (gathering resources) */
+struct timeval x_pipe_stop, x_pipe_start;
+uint64_t x_pipe_sec  = 0LL;
+uint64_t x_pipe_usec = 0LL;
+
+struct timeval x_genmacfr_stop; /*, x_genmacfr_start;*/
+uint64_t x_genmacfr_sec  = 0LL;
+uint64_t x_genmacfr_usec = 0LL;
+
+struct timeval x_domapwk_stop; /*, x_domapwk_start;*/
+uint64_t x_domapwk_sec  = 0LL;
+uint64_t x_domapwk_usec = 0LL;
+
+struct timeval x_phdrgen_stop; /*, x_phdrgen_start;*/
+uint64_t x_phdrgen_sec  = 0LL;
+uint64_t x_phdrgen_usec = 0LL;
+
+struct timeval x_ck2sym_stop, x_ck2sym_start;
+uint64_t x_ck2sym_sec  = 0LL;
+uint64_t x_ck2sym_usec = 0LL;
+
+struct timeval x_ocaralloc_stop, x_ocaralloc_start;
+uint64_t x_ocaralloc_sec  = 0LL;
+uint64_t x_ocaralloc_usec = 0LL;
+
+struct timeval x_fft_stop; /*, x_fft_start; */
+uint64_t x_fft_sec  = 0LL;
+uint64_t x_fft_usec = 0LL;
+
+struct timeval x_ocycpref_stop; /*, x_ocycpref_start;*/
+uint64_t x_ocycpref_sec  = 0LL;
+uint64_t x_ocycpref_usec = 0LL;
+
+#endif
+
 extern bool show_output;
 extern bool do_add_pre_pad;
 
@@ -1461,18 +1497,35 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
 	  printf("%c", in_msg[i]);
 	}
 	printf("\n"); fflush(stdout));
-  
+ #ifdef INT_TIME
+  gettimeofday(&x_pipe_start, NULL);
+ #endif
   int psdu_len = 0;
   //do_wifi_mac(in_msg_len, in_msg, &psdu_len);
   generate_mac_data_frame(in_msg, in_msg_len, &psdu_len);
+ #ifdef INT_TIME
+  gettimeofday(&x_genmacfr_stop, NULL);
+  x_genmacfr_sec  += x_genmacfr_stop.tv_sec  - x_pipe_start.tv_sec;
+  x_genmacfr_usec += x_genmacfr_stop.tv_usec - x_pipe_start.tv_usec;
+ #endif
 
   //do_mapper_work(32768, psdu_len); // noutput always seems to be 32768 ? Actualy data size is 24528 ?
   do_mapper_work(psdu_len); // noutput always seems to be 32768 ? Actualy data size is 24528 ?
   // The mapper results in 24528 output bytes for a 1500 character input payload
+ #ifdef INT_TIME
+  gettimeofday(&x_domapwk_stop, NULL);
+  x_domapwk_sec  += x_domapwk_stop.tv_sec  - x_genmacfr_stop.tv_sec;
+  x_domapwk_usec += x_domapwk_stop.tv_usec - x_genmacfr_stop.tv_usec;
+ #endif
 
   int mapper_payload_size = d_frame.n_encoded_bits;
   uint8_t pckt_hdr_out[64]; // I think this only needs to be 48 bytes...
   int pckt_hdr_len = do_packet_header_gen(mapper_payload_size, pckt_hdr_out);
+ #ifdef INT_TIME
+  gettimeofday(&x_phdrgen_stop, NULL);
+  x_phdrgen_sec  += x_phdrgen_stop.tv_sec  - x_domapwk_stop.tv_sec;
+  x_phdrgen_usec += x_phdrgen_stop.tv_usec - x_domapwk_stop.tv_usec;
+ #endif
   DEBUG(printf("packet_header = ");
 	for (int i = 0; i < pckt_hdr_len; i++) {
 	  printf("%1x ", pckt_hdr_out[i]);
@@ -1483,6 +1536,9 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
   // Convert the payload chunks to symbols (for now also using simple BPSK_1_2 map: 0 -> -1+0i and 1 -> +1+0i)
   // We will also do the Tagged Stream Mux functionality (concatenate the Payload after the Header)
   DEBUG(printf("\nConverting to chunks, and doing the tagged stream mux stuff...\n"));
+ #ifdef INT_TIME
+  gettimeofday(&x_ck2sym_start, NULL);
+ #endif
   float msg_stream_real[MAX_SIZE];
   float msg_stream_imag[MAX_SIZE];
   int   msg_idx = 0;
@@ -1507,7 +1563,11 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
     msg_stream_imag[i] = 0.0;
     //    DEBUG(printf("LAST: msg_stream[%4u] = %4.1f + %4.1f\n", i, msg_stream_real[i], msg_stream_imag[i]));
   }    
-
+ #ifdef INT_TIME
+  gettimeofday(&x_ck2sym_stop, NULL);
+  x_ck2sym_sec  += x_ck2sym_stop.tv_sec  - x_ck2sym_start.tv_sec;
+  x_ck2sym_usec += x_ck2sym_stop.tv_usec - x_ck2sym_start.tv_usec;
+ #endif
   DEBUG(printf("\nTagged Stream Mux output:\n");
 	for (int i = 0; i < (pckt_hdr_len + mapper_payload_size); i++) {
 	  printf(" TSM_OUT %5u : %4.1f %4.1f\n", i, msg_stream_real[i], msg_stream_imag[i]);
@@ -1521,6 +1581,9 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
   float ofdm_car_str_imag[ofdm_max_out_size];
   
   //int ofc_res = do_ofdm_carrier_allocator_cvc_impl_work(520, 24576, msg_stream_real, msg_stream_imag, ofdm_car_str_real, ofdm_car_str_imag);
+ #ifdef INT_TIME
+  gettimeofday(&x_ocaralloc_start, NULL);
+ #endif
   int ofc_res = do_ofdm_carrier_allocator_cvc_impl_work(d_frame.n_sym, d_frame.n_encoded_bits, msg_stream_real, msg_stream_imag, ofdm_car_str_real, ofdm_car_str_imag);
   DEBUG(printf(" return value was %u so max %u outputs\n", ofc_res, ofc_res*d_fft_len);
 	printf(" do_ofdm_carrier_allocator_cvc_impl_work output:\n");
@@ -1528,6 +1591,11 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
 	  printf("  ofdm_car %6u : %9.6f + %9.6f i\n", ti, ofdm_car_str_real[ti], ofdm_car_str_imag[ti]);
 	});
 
+ #ifdef INT_TIME
+  gettimeofday(&x_ocaralloc_stop, NULL);
+  x_ocaralloc_sec  += x_ocaralloc_stop.tv_sec  - x_ocaralloc_start.tv_sec;
+  x_ocaralloc_usec += x_ocaralloc_stop.tv_usec - x_ocaralloc_start.tv_usec;
+ #endif
   // The FFT operation...  This is where we are currently "broken"
   //   The outputs match for the first one or two 64-entry windows, and then diverge a lot...
   DEBUG(printf("\nCalling do_xmit_fft_work for %u data values\n", ofdm_max_out_size));
@@ -1537,6 +1605,11 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
   float scale = 1/sqrt(52.0);
 
   do_xmit_fft_work(n_ins, scale, ofdm_car_str_real, ofdm_car_str_imag, fft_out_real, fft_out_imag);
+ #ifdef INT_TIME
+  gettimeofday(&x_fft_stop, NULL);
+  x_fft_sec  += x_fft_stop.tv_sec  - x_ocaralloc_stop.tv_sec;
+  x_fft_usec += x_fft_stop.tv_usec - x_ocaralloc_stop.tv_usec;
+ #endif
   DEBUG(for (int i = 0; i < n_ins; i++) {
       printf(" fft_out %6u : %11.8f + %11.8f i\n", i, fft_out_real[i], fft_out_imag[i]);
     });
@@ -1549,7 +1622,15 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
   float cycpref_out_imag[41360]; // Large enough
   DEBUG(printf("\nCalling do_ofdm_cyclic_prefixer_impl_work(%u, fft_output)\n", ofc_res));
   //do_ofdm_cyclic_prefixer_impl_work(ofc_res, gold_fft_out_real, gold_fft_out_imag, cycpref_out_real, cycpref_out_imag);
+ /* #ifdef INT_TIME */
+ /*  gettimeofday(&x_ocycpref_start, NULL); */
+ /* #endif */
   do_ofdm_cyclic_prefixer_impl_work(ofc_res, fft_out_real, fft_out_imag, cycpref_out_real, cycpref_out_imag);
+ #ifdef INT_TIME
+  gettimeofday(&x_ocycpref_stop, NULL);
+  x_ocycpref_sec  += x_ocycpref_stop.tv_sec  - x_fft_stop.tv_sec;
+  x_ocycpref_usec += x_ocycpref_stop.tv_usec - x_fft_stop.tv_usec;
+ #endif
   DEBUG(for (int i = 0; i < num_cycpref_outs; i++) {
       printf(" ocypref_out %6u : %11.8f + %11.8f i\n", i, cycpref_out_real[i], cycpref_out_imag[i]);
     }
@@ -1589,7 +1670,12 @@ do_xmit_pipeline(int in_msg_len, char* in_msg, int* num_final_outs, float* final
   // The next "Stage" is the "throttle" block, which does not alter the output/message (just timing?)
 
   // Then there is the channel_model... 
-  
+
+ #ifdef INT_TIME
+  gettimeofday(&x_pipe_stop, NULL);
+  x_pipe_sec  += x_pipe_stop.tv_sec  - x_pipe_start.tv_sec;
+  x_pipe_usec += x_pipe_stop.tv_usec - x_pipe_start.tv_usec;
+ #endif
 }
 
 

@@ -42,6 +42,75 @@ extern uint64_t dodec_usec;
 
 extern uint64_t depunc_sec;
 extern uint64_t depunc_usec;
+
+// This is the SDR Xmit Pipeline
+extern uint64_t x_pipe_sec;
+extern uint64_t x_pipe_usec;
+
+extern uint64_t x_genmacfr_sec;
+extern uint64_t x_genmacfr_usec;
+
+extern uint64_t x_domapwk_sec;
+extern uint64_t x_domapwk_usec;
+
+extern uint64_t x_phdrgen_sec;
+extern uint64_t x_phdrgen_usec;
+
+extern uint64_t x_ck2sym_sec;
+extern uint64_t x_ck2sym_usec;
+
+extern uint64_t x_ocaralloc_sec;
+extern uint64_t x_ocaralloc_usec;
+
+extern uint64_t x_fft_sec;
+extern uint64_t x_fft_usec;
+
+extern uint64_t x_ocycpref_sec;
+extern uint64_t x_ocycpref_usec;
+
+// This is the SDR Receive Pipeline
+extern uint64_t r_pipe_sec;
+extern uint64_t r_pipe_usec;
+
+extern uint64_t r_cmpcnj_sec;
+extern uint64_t r_cmpcnj_usec;
+
+extern uint64_t r_cmpmpy_sec;
+extern uint64_t r_cmpmpy_usec;
+
+extern uint64_t r_firc_sec;
+extern uint64_t r_firc_usec;
+
+extern uint64_t r_cmpmag_sec;
+extern uint64_t r_cmpmag_usec;
+
+extern uint64_t r_cmpmag2_sec;
+extern uint64_t r_cmpmag2_usec;
+
+extern uint64_t r_fir_sec;
+extern uint64_t r_fir_usec;
+
+extern uint64_t r_div_sec;
+extern uint64_t r_div_usec;
+
+extern uint64_t r_sshort_sec;
+extern uint64_t r_sshort_usec;
+
+extern uint64_t r_slong_sec;
+extern uint64_t r_slong_usec;
+
+extern uint64_t r_fft_sec;
+extern uint64_t r_fft_usec;
+
+extern uint64_t r_eqlz_sec;
+extern uint64_t r_eqlz_usec;
+
+extern uint64_t r_decsignl_sec;
+extern uint64_t r_decsignl_usec;
+
+extern uint64_t r_descrmbl_sec;
+extern uint64_t r_descrmbl_usec;
+
 #endif
 
 char h264_dict[256]; 
@@ -589,7 +658,56 @@ int main(int argc, char *argv[])
   printf("  depuncture  run time    %lu usec\n", depunc);
   uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
   printf("  do-decoding run time    %lu usec\n", dodec);
- #endif // INT_TIME
+
+  printf("\n");
+  uint64_t x_pipe    = (uint64_t) (x_pipe_sec)  * 1000000 + (uint64_t) (x_pipe_usec);
+  printf("  Xmit Pipe   run time    %lu usec\n", x_pipe);
+  uint64_t x_genmacfr    = (uint64_t) (x_genmacfr_sec)  * 1000000 + (uint64_t) (x_genmacfr_usec);
+  printf("   Gen Mac Frame run time    %lu usec\n", x_genmacfr);
+  uint64_t x_domapwk    = (uint64_t) (x_domapwk_sec)  * 1000000 + (uint64_t) (x_domapwk_usec);
+  printf("   Do Map Work   run time    %lu usec\n", x_domapwk);
+  uint64_t x_phdrgen    = (uint64_t) (x_phdrgen_sec)  * 1000000 + (uint64_t) (x_phdrgen_usec);
+  printf("   Pkt Hdr Gen   run time    %lu usec\n", x_phdrgen);
+  uint64_t x_ck2sym    = (uint64_t) (x_ck2sym_sec)  * 1000000 + (uint64_t) (x_ck2sym_usec);
+  printf("   Chnk 2 Symbls run time    %lu usec\n", x_ck2sym);
+  uint64_t x_ocaralloc    = (uint64_t) (x_ocaralloc_sec)  * 1000000 + (uint64_t) (x_ocaralloc_usec);
+  printf("   Carrier Alloc run time    %lu usec\n", x_ocaralloc);
+  uint64_t x_fft    = (uint64_t) (x_fft_sec)  * 1000000 + (uint64_t) (x_fft_usec);
+  printf("   Xmit FFT      run time    %lu usec\n", x_fft);
+  uint64_t x_ocycpref    = (uint64_t) (x_ocycpref_sec)  * 1000000 + (uint64_t) (x_ocycpref_usec);
+  printf("   Cyclic Prefix run time    %lu usec\n", x_ocycpref);
+
+  printf("\n");
+  uint64_t r_pipe    = (uint64_t) (r_pipe_sec)  * 1000000 + (uint64_t) (r_pipe_usec);
+  printf("  RECV Pipe   run time    %lu usec\n", r_pipe);
+  uint64_t r_cmpcnj    = (uint64_t) (r_cmpcnj_sec)  * 1000000 + (uint64_t) (r_cmpcnj_usec);
+  printf("   Cmplex Conj   run time    %lu usec\n", r_cmpcnj);
+  uint64_t r_cmpmpy    = (uint64_t) (r_cmpmpy_sec)  * 1000000 + (uint64_t) (r_cmpmpy_usec);
+  printf("   Cmplex Mult   run time    %lu usec\n", r_cmpmpy);
+  uint64_t r_firc    = (uint64_t) (r_firc_sec)  * 1000000 + (uint64_t) (r_firc_usec);
+  printf("   FIRC          run time    %lu usec\n", r_firc);
+  uint64_t r_cmpmag    = (uint64_t) (r_cmpmag_sec)  * 1000000 + (uint64_t) (r_cmpmag_usec);
+  printf("   Cmplex Mag    run time    %lu usec\n", r_cmpmag);
+  uint64_t r_cmpmag2    = (uint64_t) (r_cmpmag2_sec)  * 1000000 + (uint64_t) (r_cmpmag2_usec);
+  printf("   Cmplex Mag^2  run time    %lu usec\n", r_cmpmag2);
+  uint64_t r_fir    = (uint64_t) (r_fir_sec)  * 1000000 + (uint64_t) (r_fir_usec);
+  printf("   FIR           run time    %lu usec\n", r_fir);
+  uint64_t r_div    = (uint64_t) (r_div_sec)  * 1000000 + (uint64_t) (r_div_usec);
+  printf("   Divide        run time    %lu usec\n", r_div);
+  uint64_t r_sshort    = (uint64_t) (r_sshort_sec)  * 1000000 + (uint64_t) (r_sshort_usec);
+  printf("   Sync Short    run time    %lu usec\n", r_sshort);
+  uint64_t r_slong    = (uint64_t) (r_slong_sec)  * 1000000 + (uint64_t) (r_slong_usec);
+  printf("   Sync Long     run time    %lu usec\n", r_slong);
+  uint64_t r_fft    = (uint64_t) (r_fft_sec)  * 1000000 + (uint64_t) (r_fft_usec);
+  printf("   FFT           run time    %lu usec\n", r_fft);
+  uint64_t r_eqlz    = (uint64_t) (r_eqlz_sec)  * 1000000 + (uint64_t) (r_eqlz_usec);
+  printf("   Equalize      run time    %lu usec\n", r_eqlz);
+  uint64_t r_decsignl    = (uint64_t) (r_decsignl_sec)  * 1000000 + (uint64_t) (r_decsignl_usec);
+  printf("   Decode Signal run time    %lu usec\n", r_decsignl);
+  uint64_t r_descrmbl    = (uint64_t) (r_descrmbl_sec)  * 1000000 + (uint64_t) (r_descrmbl_usec);
+  printf("   Descramble    run time    %lu usec\n", r_descrmbl);
+
+#endif // INT_TIME
 
   printf("\nDone.\n");
   return 0;
