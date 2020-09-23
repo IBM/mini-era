@@ -272,4 +272,6 @@ The receive pipeline curretly receives the same message that is being transmitte
 ## Contacts and Current Maintainers
 
  - J-D Wellman (wellman@us.ibm.com)
- - Augusto Veja (ajvega@us.ibm.com)
+ - Augusto Vega (ajvega@us.ibm.com)
+ - Akin Sisbot (easisbot@us.ibm.com)
+ 
