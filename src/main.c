@@ -517,12 +517,9 @@ int main(int argc, char *argv[])
       radar_inputs[ii] = ref_in[ii];
     }
 
-    /* The Viterbi decoding kernel performs Viterbi decoding on the next
-     * OFDM symbol (message), and returns the extracted message.
-     * This message can come from another car (including, for example,
-     * its 'pose') or from the infrastructure (like speed violation or
-     * road construction warnings). For simplicity, we define a fix set
-     * of message classes (e.g. car on the right, car on the left, etc.)
+    /* We reatain the iterate_vit_kernel because it gives us the 
+     * legal lane changes information (from the input trace)
+     * and we currently still are using the original Mini-ERA plan-and-control, etc.
      */
    #ifdef TIME
     gettimeofday(&start_iter_vit, NULL);
