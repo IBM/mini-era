@@ -293,7 +293,11 @@ int main(int argc, char *argv[])
     printf("ERROR - Pland-and-Control repeat factor must be >= 1 : %u specified (with '-p' option)\n", pandc_repeat_factor);
     exit(-1);
   }
-
+  if (trace_file[0] == '\0') {
+    printf("You must specify an input trace file using '-t' option\n");
+    print_usage(argv[0]);
+    exit(-1);
+  }
   if (rad_dict[0] == '\0') {
     sprintf(rad_dict, "data/norm_radar_16k_dictionary.dfn");
   }

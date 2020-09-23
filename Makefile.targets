@@ -14,7 +14,7 @@ C_OBJ_G_DIR  = obj_cgp
 
 
 # The full mini-era target, etc.
-TARGET = main
+TARGET = demo-era
 SRC    = src/kernels_api.c \
          src/main.c \
          src/radar/calculate_dist_from_fmcw.c \
@@ -64,13 +64,12 @@ IT_FOBJ = $(SRC:%.c=$(IT_OBJDIR)/%.o)
 
 
 # The C-code only target (it bypasses KERAS Python code)
-C_TARGET = cmain
+C_TARGET = c$(TARGET)
 C_OBJ    = $(SRC:%.c=$(C_OBJDIR)/%.o)
 C_OBJ_V  = $(SRC:%.c=$(C_OBJ_V_DIR)/%.o)
 C_OBJ_G  = $(SRC:%.c=$(C_OBJ_G_DIR)/%.o)
 ITC_OBJ  = $(SRC:%.c=$(ITC_OBJDIR)/%.o)
 
-#TC_TARGET = t-cmain
 TC_OBJ    = $(SRC:%.c=$(C_OBJDIR)/%.o)
 TC_OBJ_V  = $(SRC:%.c=$(C_OBJ_V_DIR)/%.o)
 TC_OBJ_G  = $(SRC!:%.c=$(C_OBJ_G_DIR)/%.o)
