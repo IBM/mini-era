@@ -15,6 +15,9 @@
 //        <http://adsc.illinois.edu/>
 //============================================================================//
 
+#include <stdint.h>
+#include <sys/time.h>
+
 #include "global.h"
 #include "intrapred.h"
 #include "vlc.h"
@@ -23,6 +26,22 @@
 #include "residual.h"
 #include "interpred.h"
 #include <string.h>
+
+#ifdef INT_TIME
+struct timeval h_pIMbTy_stop, h_pIMbTy_start;
+uint64_t h_pIMbTy_sec  = 0LL;
+uint64_t h_pIMbTy_usec = 0LL;
+
+struct timeval h_pLuma_stop, h_pLuma_start;
+uint64_t h_pLuma_sec  = 0LL;
+uint64_t h_pLuma_usec = 0LL;
+
+struct timeval h_pChroma_stop, h_pChroma_start;
+uint64_t h_pChroma_sec  = 0LL;
+uint64_t h_pChroma_usec = 0LL;
+#endif
+
+
 
 void write_luma
 (
@@ -681,7 +700,9 @@ void ProcessSlice
           IntraPredMode[mbaddrx*4+i][mbaddry*4+3]=2;
         }
 
-
+       #ifdef INT_TIME
+	gettimeofday(&h_pIMbTy_start, NULL);
+       #endif
         processinterMbType(
          tmpmbtp,
          type,
@@ -703,6 +724,11 @@ void ProcessSlice
          refCOL,
          mvCOL,
          MbType);
+       #ifdef INT_TIME
+	gettimeofday(&h_pIMbTy_stop, NULL);
+	h_pIMbTy_sec  += h_pIMbTy_stop.tv_sec  - h_pIMbTy_start.tv_sec;
+	h_pIMbTy_usec += h_pIMbTy_stop.tv_usec - h_pIMbTy_start.tv_usec;
+       #endif
       }
       else if(tmpImode==INTRA16x16 ||tmpImode==INTRA4x4 )
       {
@@ -793,6 +819,9 @@ void ProcessSlice
           predict_intra16x16_luma_NonField(predL,PIC[img->mem_idx].Sluma,Intra16x16PredMode,(mbaddrx>0)*2+(mbaddry>0),mbaddrx*16,mbaddry*16);
         }
 
+       #ifdef INT_TIME
+	gettimeofday(&h_pLuma_start, NULL);
+       #endif
         ON_HLS(LOOP_LUMA_SUBBLOCK:)for(k=0;k<16;k++)
         {
           x=KTOX(k);
@@ -826,6 +855,11 @@ void ProcessSlice
            mvd1[x][y],
            intra4x4predmode[k]);
         }
+       #ifdef INT_TIME
+	gettimeofday(&h_pLuma_stop, NULL);
+	h_pLuma_sec  += h_pLuma_stop.tv_sec  - h_pLuma_start.tv_sec;
+	h_pLuma_usec += h_pLuma_stop.tv_usec - h_pLuma_start.tv_usec;
+       #endif
         if(CodedPatternChroma&0x3)
         {
           residual_block_cavlc_4(coeffDCC_0, nalu, 0,3);
@@ -841,6 +875,9 @@ void ProcessSlice
         }
         //processing CR component
 
+       #ifdef INT_TIME
+	gettimeofday(&h_pChroma_start, NULL);
+       #endif
         process_chroma(
           CodedPatternChroma,
           NzChroma,
@@ -864,6 +901,11 @@ void ProcessSlice
           predC_0,
           predC_1,
           PIC);
+       #ifdef INT_TIME
+	gettimeofday(&h_pChroma_stop, NULL);
+	h_pChroma_sec  += h_pChroma_stop.tv_sec  - h_pChroma_start.tv_sec;
+	h_pChroma_usec += h_pChroma_stop.tv_usec - h_pChroma_start.tv_usec;
+       #endif
       }
     }
 }

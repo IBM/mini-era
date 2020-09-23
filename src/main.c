@@ -43,6 +43,40 @@ extern uint64_t dodec_usec;
 extern uint64_t depunc_sec;
 extern uint64_t depunc_usec;
 
+// This is the H.264 Timing
+extern uint64_t h_decode_sec;
+extern uint64_t h_decode_usec;
+
+extern uint64_t h_decmain_sec;
+extern uint64_t h_decmain_usec;
+
+extern uint64_t h_dcase7_sec;
+extern uint64_t h_dcase7_usec;
+
+extern uint64_t h_dcase8_sec;
+extern uint64_t h_dcase8_usec;
+
+extern uint64_t h_dcase51_sec;
+extern uint64_t h_dcase51_usec;
+
+extern uint64_t h_dProcSH_sec;
+extern uint64_t h_dProcSH_usec;
+
+extern uint64_t h_dSlHdr_sec;
+extern uint64_t h_dSlHdr_usec;
+
+extern uint64_t h_dProcSl_sec;
+extern uint64_t h_dProcSl_usec;
+
+extern uint64_t h_pIMbTy_sec;
+extern uint64_t h_pIMbTy_usec;
+
+extern uint64_t h_pLuma_sec;
+extern uint64_t h_pLuma_usec;
+
+extern uint64_t h_pChroma_sec;
+extern uint64_t h_pChroma_usec;
+
 // This is the SDR Xmit Pipeline
 extern uint64_t x_pipe_sec;
 extern uint64_t x_pipe_usec;
@@ -658,6 +692,30 @@ int main(int argc, char *argv[])
   printf("  depuncture  run time    %lu usec\n", depunc);
   uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
   printf("  do-decoding run time    %lu usec\n", dodec);
+
+  printf("\n");
+  uint64_t h_decode    = (uint64_t) (h_decode_sec)  * 1000000 + (uint64_t) (h_decode_usec);
+  printf("  H.264X Pipe run time    %lu usec\n", h_decode);
+  uint64_t h_decmain    = (uint64_t) (h_decmain_sec)  * 1000000 + (uint64_t) (h_decmain_usec);
+  printf("   Dec Main      run time    %lu usec\n", h_decmain);
+  uint64_t h_dcase7    = (uint64_t) (h_dcase7_sec)  * 1000000 + (uint64_t) (h_dcase7_usec);
+  printf("   ProcessSPS       run time    %lu usec\n", h_dcase7);
+  uint64_t h_dcase8    = (uint64_t) (h_dcase8_sec)  * 1000000 + (uint64_t) (h_dcase8_usec);
+  printf("   ProcessPPS       run time    %lu usec\n", h_dcase8);
+  uint64_t h_dcase51    = (uint64_t) (h_dcase51_sec)  * 1000000 + (uint64_t) (h_dcase51_usec);
+  printf("   ProcessMuch      run time    %lu usec\n", h_dcase51);
+  uint64_t h_dProcSH    = (uint64_t) (h_dProcSH_sec)  * 1000000 + (uint64_t) (h_dProcSH_usec);
+  printf("    ProcessSH          run time    %lu usec\n", h_dProcSH);
+  uint64_t h_dSlHdr    = (uint64_t) (h_dSlHdr_sec)  * 1000000 + (uint64_t) (h_dSlHdr_usec);
+  printf("    ProceSliceHdr      run time    %lu usec\n", h_dSlHdr);
+  uint64_t h_dProcSl    = (uint64_t) (h_dProcSl_sec)  * 1000000 + (uint64_t) (h_dProcSl_usec);
+  printf("    ProcessSlice       run time    %lu usec\n", h_dProcSl);
+  uint64_t h_pIMbTy    = (uint64_t) (h_pIMbTy_sec)  * 1000000 + (uint64_t) (h_pIMbTy_usec);
+  printf("     Proc InterMbType     run time    %lu usec\n", h_pIMbTy);
+  uint64_t h_pLuma    = (uint64_t) (h_pLuma_sec)  * 1000000 + (uint64_t) (h_pLuma_usec);
+  printf("     Process Luma         run time    %lu usec\n", h_pLuma);
+  uint64_t h_pChroma    = (uint64_t) (h_pChroma_sec)  * 1000000 + (uint64_t) (h_pChroma_usec);
+  printf("     Process Chroma       run time    %lu usec\n", h_pChroma);
 
   printf("\n");
   uint64_t x_pipe    = (uint64_t) (x_pipe_sec)  * 1000000 + (uint64_t) (x_pipe_usec);

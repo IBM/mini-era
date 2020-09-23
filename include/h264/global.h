@@ -21,10 +21,15 @@
 // This is a locally defined macro to compile-time mask HLS pragmas
 #ifdef COMPILE_WITH_HLS
  #define ON_HLS(x) x
+ #define _N_HLS_ 	0
 #else
  #define ON_HLS(x)
+ #ifdef DEBUG_MODE
+  #define _N_HLS_ 	0 // Should set to 1, but then we get run-time errors?
+ #else
+  #define _N_HLS_ 	0
+ #endif
 #endif
-
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,7 +37,6 @@
 //1. Number Macros
 
 //test output control
-#define _N_HLS_ 	0
 
 #define MAX_H264_DECODE_PASSES  7 // This is tied to our input video
 

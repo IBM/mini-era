@@ -16,6 +16,8 @@
 //============================================================================//
 
 #include <string.h>
+#include <stdint.h>
+#include <sys/time.h>
 
 #include "global.h"
 #include "nalu.h"
@@ -25,6 +27,12 @@
 #define DEBUG(x) x
 #else
 #define DEBUG(x)
+#endif
+
+#ifdef INT_TIME
+struct timeval h_decode_stop, h_decode_start;
+uint64_t h_decode_sec  = 0LL;
+uint64_t h_decode_usec = 0LL;
 #endif
 
 
@@ -115,6 +123,9 @@ void init_h264_decode(int argc, char **argv)
 
 char* do_h264_decode()
 {
+ #ifdef INT_TIME
+  gettimeofday(&h_decode_start, NULL);
+ #endif
   memset(Pic, 0, MAX_REFERENCE_PICTURES*sizeof(StorablePicture));
   memset(Pic_info, 0, MAX_REFERENCE_PICTURES*sizeof(StorablePictureInfo));
 
@@ -147,6 +158,11 @@ char* do_h264_decode()
   }
   do_h264_decode_invokes++;
   printf("Note: do_decode hit the fall-through case (probably undesired behavior)\n");
+ #ifdef INT_TIME
+  gettimeofday(&h_decode_stop, NULL);
+  h_decode_sec  += h_decode_stop.tv_sec  - h_decode_start.tv_sec;
+  h_decode_usec += h_decode_stop.tv_usec - h_decode_start.tv_usec;
+ #endif
   return frame_image1;
 }
 
