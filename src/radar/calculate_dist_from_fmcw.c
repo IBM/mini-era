@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#include "fft-1d.h"
+#include "fft.h"
 
 #include "calc_fmcw_dist.h"
 
