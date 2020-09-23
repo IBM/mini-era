@@ -18,7 +18,6 @@ TARGET = main
 SRC    = src/kernels_api.c \
          src/main.c \
          src/radar/calculate_dist_from_fmcw.c \
-         src/radar/fft.c \
          src/radar/octave.c \
          src/radar/timer.c \
 	 src/h264/cavlc.c \
@@ -46,7 +45,7 @@ SRC    = src/kernels_api.c \
 	 src/sdr/sync_short.c \
 	 src/sdr/sdr_viterbi.c \
 	 src/sdr/descrambler_function.c \
-	 src/sdr/sdr_fft.c \
+	 src/sdr/fft.c \
 	 src/read_trace.c
 
 
@@ -300,7 +299,7 @@ $(OBJDIR)/lv4/lv4.o: include/lv4/lv4.h
 $(OBJDIR)/sdr/xmit_pipe.o: include/sdr/debug.h
 $(OBJDIR)/sdr/xmit_pipe.o: include/sdr/base.h
 $(OBJDIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
-$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(OBJDIR)/sdr/xmit_pipe.o: include/sdr/fft.h
 $(OBJDIR)/sdr/xmit_pipe.o: include/sdr/crc.h
 $(OBJDIR)/sdr/crc.o: include/sdr/crc.h
 $(OBJDIR)/sdr/recv_pipe.o: include/sdr/debug.h
@@ -353,8 +352,8 @@ $(OBJDIR)/sdr/descrambler_function.o: include/sdr/debug.h
 $(OBJDIR)/sdr/descrambler_function.o: include/sdr/base.h
 $(OBJDIR)/sdr/simple_dft.o: include/sdr/debug.h
 $(OBJDIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
-$(OBJDIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
-$(OBJDIR)/sdr/sdr_fft.o: include/sdr/debug.h
+$(OBJDIR)/sdr/fft.o: include/sdr/fft.h
+$(OBJDIR)/sdr/fft.o: include/sdr/debug.h
 
 $(C_OBJDIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJDIR)/kernels_api.o: include/read_trace.h
@@ -393,7 +392,7 @@ $(C_OBJDIR)/lv4/lv4.o: include/lv4/lv4.h
 $(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/debug.h
 $(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/base.h
 $(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
-$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/fft.h
 $(C_OBJDIR)/sdr/xmit_pipe.o: include/sdr/crc.h
 $(C_OBJDIR)/sdr/crc.o: include/sdr/crc.h
 $(C_OBJDIR)/sdr/recv_pipe.o: include/sdr/debug.h
@@ -446,8 +445,8 @@ $(C_OBJDIR)/sdr/descrambler_function.o: include/sdr/debug.h
 $(C_OBJDIR)/sdr/descrambler_function.o: include/sdr/base.h
 $(C_OBJDIR)/sdr/simple_dft.o: include/sdr/debug.h
 $(C_OBJDIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
-$(C_OBJDIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
-$(C_OBJDIR)/sdr/sdr_fft.o: include/sdr/debug.h
+$(C_OBJDIR)/sdr/fft.o: include/sdr/fft.h
+$(C_OBJDIR)/sdr/fft.o: include/sdr/debug.h
 
 $(OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_V_DIR)/kernels_api.o: include/read_trace.h
@@ -486,7 +485,7 @@ $(OBJ_V_DIR)/lv4/lv4.o: include/lv4/lv4.h
 $(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
 $(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
 $(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
-$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/fft.h
 $(OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
 $(OBJ_V_DIR)/sdr/crc.o: include/sdr/crc.h
 $(OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
@@ -539,8 +538,8 @@ $(OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/debug.h
 $(OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/base.h
 $(OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/debug.h
 $(OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
-$(OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
-$(OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
+$(OBJ_V_DIR)/sdr/fft.o: include/sdr/fft.h
+$(OBJ_V_DIR)/sdr/fft.o: include/sdr/debug.h
 
 $(C_OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/read_trace.h
@@ -579,7 +578,7 @@ $(C_OBJ_V_DIR)/lv4/lv4.o: include/lv4/lv4.h
 $(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
 $(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
 $(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
-$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/fft.h
 $(C_OBJ_V_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
 $(C_OBJ_V_DIR)/sdr/crc.o: include/sdr/crc.h
 $(C_OBJ_V_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
@@ -632,8 +631,8 @@ $(C_OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/debug.h
 $(C_OBJ_V_DIR)/sdr/descrambler_function.o: include/sdr/base.h
 $(C_OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/debug.h
 $(C_OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
-$(C_OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
-$(C_OBJ_V_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
+$(C_OBJ_V_DIR)/sdr/fft.o: include/sdr/fft.h
+$(C_OBJ_V_DIR)/sdr/fft.o: include/sdr/debug.h
 
 
 $(OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
@@ -673,7 +672,7 @@ $(OBJ_G_DIR)/lv4/lv4.o: include/lv4/lv4.h
 $(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
 $(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
 $(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
-$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/fft.h
 $(OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
 $(OBJ_G_DIR)/sdr/crc.o: include/sdr/crc.h
 $(OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
@@ -726,8 +725,8 @@ $(OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/debug.h
 $(OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/base.h
 $(OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/debug.h
 $(OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
-$(OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
-$(OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
+$(OBJ_G_DIR)/sdr/fft.o: include/sdr/fft.h
+$(OBJ_G_DIR)/sdr/fft.o: include/sdr/debug.h
 
 $(C_OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/read_trace.h
@@ -766,7 +765,7 @@ $(C_OBJ_G_DIR)/lv4/lv4.o: include/lv4/lv4.h
 $(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/debug.h
 $(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/base.h
 $(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/xmit_pipe.h
-$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/sdr_fft.h
+$(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/fft.h
 $(C_OBJ_G_DIR)/sdr/xmit_pipe.o: include/sdr/crc.h
 $(C_OBJ_G_DIR)/sdr/crc.o: include/sdr/crc.h
 $(C_OBJ_G_DIR)/sdr/recv_pipe.o: include/sdr/debug.h
@@ -819,6 +818,6 @@ $(C_OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/debug.h
 $(C_OBJ_G_DIR)/sdr/descrambler_function.o: include/sdr/base.h
 $(C_OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/debug.h
 $(C_OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
-$(C_OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/sdr_fft.h
-$(C_OBJ_G_DIR)/sdr/sdr_fft.o: include/sdr/debug.h
+$(C_OBJ_G_DIR)/sdr/fft.o: include/sdr/fft.h
+$(C_OBJ_G_DIR)/sdr/fft.o: include/sdr/debug.h
 

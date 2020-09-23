@@ -81,8 +81,13 @@
   #define M_PI 3.14159265358979323846
 #endif 
 
+/* This is the original version, which does only FFT and usese a single input array
+   containing pairs of values as REALa, IMAGa, REALb, IMAGb, ... */
+int fft(float * data, unsigned int N, unsigned int logn, int sign);
 
-int sdr_fft (float * rdata, float* idata,
-	 int inverse  , int shift, unsigned int N, unsigned int logn);
+/* This is the version that supports the SDR code, and is more general.
+   This takes in two arrays, one of real values, one of imaginary values, so a number is R[x] + i*I[x]
+   This also supports inverse FFT, etc. */
+int fft_ri(float * rdata, float* idata, int inverse, int shift, unsigned int N, unsigned int logn);
 
 #endif /* _TAV_1D_FFT_ */

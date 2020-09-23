@@ -18,7 +18,7 @@
 #include "sync_long.h"
 #include "gr_equalizer.h"
 #include "ofdm.h"
-#include "sdr_fft.h"
+#include "fft.h"
 #include "recv_pipe.h"
 
 
@@ -100,7 +100,7 @@ do_rcv_fft_work(unsigned num_fft_frames, fx_pt1 fft_ar_r[FRAME_EQ_IN_MAX_SIZE], 
 	    for (unsigned j = 0; j < 64; j++) {
 	      printf("   FFT_IN %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);
 	    });
-      sdr_fft(fft_in_real, fft_in_imag, false, true, 64, 6); // not-inverse, not-shifting
+      fft_ri(fft_in_real, fft_in_imag, false, true, 64, 6); // not-inverse, not-shifting
       DEBUG(printf("  FFT Output %4u \n", i);
 	    for (unsigned j = 0; j < 64; j++) {
 	      printf("   FFT_OUT %4u %2u : %6u %12.8f %12.8f\n", i, j, 64*i+j, fft_in_real[j], fft_in_imag[j]);

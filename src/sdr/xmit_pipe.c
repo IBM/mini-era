@@ -43,7 +43,7 @@
 #include "sdr_base.h"
 #include "xmit_pipe.h"
 
-#include "sdr_fft.h"
+#include "fft.h"
 
 extern bool show_output;
 extern bool do_add_pre_pad;
@@ -1345,7 +1345,7 @@ do_xmit_fft_work(int n_inputs, float scale, float *input_real, float * input_ima
 	printf("\nCalling FFT function with inverse = %u size = %u\n", inverse, size);
       });
     // NOTE: This version over-writes the input data with output data
-    sdr_fft(fft_in_real, fft_in_imag, inverse, false, size, log_size);
+    fft_ri(fft_in_real, fft_in_imag, inverse, false, size, log_size);
     for (int i = 0; i < size; i++) {
       // Swap sign on the "odd" FFT results (re-cluster energy around zero?)
       output_real[k + i] = recluster[i&0x1]*fft_in_real[i];
