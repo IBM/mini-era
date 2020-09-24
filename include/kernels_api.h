@@ -141,33 +141,29 @@ bool_t eof_trace_reader(void);
 bool_t read_next_trace_record(vehicle_state_t vs);
 void closeout_trace_reader(void);
 
-/* Kernels initialization */
+/* Kernels interfaces */
 status_t init_cv_kernel(char* py_file, char* dict_fn);
-status_t init_rad_kernel(char* dict_fn);
-status_t init_h264_kernel(char* dict_fn);
-
-h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
-void      execute_h264_kernel(h264_dict_entry_t* hdep, char* frame_ptr);
-void      post_execute_h264_kernel();
-
 label_t run_object_classification(unsigned tr_val);
 label_t iterate_cv_kernel(vehicle_state_t vs);
 label_t execute_cv_kernel(label_t in_tr_val, char* found_frame_ptr);
 void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
+void    closeout_cv_kernel(void);
 
+status_t init_rad_kernel(char* dict_fn);
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
 distance_t execute_rad_kernel(float * inputs);
 void       post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_dist, distance_t dist);
+void       closeout_rad_kernel(void);
+
+status_t init_h264_kernel(char* dict_fn);
+h264_dict_entry_t* iterate_h264_kernel(vehicle_state_t vs);
+void execute_h264_kernel(h264_dict_entry_t* hdep, char* frame_ptr);
+void post_execute_h264_kernel();
+void closeout_h264_kernel(void);
 
 message_t iterate_vit_kernel(vehicle_state_t vs);
 
 vehicle_state_t plan_and_control(label_t, distance_t, message_t, vehicle_state_t);
-
-// These routines are used for any finalk, end-of-run operations/output
-void closeout_cv_kernel(void);
-void closeout_h264_kernel(void);
-void closeout_rad_kernel(void);
-
 
 //
 // This supports the IEEE 802.11p Transmit/Receive (Software-Defined Radio) Code
@@ -203,5 +199,18 @@ void     execute_recv_kernel(int in_msg_len, int n_in, float* in_real, float* in
 void     post_execute_recv_kernel(void);
 void     closeout_recv_kernel(void);
 #endif
+
+
+// This suppoorts the LZ4 Compression/Decompression Code
+#define MAX_LZ4_MSG_SIZE 1000000
+
+status_t init_lz4_kernel(char* dict_fn);
+void iterate_lz4_kernel(vehicle_state_t vs, int* gen_mlen, unsigned char* gen_msg);
+void execute_lz4_compress_kernel(int in_mlen, unsigned char* in_msg, int* enc_mlen, unsigned char* enc_msg);
+void execute_lz4_decompress_kernel(int in_mlen, unsigned char* in_msg, int* dec_mlen, unsigned char* dec_msg);
+void post_execute_lz4_kernel(int in_mlen, unsigned char* in_msg, int dec_mlen, unsigned char* dec_msg);
+void closeout_lz4_kernel(void);
+
+
 
 #endif

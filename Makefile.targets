@@ -261,6 +261,7 @@ allclean: clobber
 
 
 
+$(OBJDIR)/main.o: include/kernels_api.h
 $(OBJDIR)/kernels_api.o: include/kernels_api.h
 $(OBJDIR)/kernels_api.o: include/read_trace.h
 $(OBJDIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
@@ -354,6 +355,7 @@ $(OBJDIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
 $(OBJDIR)/sdr/fft.o: include/sdr/fft.h
 $(OBJDIR)/sdr/fft.o: include/sdr/debug.h
 
+$(C_OBJDIR)/main.o: include/kernels_api.h
 $(C_OBJDIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJDIR)/kernels_api.o: include/read_trace.h
 $(C_OBJDIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
@@ -447,6 +449,7 @@ $(C_OBJDIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
 $(C_OBJDIR)/sdr/fft.o: include/sdr/fft.h
 $(C_OBJDIR)/sdr/fft.o: include/sdr/debug.h
 
+$(OBJ_V_DIR)/main.o: include/kernels_api.h
 $(OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_V_DIR)/kernels_api.o: include/read_trace.h
 $(OBJ_V_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
@@ -540,6 +543,7 @@ $(OBJ_V_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
 $(OBJ_V_DIR)/sdr/fft.o: include/sdr/fft.h
 $(OBJ_V_DIR)/sdr/fft.o: include/sdr/debug.h
 
+$(C_OBJ_V_DIR)/main.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/read_trace.h
 $(C_OBJ_V_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
@@ -634,6 +638,7 @@ $(C_OBJ_V_DIR)/sdr/fft.o: include/sdr/fft.h
 $(C_OBJ_V_DIR)/sdr/fft.o: include/sdr/debug.h
 
 
+$(OBJ_G_DIR)/main.o: include/kernels_api.h
 $(OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(OBJ_G_DIR)/kernels_api.o: include/read_trace.h
 $(OBJ_G_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h
@@ -727,6 +732,7 @@ $(OBJ_G_DIR)/sdr/simple_dft.o: include/sdr/simple_dft.h
 $(OBJ_G_DIR)/sdr/fft.o: include/sdr/fft.h
 $(OBJ_G_DIR)/sdr/fft.o: include/sdr/debug.h
 
+$(C_OBJ_G_DIR)/main.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/kernels_api.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/read_trace.h
 $(C_OBJ_G_DIR)/kernels_api.o: include/radar/calc_fmcw_dist.h

@@ -145,6 +145,16 @@ extern uint64_t r_decsignl_usec;
 extern uint64_t r_descrmbl_sec;
 extern uint64_t r_descrmbl_usec;
 
+// This is the LZ4 timing data
+extern uint64_t l_iterate_sec;
+extern uint64_t l_iterate_usec;
+
+extern uint64_t l_compr_sec;
+extern uint64_t l_compr_usec;
+
+extern uint64_t l_decmp_sec;
+extern uint64_t l_decmp_usec;
+
 #endif
 
 char h264_dict[256]; 
@@ -567,6 +577,20 @@ int main(int argc, char *argv[])
     exec_rad_usec += stop_exec_rad.tv_usec - start_exec_rad.tv_usec;
    #endif
     
+    int  lz4_in_mlen = 0;
+    unsigned char lz4_in_msg[MAX_LZ4_MSG_SIZE+1];
+    iterate_lz4_kernel(vehicle_state, &lz4_in_mlen, lz4_in_msg);
+    // The execute_lz4_compress_kernel will compress the input message into the enc_msg
+    int  lz4_enc_mlen = 0;
+    unsigned char lz4_enc_msg[MAX_LZ4_MSG_SIZE+1];
+    execute_lz4_compress_kernel(lz4_in_mlen, lz4_in_msg, &lz4_enc_mlen, lz4_enc_msg);
+    // The execute_lz4_decompress_kernel will decompress the input message into the dec_msg
+    int  lz4_dec_mlen = 0;
+    unsigned char lz4_dec_msg[MAX_LZ4_MSG_SIZE+1];
+    execute_lz4_decompress_kernel(lz4_enc_mlen, lz4_enc_msg, &lz4_dec_mlen, lz4_dec_msg);
+    // The post_execute_lz4_kernel compares the original to the final decompressed message
+    post_execute_lz4_kernel(lz4_in_mlen, lz4_in_msg, lz4_dec_mlen, lz4_dec_msg);
+
     /* The xmit kernel does a transmission pass */
     int xmit_num_out;
     float xmit_out_real[MAX_XMIT_OUTPUTS];
@@ -652,6 +676,8 @@ int main(int argc, char *argv[])
   }
   closeout_cv_kernel();
   closeout_rad_kernel();
+
+  closeout_lz4_kernel();
 
   closeout_xmit_kernel();
   closeout_recv_kernel();
@@ -766,6 +792,13 @@ int main(int argc, char *argv[])
   uint64_t r_descrmbl    = (uint64_t) (r_descrmbl_sec)  * 1000000 + (uint64_t) (r_descrmbl_usec);
   printf("   Descramble    run time    %lu usec\n", r_descrmbl);
 
+  printf("\n");
+  uint64_t l_iterate    = (uint64_t) (l_iterate_sec)  * 1000000 + (uint64_t) (l_iterate_usec);
+  printf("  LZ4 Iterate    run time    %lu usec\n", l_iterate);
+  uint64_t l_compr    = (uint64_t) (l_compr_sec)  * 1000000 + (uint64_t) (l_compr_usec);
+  printf("  LZ4 Compress   run time    %lu usec\n", l_compr);
+  uint64_t l_decmp    = (uint64_t) (l_decmp_sec)  * 1000000 + (uint64_t) (l_decmp_usec);
+  printf("  LZ4 Decompress run time    %lu usec\n", l_decmp);
 #endif // INT_TIME
 
   printf("\nDone.\n");

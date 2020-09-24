@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
+#include <sys/time.h>
 
 #include "kernels_api.h"
 
@@ -117,7 +119,29 @@ extern void  do_closeout_h264_decode();
 int do_h264_argc = 3;
 char * do_h264_argv[3] = {"do_h264_decode", "data/test.264", "data/test_dec.yuv"};
 
+// This is the support variables, declarations, etc. for LZ4 code
+unsigned lz4_msg_compares = 0;
+unsigned lz4_mlen_miscompare = 0;
+unsigned lz4_mtext_miscompare = 0;
 
+#define LZ4_MLEN_HIST_BUCKETS  25
+#define LZ4_MLEN_HIST_SCALE    (MAX_LZ4_MSG_SIZE/LZ4_MLEN_HIST_BUCKETS)
+unsigned lz4_len_histogram[LZ4_MLEN_HIST_BUCKETS];
+
+#ifdef INT_TIME
+struct timeval l_compr_stop, l_compr_start;
+uint64_t l_compr_sec  = 0LL;
+uint64_t l_compr_usec = 0LL;
+
+struct timeval l_decmp_stop, l_decmp_start;
+uint64_t l_decmp_sec  = 0LL;
+uint64_t l_decmp_usec = 0LL;
+
+struct timeval l_iterate_stop, l_iterate_start;
+uint64_t l_iterate_sec  = 0LL;
+uint64_t l_iterate_usec = 0LL;
+
+#endif
 
 status_t init_rad_kernel(char* dict_fn)
 {
@@ -957,6 +981,106 @@ void closeout_recv_kernel()
   /* } */
 
   return;
+}
+
+
+// This code supports the execution of the LZ4 Compression code
+#include "lz4.h"
+
+// This does any required initialization by the underlying code, etc.
+//  Would also read in the dictionary, etc. (if there is one)
+status_t init_lz4_kernel(char* dict_fn)
+{
+  return success;
+}
+
+// This routine will select/create an input mesage to be encoded (and then decoded)
+//  The vehicle state is sent in (in case that is useful in the processing)
+//  The "gen_mlen" is the bytes of the generated
+//  The gen_msg is the generated message (bytes)
+void iterate_lz4_kernel(vehicle_state_t vs, int* gen_mlen, unsigned char* gen_msg)
+{
+ #ifdef INT_TIME
+  gettimeofday(&l_iterate_start, NULL);
+ #endif // INT_TIME
+  // Here, we will set up a random message of up to 100000 bytes
+  int num = (rand() % (MAX_LZ4_MSG_SIZE)) + 1; // Return a value from [1,MAX_LZ4_MSG_SIZE]
+  *gen_mlen = num;
+  int idx = (rand() % (256)); // Return a value from [0,255] (byte values)
+  for (int i = 0; i < num; i++) {
+    gen_msg[i] = idx;
+    idx = (idx ^ i)&0xFF;
+    //printf("GEN_MSG : %7u : %02x\n", i, gen_msg[i]);
+  }
+  for (int i = num; i < MAX_LZ4_MSG_SIZE; i++) {
+    gen_msg[i] = 0x0;
+  }
+  int hidx = num / LZ4_MLEN_HIST_SCALE;
+  //printf("LZ4_MLEN : %7u : %2u  (%u)\n", num, hidx, LZ4_MLEN_HIST_SCALE);
+  lz4_len_histogram[hidx]++;
+ #ifdef INT_TIME
+  gettimeofday(&l_iterate_stop, NULL);
+  l_iterate_sec  += l_iterate_stop.tv_sec  - l_iterate_start.tv_sec;
+  l_iterate_usec += l_iterate_stop.tv_usec - l_iterate_start.tv_usec;
+ #endif
+}
+
+
+void execute_lz4_compress_kernel(int in_mlen, unsigned char* in_msg, int* enc_mlen, unsigned char* enc_msg)
+{
+ #ifdef INT_TIME
+  gettimeofday(&l_compr_start, NULL);
+ #endif // INT_TIME
+  int r_bytes = LZ4_compress_default((char*)in_msg, (char*)enc_msg, in_mlen, MAX_LZ4_MSG_SIZE+1);
+  *enc_mlen = r_bytes;
+ #ifdef INT_TIME
+  gettimeofday(&l_compr_stop, NULL);
+  l_compr_sec  += l_compr_stop.tv_sec  - l_compr_start.tv_sec;
+  l_compr_usec += l_compr_stop.tv_usec - l_compr_start.tv_usec;
+ #endif
+}
+
+void execute_lz4_decompress_kernel(int in_mlen, unsigned char* in_msg, int* dec_mlen, unsigned char* dec_msg)
+{
+ #ifdef INT_TIME
+  gettimeofday(&l_decmp_start, NULL);
+ #endif // INT_TIME
+  int r_bytes = LZ4_decompress_safe((char*)in_msg, (char*)dec_msg, in_mlen, MAX_LZ4_MSG_SIZE);
+  *dec_mlen = r_bytes;
+ #ifdef INT_TIME
+  gettimeofday(&l_decmp_stop, NULL);
+  l_decmp_sec  += l_decmp_stop.tv_sec  - l_decmp_start.tv_sec;
+  l_decmp_usec += l_decmp_stop.tv_usec - l_decmp_start.tv_usec;
+ #endif
+}
+
+void post_execute_lz4_kernel(int in_mlen, unsigned char* in_msg, int dec_mlen, unsigned char* dec_msg)
+{
+  lz4_msg_compares++;
+  if (in_mlen != dec_mlen) {
+    printf("LZ4 ERROR : length mis-match IN %u DEC %u\n", in_mlen, dec_mlen);
+    lz4_mlen_miscompare++;
+    return;
+  }
+  for (int i = 0; i < in_mlen; i++) {
+    if (in_msg[i] != dec_msg[i]) {
+      printf("LZ4 ERROR : content mis-match at %u : IN %02x DEC %02x\n", i, in_msg[i], dec_msg[i]);
+      lz4_mtext_miscompare++;
+    }
+  }
+}
+
+void closeout_lz4_kernel()
+{
+  int total_miscmp = lz4_mlen_miscompare + lz4_mtext_miscompare;
+  printf("\nLZ4 Analysis: %u miscompares across %u LZ4 comp/decomp passes\n", total_miscmp, lz4_msg_compares);
+  printf("            : %u mlen and %u mtext\n", lz4_mlen_miscompare, lz4_mtext_miscompare);
+  printf("  Histogram of Input Message Lengths (into %u buckets of size %u)\n", LZ4_MLEN_HIST_BUCKETS, LZ4_MLEN_HIST_SCALE);
+  printf("     %19s : %s\n", "Bucket Size Range", "Occurences");
+  for (int i = 0; i < LZ4_MLEN_HIST_BUCKETS; i++) {
+    printf("%7u to %7u : %u\n", i*LZ4_MLEN_HIST_SCALE, (i+1)*LZ4_MLEN_HIST_SCALE-1, lz4_len_histogram[i]);
+  }
+
 }
 
 #endif
