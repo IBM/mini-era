@@ -722,7 +722,7 @@ void init_d_scramble_mask(uint32_t mask, uint32_t seed, uint32_t reg_len)
 
 /* FROM dsrc/gr-ieee802-11/lib/signal_field.cc */
 
-int get_bit(int b, int i) {  // Is this really an efficient way to do this?
+inline int get_bit(int b, int i) {  // Is this really an efficient way to do this?
   return (b & (1 << i) ? 1 : 0); // This is one shift, one and, one compare, and a branch.
   //return ((b >> i) & 0x1); // Isn't this a better way?  One shift, one and
 }
@@ -770,6 +770,14 @@ void generate_signal_field(char *out) { // , frame_param &frame, ofdm_param &ofd
     }
   }
   signal_header[17] = sum % 2;
+
+  DEBUG(unsigned hdr_psdu = 0x0;
+	printf("ENC LENGTH PSDU      ");
+	for (int i = 16; i >= 5; i--) {
+	  printf("%01x", signal_header[i]);
+	  hdr_psdu = (hdr_psdu << 1) | signal_header[i];
+	}
+	printf("  = %03x vs 0x%03x = %u vs %u\n", hdr_psdu, length, hdr_psdu, length));
 
   // last 6 bits must be set to 0
   for (int i = 0; i < 6; i++) {
