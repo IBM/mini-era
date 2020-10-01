@@ -195,7 +195,7 @@ void     closeout_xmit_kernel(void);
 #include "recv_pipe.h"
 status_t init_recv_kernel(void);
 void     iterate_recv_kernel(void);
-void     execute_recv_kernel(int in_msg_len, int n_in, float* in_real, float* in_imag, int* out_msg_len, char* out_msg);
+void     execute_recv_kernel(int n_in, float* in_real, float* in_imag, int* out_msg_len, char* out_msg);
 void     post_execute_recv_kernel(void);
 void     closeout_recv_kernel(void);
 #endif

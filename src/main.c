@@ -618,7 +618,7 @@ int main(int argc, char *argv[])
    #ifdef TIME
     gettimeofday(&start_exec_recv, NULL);
    #endif
-    execute_recv_kernel(xmit_msg_len, xmit_num_out, xmit_out_real, xmit_out_imag, &recv_msg_len, recv_msg);    
+    execute_recv_kernel(xmit_num_out, xmit_out_real, xmit_out_imag, &recv_msg_len, recv_msg);    
    #ifdef TIME
     gettimeofday(&stop_exec_recv, NULL);
     exec_recv_sec  += stop_exec_recv.tv_sec  - start_exec_recv.tv_sec;
