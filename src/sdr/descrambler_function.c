@@ -27,7 +27,7 @@ typedef unsigned char   uint8_t;
 
 void sdr_descrambler(uint8_t* in, int psdusize, char* out_msg) //definition
 {
-  uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
+  //uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
   uint32_t msg_length = (psdusize)-28;
   uint8_t out[MAX_PSDU_SIZE + 2]; // output_length];
   int state = 0; //start
@@ -39,7 +39,7 @@ void sdr_descrambler(uint8_t* in, int psdusize, char* out_msg) //definition
     }
   }
   //init o/p array to zeros
-  for (uint32_t i = 0; i < output_length; i++ ) {
+  for (uint32_t i = 0; i < MAX_PSDU_SIZE+2 /*output_length*/; i++ ) {
     out[i] = 0;
   }
 
@@ -48,7 +48,7 @@ void sdr_descrambler(uint8_t* in, int psdusize, char* out_msg) //definition
   int bit;
   int index = 0;
   int mod = 0;
-  for(int i = 7; i < (psdusize*8)+16; i++) { // 2 bytes more than psdu_size -> convert to bits
+  for(int i = 7; i < (psdusize*8)+16; i++) { // 2 bytes more than psdu_size -> converted to bits
     feedback = ((!!(state & 64))) ^ (!!(state & 8));
     bit = feedback ^ (*(in+i) & 0x1);
     index = i/8;
