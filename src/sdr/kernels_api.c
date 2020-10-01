@@ -119,7 +119,7 @@ void iterate_recv_kernel()
 void execute_recv_kernel(int in_msg_len, int n_in, float* in_real, float* in_imag, int* out_msg_len, char* out_msg)
 {
   DEBUG(printf("In execute_recv_kernel\n"));
-  do_recv_pipeline(in_msg_len, n_in, in_real, in_imag, out_msg_len, out_msg);
+  do_recv_pipeline(n_in, in_real, in_imag, out_msg_len, out_msg);
   return;
 }
 
