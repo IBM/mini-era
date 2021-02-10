@@ -1,4 +1,4 @@
-include ./.config
+include .config
 
 CPU ?= ariane
 ARCH ?= riscv
@@ -7,8 +7,9 @@ CROSS_COMPILE ?= riscv64-unknown-linux-gnu-
 endif
 
 ifdef COMPILE_TO_ESP
-ESP_ROOT ?= ../../esp
-ESP_DRIVERS ?= $(ESP_ROOT)/soft/$(CPU)/drivers
+ESP_ROOT ?= $(realpath ../../esp)
+ESP_DRIVERS ?= $(ESP_ROOT)/soft/common/drivers
+ESP_DRV_LINUX  = $(ESP_DRIVERS)/linux
 endif
 
 CC = gcc -std=c99
@@ -17,10 +18,11 @@ CC = gcc -std=c99
 INCDIR ?=
 INCDIR += -I./include
 ifdef COMPILE_TO_ESP
-INCDIR += -I$(ESP_DRIVERS)/include
+INCDIR += -I$(ESP_DRIVERS)/common/include
+INCDIR += -I$(ESP_DRIVERS)/linux/include
 endif
 
-CFLAGS ?= -O2
+CFLAGS ?= -O3
 CFLAGS += $(INCDIR)
 CFLAGS += -DINT_TIME
 ifdef COMPILE_TO_ESP
@@ -29,9 +31,12 @@ endif
 #  -- ALWAYS use this one! --   ifdef CONFIG_ESP_INTERFACE
 CFLAGS += -DUSE_ESP_INTERFACE
 #   endif
+
+CONFIG_WHICH_FFT_TYPE ?= 1
 ifdef CONFIG_FFT_EN
-CFLAGS += -DHW_FFT
+CFLAGS += -DHW_FFT -DUSE_FFT_ACCEL_TYPE=$(CONFIG_WHICH_FFT_TYPE)
 endif
+
 CFLAGS += -DUSE_FFT_FX=$(CONFIG_FFT_FX)
 ifdef CONFIG_FFT_BITREV
 CFLAGS += -DHW_FFT_BITREV
@@ -48,9 +53,9 @@ endif
 
 LDLIBS ?=
 ifdef COMPILE_TO_ESP
-LDLIBS += -L$(ESP_DRIVERS)/contig_alloc
-LDLIBS += -L$(ESP_DRIVERS)/test
-LDLIBS += -L$(ESP_DRIVERS)/libesp
+LDLIBS += -L$(ESP_BUILD_DRIVERS)/contig_alloc
+LDLIBS += -L$(ESP_BUILD_DRIVERS)/test
+LDLIBS += -L$(ESP_BUILD_DRIVERS)/libesp
 endif
 
 LDFLAGS ?=
@@ -63,18 +68,95 @@ LDFLAGS += -ltest
 LDFLAGS += -lcontig
 endif
 
-SRC_T = $(foreach f, $(wildcard src/*.c), $(shell basename $(f)))
-SRC_D = $(wildcard src/*.c)
-HDR_T = $(wildcard include/*.h)
-OBJ_T = $(SRC_T:%.c=obj_t/%.o)
-OBJ_S = $(SRC_T:%.c=obj_s/%.o)
+SRC = 	src/calculate_dist_from_fmcw.c \
+	src/cavlc.c \
+	src/decode.c \
+	src/descrambler_function.c \
+	src/do_h264_decode.c \
+	src/fft.c \
+	src/framealloc.c \
+	src/getopt.c \
+	src/interpred.c \
+	src/intrapred.c \
+	src/kernels_api.c \
+	src/main.c \
+	src/mathfunc.c \
+	src/nalu.c \
+	src/octave.c \
+	src/parset.c \
+	src/read_trace.c \
+	src/residual.c \
+	src/sim_environs.c \
+	src/slice.c \
+	src/timer.c \
+	src/viterbi_flat.c \
+	src/viterbi_parms.c \
+	src/vlc.c
+
+SRC_T = $(SRC) src/read_trace.c
+SRC_S = $(SRC) src/sim_environs.c
+
+HDR = $(wildcard include/*.h)
+OBJ_T = $(SRC_T:src/%.c=obj_t/%.o)
+OBJ_S = $(SRC_S:src/%.c=obj_s/%.o)
 
 VPATH = ./src
 
-TARGET=mini-era.exe
-STARGET=mini-era-sim.exe
+TARGET_BASE = mini-era
+ifdef CONFIG_FFT_EN
+ ifdef CONFIG_VITERBI_EN
+  TARGET_T +=$(TARGET_BASE)_fft$(CONFIG_WHICH_FFT_TYPE)_vit
+ else
+  TARGET_T +=$(TARGET_BASE)_fft$(CONFIG_WHICH_FFT_TYPE)
+ endif
+else
+ ifdef CONFIG_VITERBI_EN
+  TARGET_T =$(TARGET_BASE)_vit
+ else
+  TARGET_T = $(TARGET_BASE)
+ endif
+endif
+TARGET_S = sim-$(TARGET_T)
 
-all: obj_t obj_s $(TARGET) $(STARGET)
+ALL_OBJ_DIR=obj_t obj_s
+
+all: esp-libs $(ALL_OBJ_DIR) $(TARGET_T) $(TARGET_S)
+
+ifdef COMPILE_TO_ESP
+ESP_BUILD_DRIVERS     = esp-build/drivers
+
+esp-build:
+	@mkdir -p $(ESP_BUILD_DRIVERS)/contig_alloc
+	@mkdir -p $(ESP_BUILD_DRIVERS)/esp
+	@mkdir -p $(ESP_BUILD_DRIVERS)/esp_cache
+	@mkdir -p $(ESP_BUILD_DRIVERS)/libesp
+	@mkdir -p $(ESP_BUILD_DRIVERS)/probe
+	@mkdir -p $(ESP_BUILD_DRIVERS)/test
+	@mkdir -p $(ESP_BUILD_DRIVERS)/utils/baremetal
+	@mkdir -p $(ESP_BUILD_DRIVERS)/utils/linux
+	@ln -sf $(ESP_DRV_LINUX)/contig_alloc/* $(ESP_BUILD_DRIVERS)/contig_alloc
+	@ln -sf $(ESP_DRV_LINUX)/esp/* $(ESP_BUILD_DRIVERS)/esp
+	@ln -sf $(ESP_DRV_LINUX)/esp_cache/* $(ESP_BUILD_DRIVERS)/esp_cache
+	@ln -sf $(ESP_DRV_LINUX)/driver.mk $(ESP_BUILD_DRIVERS)
+	@ln -sf $(ESP_DRV_LINUX)/include $(ESP_BUILD_DRIVERS)
+	@ln -sf $(ESP_DRV_LINUX)/../common $(ESP_BUILD_DRIVERS)/../common
+
+esp-build-clean:
+
+esp-build-distclean: esp-build-clean
+	$(QUIET_CLEAN)$(RM) -rf esp-build
+
+esp-libs: esp-build
+	  CROSS_COMPILE=$(CROSS_COMPILE) DRIVERS=$(ESP_DRV_LINUX) $(MAKE) -C $(ESP_BUILD_DRIVERS)/contig_alloc/ libcontig.a
+	  cd $(ESP_BUILD_DRIVERS)/test; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/test
+	  cd $(ESP_BUILD_DRIVERS)/libesp; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/libesp
+	  cd $(ESP_BUILD_DRIVERS)/utils; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/utils
+else
+esp-libs:
+
+endif
+.PHONY: esp-build-clean esp-build-distclean esp-libs
+
 
 obj_t/%.o: %.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@
@@ -82,30 +164,25 @@ obj_t/%.o: %.c
 obj_s/%.o: %.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -DUSE_SIM_ENVIRON -c $< -o $@
 
-$(OBJ_T): $(HDR_T)
+$(TARGET_T): obj_t $(TARGET_T).exe
+	echo "Done building $@"
 
-$(TARGET): $(OBJ_T)
-ifdef COMPILE_TO_ESP
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/contig_alloc/ libcontig.a
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/test
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/libesp
-endif
+$(TARGET_S): obj_s $(TARGET_S).exe
+	echo "Done building $@"
+
+
+$(TARGET_T).exe: $(OBJ_T)
 	$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 
-$(STARGET): $(OBJ_S)
-ifdef COMPILE_TO_ESP
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/contig_alloc/ libcontig.a
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/test
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/libesp
-endif
+$(TARGET_S).exe: $(OBJ_S)
 	$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 
 clean:
-	$(RM) $(OBJ_T) $(OBJ_S) $(TARGET) $(STARGET)
-	$(RM) -r obj_t obj_s
-	$(RM) testresult.yuv
+	$(RM) $(OBJ_T) $(OBJ_S)
 
 clobber: clean
+	$(RM) $(TARGET_T).exe $(TARGET_S).exe
+	$(RM) -r obj_t obj_s
 
 
 obj_t:
@@ -113,6 +190,7 @@ obj_t:
 
 obj_s:
 	mkdir $@
+
 
 .PHONY: all clean
 
