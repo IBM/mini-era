@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#include "verbose.h"
 #include "fft-1d.h"
 
 #include "calc_fmcw_dist.h"
@@ -164,9 +165,9 @@ float calculate_peak_dist_from_fmcw(float* data)
   for (int j = 0; j < 2 * RADAR_N; j++) {
     //fftHW_lmem[j] = float2fx((fftHW_native_t) data[j], FX_IL);
     fftHW_lmem[j] = float2fx(data[j], FX_IL);
-    if (j < 64) { 
+    SDEBUG(if (j < 64) { 
 	    printf("FFT_IN_DATA %u : %f\n", j, data[j]);
-    }
+      });
   }
  #ifdef INT_TIME
   gettimeofday(&fft_cvtin_stop, NULL);
@@ -186,9 +187,9 @@ float calculate_peak_dist_from_fmcw(float* data)
   for (int j = 0; j < 2 * RADAR_N; j++) {
     data[j] = (float)fx2float(fftHW_lmem[j], FX_IL);
     //printf("%u,0x%08x,%f\n", j, fftHW_lmem[j], data[j]);
-    if (j < 64) { 
+    SDEBUG(if (j < 64) { 
 	    printf("FFT_OUT_DATA %u : %f\n", j, data[j]);
-    }
+      });
   }
  #ifdef INT_TIME
   gettimeofday(&fft_cvtout_stop, NULL);
@@ -199,13 +200,13 @@ float calculate_peak_dist_from_fmcw(float* data)
  #ifdef INT_TIME
   gettimeofday(&fft_start, NULL);
  #endif // INT_TIME
-  for (int tj = 0; tj < 64; tj++) {
+  SDEBUG(for (int tj = 0; tj < 64; tj++) {
 	  printf("FFT_IN_DATA %u : %f\n", tj, data[tj]);
-  }
+    });
   fft(data, RADAR_N, RADAR_LOGN, -1);
-  for (int tj = 0; tj < 64; tj++) {
+  SDEBUG(for (int tj = 0; tj < 64; tj++) {
 	  printf("FFT_OUT_DATA %u : %f\n", tj, data[tj]);
-  }
+    });
   /* for (int j = 0; j < 2 * RADAR_N; j++) { */
   /*   printf("%u,%f\n", j, data[j]); */
   /* } */

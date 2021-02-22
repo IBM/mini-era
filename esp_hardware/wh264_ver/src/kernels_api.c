@@ -684,6 +684,12 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
   }
   DEBUG(printf("CV Kernel Init done\n"));
 #endif  
+
+#ifdef ENABLE_NVDLA
+  // Initialize NVDLA 
+  initNVDLA();
+#endif
+
   return success;
 }
 
@@ -790,17 +796,41 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 }
 
 
+static inline label_t parse_output_dimg() {
+  FILE *file_p = fopen("./output.dimg", "r");
+	const size_t n_classes = 5;
+  float probs[n_classes];
+  for (size_t i = 0; i< n_classes; i++)
+    fscanf(file_p, "%f", &probs[i]);
+  float max_val = 0.0f;
+  size_t max_idx = -1;
+  for (size_t i = 0; i < n_classes; i++)
+    if (probs[i] > max_val)
+      max_val = probs[i], max_idx = i;
+  return max_idx;
+}
+
 label_t execute_cv_kernel(label_t in_tr_val, char* found_frame_ptr)
 {
+  label_t object_label = in_tr_val;
   DEBUG(printf("In execute_cv_kernel with in_tr_val %u and frame_ptr %p\n", in_tr_val, found_frame_ptr));
   /* 2) Conduct object detection on the image frame */
   DEBUG(printf("  Calling run_object_detection with in_tr_val tr_val %u %s\n", in_tr_val, object_names[in_tr_val]));
   // Call Keras Code
-  label_t object = run_object_classification((unsigned)in_tr_val); 
-  //label_t object = the_cv_object_dict[tr_val].object;
-
-  DEBUG(printf("  Returning object %u %s : tr_val %u %s\n", object, object_names[object], in_tr_val, object_names[in_tr_val]));
-  return object;
+#ifdef ENABLE_NVDLA	
+//	printf("   NVDLA: ");
+    runImageonNVDLAWrapper("0003_0.jpg");//"class_busimage_5489.jpg");
+  //system("echo -n \"  > NVDLA: \"; ./nvdla_runtime --loadable hpvm-mod.nvdla --image 2004_2.jpg --rawdump | grep execution");        
+//	printf("\n");
+  label_t pred_label = parse_output_dimg();
+  
+#endif
+  /*
+  label_t object_label = run_object_classification((unsigned)in_tr_val); 
+  //label_t object_label = the_cv_object_dict[tr_val].object;
+  */
+  DEBUG(printf("  Returning object_label %u %s : tr_val %u %s\n", object, object_names[object], in_tr_val, object_names[in_tr_val]));
+  return object_label;
 }
 
 void post_execute_cv_kernel(label_t tr_val, label_t cv_object)
