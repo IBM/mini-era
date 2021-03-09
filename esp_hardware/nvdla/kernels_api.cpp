@@ -50,7 +50,7 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 
 // NC add
 #include "nvdla.h"
-
+#include "miniera_nvdla.h"
 
 #ifdef USE_SIM_ENVIRON
  #include "sim_environs.h"

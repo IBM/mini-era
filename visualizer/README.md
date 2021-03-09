@@ -53,8 +53,7 @@ The input trace format is very similar to the mini-era format, but also incudes 
   L,X:y,X:y,X:y
 ```
 Here, the L is the lane indicator, and each X is an object type (N = none, C = car, T = truck, B = bike) and y is a distance (in the range [0, 550]).
-Each lane X:y is separated from the next by a comma character, so the first X:y is the left lane, the second X:y is the center lane, and the third is the right lane. A simple example:
-
+Each lane X:y is sepatated from the next by a comma character, so the first X:y is the Left lane, the second X:y is the center lane, and the third is the Right lane. A simple example:
 ```
   2,C:350,N:550,T:150
 ```

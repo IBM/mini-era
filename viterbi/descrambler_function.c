@@ -20,11 +20,11 @@
 
 #include "base.h"
 #include "utils.h"
-#include "viterbi_parms.h"
+#include "viterbi_standalone.h"
 
 typedef unsigned char   uint8_t;
 
-void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg) //definition
+char* descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg) //definition
 {
 	uint32_t output_length = (psdusize)+2; //output is 2 more bytes than psdu_size
 	uint32_t msg_length = (psdusize)-28;
@@ -56,12 +56,12 @@ void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t
 		bit = feedback ^ (*(in+i) & 0x1);
 		index = i/8;
 		mod =  i%8;
-		int comp1, comp2, val; //, comp3;
+		int comp1, comp2, val, comp3;
 		comp1 = (bit << mod);
 		val = out[index];
 		comp2 = val | comp1;
 		out[index] =  comp2;
-		//comp3 = out[index];
+		comp3 = out[index];
 		state = ((state << 1) & 0x7e) | feedback;
 	}
 

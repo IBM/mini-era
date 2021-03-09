@@ -30,15 +30,17 @@ MODULE_CC := $(TOOLCHAIN_PREFIX)gcc
 MODULE_CPP := $(TOOLCHAIN_PREFIX)g++
 MODULE_LD := $(TOOLCHAIN_PREFIX)ld
 
-NVDLA_SRC_FILES := \
-    DlaImage.cpp \
-    DlaImageUtils.cpp \
-    Server.cpp \
-    RuntimeTest.cpp \
-    TestUtils.cpp \
-    nvdla_main.cpp
+FILE_DIR=esp_hardware/nvdla
 
-MINI_ERA_SRC_FILES := \
+NVDLA_SRC_FILES := \
+    $(FILE_DIR)/DlaImage.cpp \
+    $(FILE_DIR)/DlaImageUtils.cpp \
+    $(FILE_DIR)/Server.cpp \
+    $(FILE_DIR)/RuntimeTest.cpp \
+    $(FILE_DIR)/TestUtils.cpp \
+    $(FILE_DIR)/nvdla_main.cpp
+
+#MINI_ERA_SRC_FILES := \
     calculate_dist_from_fmcw.cpp \
     descrambler_function.cpp \
     fft.cpp \
@@ -68,7 +70,7 @@ MODULE_CFLAGS := -DNVDLA_UTILS_ERROR_TAG="\"DLA_TEST\""
 SHARED_LIBS := \
     $(ROOT)/out/core/src/runtime/libnvdla_runtime/libnvdla_runtime.so
 
-MODULE_SRCS := $(NVDLA_SRC_FILES) $(MINI_ERA_SRC_FILES)
-#MODULE_SRCS := $(NVDLA_SRC_FILES)
+#MODULE_SRCS := $(NVDLA_SRC_FILES) $(MINI_ERA_SRC_FILES)
+MODULE_SRCS := $(NVDLA_SRC_FILES)
 
 include $(ROOT)/make/module.mk

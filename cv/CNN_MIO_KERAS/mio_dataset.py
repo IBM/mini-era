@@ -18,9 +18,9 @@ NUM_TEST_IMAGES_IN_CLASS = 1000
 NUM_TEST_IMAGES=NUM_TEST_IMAGES_IN_CLASS*NUM_CLASSES
 
 np_features = np.zeros((NUM_TRAINING_IMAGES, NUM_CHANNELS, IMG_HEIGHT, IMG_WIDTH), np.float32)
-np_labels = np.zeros((NUM_TRAINING_IMAGES,1),np.uint64)
+np_labels = np.zeros((NUM_TRAINING_IMAGES,1),np.uint32)
 np_test_features = np.zeros((NUM_TEST_IMAGES, NUM_CHANNELS, IMG_HEIGHT, IMG_WIDTH), np.float32)
-np_test_labels = np.zeros((NUM_TEST_IMAGES,1),np.uint64)
+np_test_labels = np.zeros((NUM_TEST_IMAGES,1),np.uint32)
 
 cid=0
 ind=0

@@ -273,8 +273,8 @@ def main(argv):
 
 
     # MAIN LOOP
-    my_inactive = False
     while not done:
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 # Catch event when window is closed, exit while loop
@@ -299,12 +299,7 @@ def main(argv):
 
                 #DEBUG print my_data, left_data, mid_data, right_data
                 # Update lane position (x position) of your car
-                my_lane = int(my_data)
-                if (my_lane < 0):
-                    my_lane = -my_lane
-                    my_inactive = True
-
-                x_main_car = x_per_lane[my_lane] # 100*int(my_data) + 37.5; # change this if car should switch lanes
+                x_main_car = x_per_lane[int(my_data)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
 
                 # Create list of objects to display
                 #   Parse trace entries into tuples: (x-position, pixel distance from tip of car, object type)
@@ -355,12 +350,7 @@ def main(argv):
             bgY2 = -500
 
         # Draw objects every epoch
-        #DEBUG print "My_inactive = ", my_inactive
-        if (my_inactive):
-            screen.blit(get_img('images/red-crash.png'), (x_main_car, y_main_car)) # your car crashed            
-        else:
-            screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
-            
+        screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
         for obj in obj_list:
             blit_obj(screen, obj[2], obj[0], obj[1]-55)
             #DEBUG print obj[2], obj[0], obj[1]

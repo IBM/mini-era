@@ -1,4 +1,4 @@
-CC = gcc -std=c99
+CC = gcc
 
 CFLAGS = -pedantic -Wall -O0 -g
 ##CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
@@ -68,10 +68,10 @@ objv_dbg/%.o: %.c
 	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DFOR_VIS -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
 
 clean:
-	$(RM) tracegen           $(T_OBJ)
-	$(RM) vistracegen        $(T_OBJV)
-	$(RM) debug_tracegen     $(T_OBJ_DBG)
-	$(RM) debug_vistracegen  $(T_OBJV_DBG)
+	$(RM) tracegen   	$(T_OBJ)
+	$(RM) debug_tracegen   	$(T_OBJ_DBG)
+	$(RM) vistracegen  	$(T_OBJV)
+	$(RM) debug_vistracegen $(T_OBJV_DBG)
 
 allclean: clean
 	$(RM) -rf $(OBJDIR)

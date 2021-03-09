@@ -27,20 +27,53 @@
  * created by Phil Karn. For more info see: gr-dvbt/lib/d_viterbi.h
  */
 
-extern int d_ntraceback;
-extern int d_k;
-extern ofdm_param *d_ofdm;
-extern frame_param *d_frame;
-extern const unsigned char *d_depuncture_pattern;
+int d_ntraceback;
+int d_k;
+static ofdm_param *d_ofdm;
+static frame_param *d_frame;
+static const unsigned char *d_depuncture_pattern;
 
-extern uint8_t d_depunctured[MAX_ENCODED_BITS];
-extern uint8_t d_decoded[MAX_ENCODED_BITS * 3 / 4];
+static uint8_t d_depunctured[MAX_ENCODED_BITS];
+static uint8_t d_decoded[MAX_ENCODED_BITS * 3 / 4];
 
-extern const unsigned char PARTAB[256];
+static const unsigned char PARTAB[256] = {
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         0, 1, 1, 0, 1, 0, 0, 1,
+         1, 0, 0, 1, 0, 1, 1, 0,
+}; 
 
-extern const unsigned char PUNCTURE_1_2[2];
-extern const unsigned char PUNCTURE_2_3[4];
-extern const unsigned char PUNCTURE_3_4[6];
+static const unsigned char PUNCTURE_1_2[2] = {1, 1};
+static const unsigned char PUNCTURE_2_3[4] = {1, 1, 1, 0};
+static const unsigned char PUNCTURE_3_4[6] = {1, 1, 1, 0, 0, 1};
 
 void reset();
 uint8_t* depuncture(uint8_t *in);

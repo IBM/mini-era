@@ -48,7 +48,7 @@ enum TestImageTypes
 
 //extern NvDlaError runImageonNVDLA(std::string iImage);
 extern void runImageonNVDLA(std::string iImage);
-extern void initNVDLA();
+//extern void initNVDLA();
 NvDlaError launchTest(const TestAppArgs* appArgs);
 NvDlaError testSetup(const TestAppArgs* appArgs, TestInfo* i);
 

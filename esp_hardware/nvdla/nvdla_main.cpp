@@ -118,6 +118,7 @@ void runImageonNVDLA(std::string iImage) {
 }
 
 // This function reads the loadable and creates a new runtime context
+extern "C" {
 void initNVDLA() {
 
     NvDlaError e = NvDlaError_TestApplicationFailed;
@@ -144,7 +145,14 @@ void initNVDLA() {
     }
 
 }
+}
 
+
+extern "C" {
+void runImageonNVDLAWrapper(char *Image) {
+    runImageonNVDLA(std::string(Image));
+}
+}
 
 
 

@@ -40,8 +40,7 @@
 #define SHOW_INPUTS_AND_OUTPUTS   0
 
 extern void descrambler(uint8_t* in, int psdusize, char* out_msg, uint8_t* ref, uint8_t *msg);
-extern uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char);
-
+extern uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in);
 int main(int argc, char* argv[])
 {
   int encoding, n_bpsc, n_cbps, n_dbps, pdsu_size, n_sym, n_pad, n_encoded_bits, n_data_bits;
@@ -336,8 +335,7 @@ int main(int argc, char* argv[])
 
   // our main module starts from here
   uint8_t *result;
-  int n_res_char;
-  result = decode(&ofdm, &frame, in, &n_res_char);
+  result = decode(&ofdm, &frame, in);
 
   if (SHOW_INPUTS_AND_OUTPUTS == 1) {
     printf("MAIN CHECKING OUTPUTS :\n");
@@ -358,7 +356,7 @@ int main(int argc, char* argv[])
   }
 	
   int count_res =0;
-  int result_s = n_res_char; // (int)(sizeof(result)/sizeof(result[0]));
+  int result_s = (int)(sizeof(result)/sizeof(result[0]));
   printf(">>>>>> Decoded bits are here >>>>>> \n");
   error_count = 0;
   int max_bits = frame.n_data_bits;

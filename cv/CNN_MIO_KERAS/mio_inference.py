@@ -56,7 +56,6 @@ if __name__ == "__main__":
   K.set_image_data_format('channels_first')
 
 
-  features,labels = _get_images_labels('train')
   test_features,test_labels = _get_images_labels('test')
   model = mio_model()
 

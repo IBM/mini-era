@@ -27,54 +27,12 @@
  * Major modifications by adding SSE2 code by Bogdan Diaconescu
  */
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/time.h>
-
-#ifdef HW_VIT
- #include <fcntl.h>
- #include <math.h>
- #include <pthread.h>
- #include <sys/types.h>
- #include <sys/mman.h>
- #include <sys/stat.h>
- #include <string.h>
- #include <time.h>
- #include <unistd.h>
-
- #include "contig.h"
-#endif
-
-#include "base.h"
 #include "viterbi_flat.h"
-#include "viterbi_parms.h"
+#include "viterbi_standalone.h"
 
-#ifdef HW_VIT
-extern int vitHW_fd;
-extern contig_handle_t vitHW_mem;
-extern uint8_t* vitHW_lmem;
-extern uint8_t* vitHW_li_mem;
-extern uint8_t* vitHW_lo_mem;
-extern const size_t vitHW_in_size;
-extern const size_t vitHW_out_size;
-extern const size_t vitHW_size;
-extern const size_t out_vitHW_size;
-extern struct vitdodec_access vitHW_desc;
 
-#include "mini-era.h"
-#endif
-
-#ifdef INT_TIME
-struct timeval dodec_stop, dodec_start;
-uint64_t dodec_sec  = 0LL;
-uint64_t dodec_usec = 0LL;
-
-struct timeval depunc_stop, depunc_start;
-uint64_t depunc_sec  = 0LL;
-uint64_t depunc_usec = 0LL;
-#endif
-
-#undef  GENERATE_CHECK_VALUES
-//#define  GENERATE_CHECK_VALUES
+//#undef  GENERATE_CHECK_VALUES
+#define  GENERATE_CHECK_VALUES
 
 // GLOBAL VARIABLES
 t_branchtab27 d_branchtab27_generic[2];
@@ -84,7 +42,7 @@ t_branchtab27 d_branchtab27_generic[2];
 //unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
 
 // Position in circular buffer where the current decoded byte is stored
-// int d_store_pos = 0;
+int d_store_pos = 0;
 // Metrics for each state
 unsigned char d_mmresult[64] __attribute__((aligned(16)));
 // Paths for each state
@@ -129,27 +87,17 @@ uint8_t* depuncture(uint8_t *in) {
 
 
 
-#ifdef HW_VIT
-static void do_decoding_hw(int *fd, struct vitdodec_access *desc)
-{
-  if (ioctl(*fd, VITDODEC_IOC_ACCESS, *desc)) {
-    perror("IOCTL:");
-    exit(EXIT_FAILURE);
-  }
-}
-#endif
-
 /* This is the main "do_decoding" function; takes the necessary inputs
  * from the decode call (above) and does the decoding, outputing the decoded result.
  */
 // INPUTSOUTPUTS:          :  I/O   : Offset : Size
-//    in_cbps               : INPUT  :     X  : int = 4 bytes (REGISTER)
-//    in_ntraceback         : INPUT  :     X  : int = 4 bytes (REGISTER)
-//    in_n_data_bits        : INPUT  :     X  : int = 4 bytes (REGISTER)
-//    d_branchtab27_generic : INPUT  :     0  : uint8_t[2][32] = 64 bytes
-//    in_depuncture_pattern : INPUT  :    64  : uint8_t[8] (max is 6 bytes + 2 padding bytes)
-//    depd_data             : INPUT  :    72  : uint8_t[MAX_ENCODED_BITS == 24780] (depunctured data)
-//    <return_val>          : OUTPUT : 24852  : uint8_t[MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
+//    in_cbps               : INPUT  :     0  : int = 4 bytes
+//    in_ntraceback         : INPUT  :     4  : int = 4 bytes
+//    in_n_data_bits        : INPUT  :     8  : int = 4 bytes
+//    d_branchtab27_generic : INPUT  :    12  : uint8_t[2][32] = 64 bytes
+//    in_depuncture_pattern : INPUT  :    76  : uint8_t[8] (max is 6 bytes + 2 padding bytes)
+//    depd_data             : INPUT  :    84  : uint8_t[MAX_ENCODED_BITS == 24780] (depunctured data)
+//    <return_val>          : OUTPUT : 24864  : uint8_t[MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
 /* THESE ARE JUST USED LOCALLY IN THIS FUNCTION NOW  */
 /*  BUT they must reset to zero on each invocation   */
@@ -164,9 +112,9 @@ static void do_decoding_hw(int *fd, struct vitdodec_access *desc)
 
 
 #ifdef USE_ESP_INTERFACE
-void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory )
+void do_decoding(unsigned char *inMemory)
 #else
-uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
+uint8_t* do_decoding(int in_cbps, int in_ntraceback, const int8_t* in_depuncture_pattern, int in_n_data_bits, uint8_t* depd_data) 
 #endif
 {
   int in_count = 0;
@@ -174,74 +122,22 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
   int n_decoded = 0;
 
 #ifdef USE_ESP_INTERFACE
-  /* int* inWords = (int*)inMemory; */
+  int* inWords = (int*)inMemory;
 
-  /* int  in_cbps        = inWords[  0]; // inMemory[    0] */
-  /* int  in_ntraceback  = inWords[  1]; // inMemory[    4] */
-  /* int  in_n_data_bits = inWords[  2]; // inMemory[    8] */
-  unsigned char* d_brtab27[2] = {      &(inMemory[    0]), 
-                                       &(inMemory[   32]) };
-  unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
-  uint8_t* depd_data                 = &(inMemory[   72]);
-  uint8_t* l_decoded                 = &(inMemory[24852]);
+  int  in_cbps        = inWords[  0]; // inMemory[    0]
+  int  in_ntraceback  = inWords[  1]; // inMemory[    4]
+  int  in_n_data_bits = inWords[  2]; // inMemory[    8]
+  unsigned char* d_brtab27[2] = {      &(inMemory[   12]), 
+                                       &(inMemory[   44]) };
+  int8_t*  in_depuncture_pattern     = &(inMemory[   76]);
+  uint8_t* depd_data                 = &(inMemory[   84]);
+  uint8_t* l_decoded                 = &(inMemory[24864]);
 #else
   unsigned char* d_brtab27[2] = {&(d_branchtab27_generic[0].c[0]), &(d_branchtab27_generic[1].c[0])};
   uint8_t*       l_decoded = d_decoded;
 #endif
 
-#if(0)
-  {
-    printf(" d_brtab27_0 = ");
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", d_brtab27[0][li]);
-      if ((li % 8) == 7) { printf(" "); }
-    }
-    printf("\n");
-    printf(" d_brtab27_1 = ");
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", d_brtab27[1][li]);
-      if ((li % 8) == 7) { printf(" "); }
-    }
-    printf("\n");
-
-    printf(" depunct_ptn = ");
-    for (int li = 0; li < 6; li++) {
-      printf("%u,", in_depuncture_pattern[li]);
-    }
-    printf("\n");
-
-    printf("\n dep_data    = ");
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", depd_data[li]);
-    }
-    printf("\n");
-    printf("\n");
-
-#ifdef USE_ESP_INTERFACE
-    printf(" plm_in_ping = ");
-    int limi = 0;
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", inMemory[limi++]);
-      if ((li % 8) == 7) { printf(" "); }
-    }
-    printf("\n               ");
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", inMemory[limi++]);
-      if ((li % 8) == 7) { printf(" "); }
-    } printf("\n");
-    for (int li = 0; li < 8; li++) {
-      printf("%u,", inMemory[limi++]);
-    }
-    printf("\n               ");
-    for (int li = 0; li < 32; li++) {
-      printf("%u,", inMemory[limi++]);
-    }
-    printf("\n");
-#endif
-  }
-#endif
-  
-  SHOW_VERBOSE({
+  VERBOSE({
       printf("\nVBS: in_cbps        = %u\n", in_cbps);
       printf("VBS: in_ntraceback  = %u\n", in_ntraceback);
       printf("VBS: in_n_data_bits = %u\n", in_n_data_bits);
@@ -259,56 +155,23 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	printf("%02x", in_depuncture_pattern[ti]);
       }
       printf("]\n");
-      printf("\nVBS: depd_data : %p\n", depd_data);
-      {
-	int per_row = 0;
-	printf("%p : ", &depd_data[0]);
-	for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
-	  per_row++;
-	  if ((per_row % 8) == 0) {
-	    printf(" ");
-	  }
-	  printf("%u", depd_data[ti]);
-	  if (per_row == 39) {
-	    printf("\n");
-	    printf("%p : ", &depd_data[ti]);
-	    per_row = 0;
-	  }
-	}
-	printf("\n");
+
+      printf("\nVBS: depd_data = [\n");
+      for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
+	if (ti > 0) { printf(", "); }
+	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
+	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
+	printf("%02x", depd_data[ti]);
       }
-      /* for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) { */
-      /* 	if (ti > 0) { printf(", "); } */
-      /* 	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
-      /* 	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
-      /* 	printf("%02x", depd_data[ti]); */
-      /* } */
       printf("\n");
-      /** This is always ZERO
-      printf("\nVBS: l_decoded : %p\n", l_decoded);
-      {
-	int per_row = 0;
-	printf("%p : ", &l_decoded[0]);
-	for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-	  per_row++;
-	  if ((per_row % 8) == 0) {
-	    printf(" ");
-	  }
-	  printf("%u", l_decoded[ti]);
-	  if (per_row == 39) {
-	    printf("\n");
-	    printf("%p : ", &l_decoded[ti]);
-	    per_row = 0;
-	  }
-	}
-	printf("\n");
-	}**/
-      /* for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
-      /* 	if (ti > 0) { printf(", "); } */
-      /* 	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
-      /* 	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
-      /* 	printf("%02x", l_decoded[ti]); */
-      /* } */
+
+      printf("\nVBS: l_decoded = [\n");
+      for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+	if (ti > 0) { printf(", "); }
+	if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
+	if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
+	printf("%02x", l_decoded[ti]);
+      }
       printf("\n\n");
     });      
 
@@ -323,7 +186,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 
   // This is the "reset" portion:
   //  Do this before the real operation so local memories are "cleared to zero"
-  // d_store_pos = 0;
+  d_store_pos = 0;
   for (int i = 0; i < 64; i++) {
     l_metric0_generic[i] = 0;
     l_path0_generic[i] = 0;
@@ -533,9 +396,9 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 	// CALL : viterbi_get_output_generic(l_metric0_generic, l_path0_generic, in_ntraceback, &c);
 	// unsigned char viterbi_get_output_generic(unsigned char *mm0, unsigned char *pp0, int ntraceback, unsigned char *outbuf) 
 	{
-	  unsigned char *mm0    = l_metric0_generic;
-	  unsigned char *pp0    = l_path0_generic;
-	  int ntraceback        = in_ntraceback;
+	  unsigned char *mm0       = l_metric0_generic;
+	  unsigned char *pp0       = l_path0_generic;
+	  int ntraceback = in_ntraceback;
 	  unsigned char *outbuf = &c;
 
 	  int i;
@@ -604,37 +467,17 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
     in_count++;
   }
 
-  /* SHOW_VERBOSE({ */
-  /*     printf("\nVBS: FINAL l_decoded = [\n"); */
-  /*     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) { */
-  /* 	///if (ti > 0) { printf(", "); } */
-  /* 	//if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); } */
-  /* 	//if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); } */
-  /* 	printf("%5u : %3u : %p\n", ti, l_decoded[ti], &(l_decoded[ti])); */
-  /*     } */
-  /*     printf("]\n\n"); */
-  /*   });       */
-#if(0)
-  {
-    printf("\nVBS: Final l_decoded : %p\n", l_decoded);
-    int per_row = 0;
-    printf("%p : ", &l_decoded[0]);
-    for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-      per_row++;
-      if ((per_row % 8) == 0) {
-	printf(" ");
+  VERBOSE({
+      printf("\nVBS: FINAL l_decoded = [\n");
+      for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+	///if (ti > 0) { printf(", "); }
+	//if ((ti > 0) && ((ti % 8) == 0)) { printf("  "); }
+	//if ((ti > 0) && ((ti % 40) == 0)) { printf("\n"); }
+	printf("%5u : %3u : %p\n", ti, l_decoded[ti], &(l_decoded[ti]));
       }
-      printf("%u", l_decoded[ti]);
-      if (per_row == 39) {
-	printf("\n");
-	printf("%p : ", &l_decoded[ti]);
-	per_row = 0;
-      }
-    }
-    printf("\n");
-    printf("\n");
-  }
-#endif
+      printf("]\n\n");
+    });      
+
 #ifndef USE_ESP_INTERFACE
   return l_decoded;
 #endif
@@ -642,7 +485,7 @@ uint8_t* do_decoding(int in_cbps, int in_ntraceback, const unsigned char* in_dep
 
 // Initialize starting metrics to prefer 0 state
 void viterbi_chunks_init_generic() {
-  int i;
+  int i, j;
 
   int polys[2] = { 0x6d, 0x4f };
   for(i=0; i < 32; i++) {
@@ -692,26 +535,16 @@ void reset() {
 //    in     : INPUT  : uint8_t Array [ MAX_ENCODED_BITS == 24780 ]
 //  <return> : OUTPUT : uint8_t Array [ MAX_ENCODED_BITS * 3 / 4 == 18585 ] : The decoded data stream
 
-uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_char) {
+uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in) {
 
   d_ofdm = ofdm;
   d_frame = frame;
 
-  *n_dec_char = 0; // We don't return this from do_decoding -- but we could?
-
   reset();
 
-#ifdef INT_TIME
-  gettimeofday(&depunc_start, NULL);
-#endif
   uint8_t *depunctured = depuncture(in);
-#ifdef INT_TIME
-  gettimeofday(&depunc_stop, NULL);
-  depunc_sec  += depunc_stop.tv_sec  - depunc_start.tv_sec;
-  depunc_usec += depunc_stop.tv_usec - depunc_start.tv_usec;
-#endif
 
-  SHOW_VERBOSE({
+  VERBOSE({
       printf("VBS: depunctured = [\n");
       for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
 	if (ti > 0) { printf(", "); }
@@ -725,36 +558,35 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 #ifdef USE_ESP_INTERFACE
   {
     // Copy inputs into the inMemory for esp-interface version
-    #ifdef HW_VIT
-    uint8_t* inMemory  = vitHW_li_mem;
-    uint8_t* outMemory = vitHW_lo_mem;
-    #else
-    uint8_t inMemory[24852];  // This is "minimally sized for max entries"
-    uint8_t outMemory[18585]; // This is "minimally sized for max entries"
-    #endif
+    uint8_t inMemory[43449]; // This is "minimally sized for max entries"
+    int*    inWords = (int*)inMemory; // This is an "integer" view of inMemory
 
-    int imi = 0;
+    inWords[  0] = ofdm->n_cbps;
+    inWords[  1] = d_ntraceback; 
+    inWords[  2] = frame->n_data_bits;
+
+    int imi = 12;
     for (int ti = 0; ti < 2; ti ++) {
       for (int tj = 0; tj < 32; tj++) {
 	inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
       }
     }
-    if (imi != 64) { printf("ERROR : imi = %u and should be 64\n", imi); }
-    // imi = 64;
+    if (imi != 76) { printf("ERROR : imi = %u and should be 76\n", imi); }
+    // imi = 76;
     for (int ti = 0; ti < 6; ti ++) {
       inMemory[imi++] = d_depuncture_pattern[ti];
     }
-    if (imi != 70) { printf("ERROR : imi = %u and should be 70\n", imi); }
-    // imi = 70
+    if (imi != 82) { printf("ERROR : imi = %u and should be 82\n", imi); }
+    // imi = 82
     imi += 2; // Padding
     for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
       inMemory[imi++] = depunctured[ti];
     }
-    if (imi != 24852) { printf("ERROR : imi = %u and should be 24852\n", imi); }
+    if (imi != 24864) { printf("ERROR : imi = %u and should be 24864\n", imi); }
     // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
     // Reset the output space (for cleaner testing results)
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
-      outMemory[ti] = 0;
+      inMemory[imi++] = 0;
     }
 
 #ifdef GENERATE_CHECK_VALUES
@@ -766,56 +598,27 @@ uint8_t* decode(ofdm_param *ofdm, frame_param *frame, uint8_t *in, int* n_dec_ch
 #endif
 
     // Call the do_decoding routine
-    //void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory)
-    //printf("Calling do_decoding: data_bits %d  cbps %d ntraceback %d\n", frame->n_data_bits, ofdm->n_cbps, d_ntraceback);
-#ifdef INT_TIME
-    gettimeofday(&dodec_start, NULL);
-#endif
-#ifdef HW_VIT
-        vitHW_desc.cbps = ofdm->n_cbps;
-	vitHW_desc.ntraceback = d_ntraceback;
-        vitHW_desc.data_bits = frame->n_data_bits;
-	do_decoding_hw(&vitHW_fd, &vitHW_desc);
-#else
-	// Call the viterbi_butterfly2_generic function using ESP interface
-	do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
-#endif
-#ifdef INT_TIME
-    gettimeofday(&dodec_stop, NULL);
-    dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
-    dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
-#endif
-
+    do_decoding(inMemory);
+    
     // Copy the outputs back into the composite locations
-    imi = 0; // start of the outputs
+    imi = 24864; // start of the outputs
 #ifdef GENERATE_CHECK_VALUES
     printf("\n\nOUTPUTS-FROM-DO-DECODING:\n");
 #endif
     for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
 #ifdef GENERATE_CHECK_VALUES
-      printf("%u\n", outMemory[imi]);
+      printf("%u\n", inMemory[imi]);
 #endif
-      d_decoded[ti] = outMemory[imi++];
+      d_decoded[ti] = inMemory[imi++];
     }
 
   }
 #ifdef GENERATE_CHECK_VALUES
-  printf("LAST-OUTPUT\n\n");
+    printf("LAST-OUTPUT\n\n");
 #endif
   return d_decoded;
 #else
-  {
-#ifdef INT_TIME
-     gettimeofday(&dodec_start, NULL);
-#endif
-     uint8_t* tval = do_decoding(ofdm->n_cbps, d_ntraceback, d_depuncture_pattern, frame->n_data_bits, depunctured);
-#ifdef INT_TIME
-     gettimeofday(&dodec_stop, NULL);
-     dodec_sec  += dodec_stop.tv_sec  - dodec_start.tv_sec;
-     dodec_usec += dodec_stop.tv_usec - dodec_start.tv_usec;
-#endif
-     return tval;
-  }
+  return do_decoding(ofdm->n_cbps, d_ntraceback, d_depuncture_pattern, frame->n_data_bits, depunctured);
 #endif
 }
 

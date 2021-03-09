@@ -218,6 +218,7 @@ def main(argv):
     global five_lane_trace
     
     tracefile = '' # NO Default value
+    singlestep = False
 
     # parse command line arguments
     # So far getopt seems to not work here...
@@ -226,6 +227,8 @@ def main(argv):
         #print argv[ii]
         if ((argv[ii] == "-h") | (argv[ii] == "--help")) :
             usage_and_exit(2)
+        elif ((argv[ii] == "-s") | (argv[ii] == "--singlestep")) :
+            singlestep = True;
         elif ((argv[ii] == "-5") | (argv[ii] == "--five-lane")) :
             five_lane_trace = True;
             print("%s using Five-Lane trace\n" % (argv[0]));
@@ -270,7 +273,6 @@ def main(argv):
 
 
     # MAIN LOOP
-    my_inactive = False
     while not done:
         
         # for event in pygame.event.get():
@@ -298,12 +300,7 @@ def main(argv):
 
         #DEBUG print my_data, left_data, mid_data, right_data
         # Update lane position (x position) of your car
-        my_lane = int(my_data)
-        if (my_lane < 0):
-            my_lane = -my_lane
-            my_inactive = True
-
-        x_main_car = x_per_lane[my_lane] # 100*int(my_data) + 37.5; # change this if car should switch lanes
+        x_main_car = x_per_lane[int(my_data)] # 100*int(my_data) + 37.5; # change this if car should switch lanes
 
         # Create list of objects to display
         #   Parse trace entries into tuples: (x-position, pixel distance from tip of car, object type)
@@ -353,12 +350,7 @@ def main(argv):
             bgY2 = -500
 
         # Draw objects every epoch
-        #DEBUG print "My_inactive = ", my_inactive
-        if (my_inactive):
-            screen.blit(get_img('images/red-crash.png'), (x_main_car, y_main_car)) # your car crashed            
-        else:
-            screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
-            
+        screen.blit(get_img('images/red-car.png'), (x_main_car, y_main_car)) # your car
         for obj in obj_list:
             blit_obj(screen, obj[2], obj[0], obj[1]-55)
             #DEBUG print obj[2], obj[0], obj[1]
@@ -369,6 +361,9 @@ def main(argv):
 
         print("viz_Me_%u_Left_%s_Cntr_%s_Rght_%s" %(int(my_data), left_data.replace(" ","_"), mid_data.replace(" ","_"), right_data.replace(" ","_")))
         in_str = raw_input("Hit <enter> to continue\n")
+
+
+
 
     pygame.quit()
 

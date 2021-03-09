@@ -26,7 +26,8 @@
 
 ROOT := $(TOP)
 
-TOOLCHAIN_PREFIX ?=
+TOOLCHAIN_PREFIX ?= riscv64-unknown-linux-gnu-
+#riscv64-unknown-elf-
 
 ifeq ($(TOOLCHAIN_PREFIX),)
 $(error Toolchain prefix missing)
@@ -52,4 +53,4 @@ include rules.mk
 # the logic to compile and link stuff is in here
 $(TEST_BIN): $(ALLMODULE_OBJS) $(SHARED_LIBS)
 	@echo building $(MODULE)  $@
-	$(TOOLCHAIN_PREFIX)g++ $(ALLMODULE_OBJS) -pthread -L$(ROOT)/external/ -ljpeg -L$(ROOT)/out/core/src/runtime/libnvdla_runtime -lnvdla_runtime -o $@ -Wl,-rpath=.
+	$(TOOLCHAIN_PREFIX)g++ $(ALLMODULE_OBJS) -pthread -L$(ROOT)/external/ -ljpeg -L$(ROOT)/out/core/src/runtime/libnvdla_runtime -lnvdla_runtime -o nvdla_runtime.o -Wl,-rpath=.
