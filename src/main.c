@@ -482,7 +482,7 @@ void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 *
   int num = (rand() % (INPUTS_PER_LABEL)); // Return a value from [0,INPUTS_PER_LABEL)
   //printf("   NVDLA: ");
   //runImageonNVDLAWrapper("0003_0.jpg");//"class_busimage_5489.jpg");
-  runImageonNVDLAWrapper(cv_inputs[in_tr_val][num]);
+  runImageonNVDLAWrapper(cv_inputs[(int)in_tr_val][num]);
   //system("echo -n \"  > NVDLA: \"; ./nvdla_runtime --loadable hpvm-mod.nvdla --image 2004_2.jpg --rawdump | grep execution");        
   //printf("\n");
   *out_label = parse_output_dimg();
