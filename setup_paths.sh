@@ -1,8 +1,8 @@
 #!/bin/bash
 ####### THESE VARIABLES NEED TO BE SET! #########
-export HPVM_DIR=$HOME/work_dir/hpvm-dssoc/hpvm
-export APPROXHPVM_DIR=$HOME/work_dir/approxhpvm-nvdla
-export RISCV_BIN_DIR=$HOME/work_dir/riscv/bin
+export HPVM_DIR=/home/espuser/HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm
+export APPROXHPVM_DIR=/home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla
+export RISCV_BIN_DIR=/home/espuser/riscv/bin
 
 ####### THESE VARIABLES SHOULD NOT NEED ANY MODIFICATION! #########
 SCRIPT=$(readlink -f "$BASH_SOURCE")
