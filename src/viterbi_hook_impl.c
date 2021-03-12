@@ -4,6 +4,7 @@
 // clang -S -O0  -emit-llvm vitebi_hook_impl.c -I /home/sdasgup3/Github/esp/soft/ariane/drivers/include/  -o vitebi_hook_impl.ll
 
 #include "libesp.h"
+#include "vitdodec_stratus.h"
 
 typedef int8_t token_t;
 
@@ -69,24 +70,30 @@ void do_decoding_hook(int in_n_data_bits, int in_cbps, int in_ntraceback, unsign
 		buf[i] = 0;
 	}
 
+	struct vitdodec_stratus_access vitdodec_cfg_000[] = {
+	    {
+		/* <<--descriptor-->> */
+		.cbps = in_cbps,
+		.ntraceback = in_ntraceback,
+		.data_bits = in_n_data_bits,
+		.src_offset = 0,
+		.dst_offset = 0,
+		.esp.coherence = ACC_COH_NONE,
+		.esp.p2p_store = 0,
+		.esp.p2p_nsrcs = 0,
+		.esp.p2p_srcs = {"", "", "", ""},
+	    }
+	};
 	esp_thread_info_t cfg_000[] = {
-	{
+	     {
 		.run = true,
 		.devname = "vitdodec_stratus.0",
-		.type = vitdodec,
+		.ioctl_req = VITDODEC_STRATUS_IOC_ACCESS,
+		.esp_desc = &(vitdodec_cfg_000[0].esp),
 		.hw_buf = buf,
-		/* <<--descriptor-->> */
-		.desc.vitdodec_desc.cbps = in_cbps,
-		.desc.vitdodec_desc.ntraceback = in_ntraceback,
-		.desc.vitdodec_desc.data_bits = in_n_data_bits,
-		.desc.vitdodec_desc.src_offset = 0,
-		.desc.vitdodec_desc.dst_offset = 0,
-		.desc.vitdodec_desc.esp.coherence = ACC_COH_NONE,
-		.desc.vitdodec_desc.esp.p2p_store = 0,
-		.desc.vitdodec_desc.esp.p2p_nsrcs = 0,
-		.desc.vitdodec_desc.esp.p2p_srcs = {"", "", "", ""},
-	}
+	     }
 	};
+
 	esp_run(cfg_000, NACC);
 
 	for (int i = 0; i < out_len; ++i) {

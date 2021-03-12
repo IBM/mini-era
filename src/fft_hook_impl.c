@@ -5,6 +5,7 @@
 
 #include "libesp.h"
 #include <limits.h>
+#include "fft_stratus.h"
 
 typedef unsigned long long token_t;
 typedef double native_t;
@@ -56,33 +57,39 @@ void fft_hook(float * data, unsigned int N, unsigned int logn, int sign)
 
 	buf = (token_t *) esp_alloc(size);
 
-  for (int j = 0; j < 2 * N; j++) {
-    buf[j] = float2fx(data[j], FX_IL);
-  }
+        for (int j = 0; j < 2 * N; j++) {
+          buf[j] = float2fx(data[j], FX_IL);
+        }
 	
+	struct fft_stratus_access fft_cfg_000[] = {
+	    {
+		/* <<--descriptor-->> */
+		.do_bitrev = DO_BITREV,
+		.log_len = logn,
+		.src_offset = 0,
+		.dst_offset = 0,
+		.esp.coherence = ACC_COH_NONE,
+		.esp.p2p_store = 0,
+		.esp.p2p_nsrcs = 0,
+		.esp.p2p_srcs = {"", "", "", ""},
+	    }
+	};
+
 	esp_thread_info_t cfg_000[] = {
-		{
-			.run = true,
-			.devname = "fft_stratus.0",
-			.type = fft,
-			.hw_buf = buf,
-			/* <<--descriptor-->> */
-			.desc.fft_desc.do_bitrev = DO_BITREV,
-			.desc.fft_desc.log_len = logn,
-			.desc.fft_desc.src_offset = 0,
-			.desc.fft_desc.dst_offset = 0,
-			.desc.fft_desc.esp.coherence = ACC_COH_NONE,
-			.desc.fft_desc.esp.p2p_store = 0,
-			.desc.fft_desc.esp.p2p_nsrcs = 0,
-			.desc.fft_desc.esp.p2p_srcs = {"", "", "", ""},
-		}
+	    {
+		.run = true,
+		.devname = "fft_stratus.0",
+		.ioctl_req = FFT_STRATUS_IOC_ACCESS,
+		.esp_desc = &(fft_cfg_000[0].esp),
+		.hw_buf = buf,
+	    }
 	};
 
 	esp_run(cfg_000, NACC);
   
 	for (int j = 0; j < 2 * N; j++) {
-    data[j] = (float)fx2float(buf[j], FX_IL);
-  }
+	    data[j] = (float)fx2float(buf[j], FX_IL);
+	}
 
 	esp_free(buf);
 
