@@ -1,3 +1,0 @@
-[submodule "esp-docker"]
-	path = esp-docker
-	url = https://github.com/sld-columbia/esp-docker.git
