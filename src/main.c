@@ -76,7 +76,6 @@ void print_usage(char * pname) {
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
-  //printf("               :  NOTE: Any other value currently ignored\n");
   printf("               :      2 = One short message per obstacle per time step\n");
   printf("               :      3 = One long  message per obstacle per time step\n");
   printf("               :      4 = One short msg per obstacle + 1 per time step\n");
@@ -478,17 +477,18 @@ void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 *
   __hpvm__hint(DEVICE);
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
- #ifdef ENABLE_NVDLA
+#ifdef ENABLE_NVDLA	
+  int obj_id = (int)*in_tr_val;
   int num = (rand() % (INPUTS_PER_LABEL)); // Return a value from [0,INPUTS_PER_LABEL)
-  //printf("   NVDLA: ");
+  //printf("   NVDLA: runImageonNVDLA for \"%s\"\n", cv_inputs[obj_id][num]);
+  runImageonNVDLAWrapper(cv_inputs[obj_id][num]);
   //runImageonNVDLAWrapper("0003_0.jpg");//"class_busimage_5489.jpg");
-  runImageonNVDLAWrapper(cv_inputs[(int)in_tr_val][num]);
   //system("echo -n \"  > NVDLA: \"; ./nvdla_runtime --loadable hpvm-mod.nvdla --image 2004_2.jpg --rawdump | grep execution");        
   //printf("\n");
   *out_label = parse_output_dimg();
- #else
+  printf("    NVDLA Prediction: %d vs %d\n", *out_label, obj_id);
+#endif
   *out_label = *in_tr_val;
- #endif
 
   __hpvm__return(1, out_label_size);
 }
