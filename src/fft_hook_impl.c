@@ -7,6 +7,7 @@
 #include <limits.h>
 #include "fft_stratus.h"
 
+#define USE_FFT_FX 32
 
 #if (USE_FFT_FX == 64)
 //typedef unsigned long long token_t;
