@@ -713,7 +713,7 @@ void get_dist_from_fft(/* 0 */ float * distance, size_t dist_size, /* 1 */
   if (max_psd > 1e-10*pow(8192,2)) {
     dist = ((float)(max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
   }
-  printf(" DIST: max_psd %f at idx %d : dist = %f\n", max_psd, max_index, dist);
+  DEBUG(printf(" DIST: max_psd %f at idx %d : dist = %f\n", max_psd, max_index, dist));
   *distance = dist;
 }
 
@@ -755,8 +755,7 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
     pct_err = abs_err;
   }
   
-  //DEBUG(
-  printf(" DIST_ERR: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err);//);
+  DEBUG(printf(" DIST_ERR: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
   //printf("IDX: %u :: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", index, tr_dist, dist, error, abs_err, pct_err);
   if (pct_err == 0.0) {
     hist_pct_errs[0]++;
