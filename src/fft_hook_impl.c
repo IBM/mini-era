@@ -7,11 +7,21 @@
 #include <limits.h>
 #include "fft_stratus.h"
 
-typedef unsigned long long token_t;
+
+#if (USE_FFT_FX == 64)
+//typedef unsigned long long token_t;
+typedef int64_t token_t;
 typedef double native_t;
 #define fx2float fixed64_to_double
 #define float2fx double_to_fixed64
 #define FX_IL 42
+#elif (USE_FFT_FX == 32)
+typedef int token_t;
+typedef float native_t;
+#define fx2float fixed32_to_float
+#define float2fx float_to_fixed32
+#define FX_IL 14
+#endif /* FFT_FX_WIDTH */
 
 /* <<--params-def-->> */
 #define DO_BITREV 1
