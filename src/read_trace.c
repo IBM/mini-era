@@ -115,9 +115,9 @@ get_distance_token(char c)
 bool_t read_next_trace_record(vehicle_state_t vs)
 {
   DEBUG(printf("In read_next_trace_record\n"));
-  if (time_steps == max_time_steps) {
+  /*if (time_steps == max_time_steps) {
     return false;
-  }
+  }*/
   if (feof(input_trace)) { 
     printf("ERROR : invocation of read_next_trace_record indicates feof\n");
     exit(-1);
@@ -203,7 +203,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
 bool_t eof_trace_reader()
 {
   bool_t res = feof(input_trace);
-  res |= (time_steps == max_time_steps);
+  res |= (time_steps > max_time_steps);
   DEBUG(printf("In eof_trace_reader feof = %u\n", res));
   return res;
 }
