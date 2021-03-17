@@ -79,5 +79,9 @@ By using the -v <N> behavior controls, one can simulate the Viterbi messaging wo
 
 ## Running on the EPOCHS SoC FPGA
 
+The miniera-hpvm-epochs executable can be run on an EPOCHS SoC (or FPGA emulation of an EPOCHS SoC) which includes at least one FFT, one Viterbi, 
+and one NVDLA CV/CNN accelerator.  This executable has been tested and confirmed to work. 
+Specific details for running the executable on your own hardware or FPGA may depend on your environment; look for additional documentation for that.
+
 ## More Information
 For more information about the Mini-ERA application, please visit the main IBM-Resaerch repository for the project: https://github.com/IBM/mini-era.
