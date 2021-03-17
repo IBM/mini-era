@@ -76,7 +76,6 @@ void print_usage(char * pname) {
   printf("    -v <N>     : defines Viterbi messaging behavior:\n");
   printf("               :      0 = One short message per time step\n");
   printf("               :      1 = One long  message per time step\n");
-  //printf("               :  NOTE: Any other value currently ignored\n");
   printf("               :      2 = One short message per obstacle per time step\n");
   printf("               :      3 = One long  message per obstacle per time step\n");
   printf("               :      4 = One short msg per obstacle + 1 per time step\n");
@@ -478,17 +477,18 @@ void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 *
   __hpvm__hint(DEVICE);
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
- #ifdef ENABLE_NVDLA
+#ifdef ENABLE_NVDLA	
+  int obj_id = (int)*in_tr_val;
   int num = (rand() % (INPUTS_PER_LABEL)); // Return a value from [0,INPUTS_PER_LABEL)
-  //printf("   NVDLA: ");
+  //printf("   NVDLA: runImageonNVDLA for \"%s\"\n", cv_inputs[obj_id][num]);
+  runImageonNVDLAWrapper(cv_inputs[obj_id][num]);
   //runImageonNVDLAWrapper("0003_0.jpg");//"class_busimage_5489.jpg");
-  runImageonNVDLAWrapper(cv_inputs[(int)in_tr_val][num]);
   //system("echo -n \"  > NVDLA: \"; ./nvdla_runtime --loadable hpvm-mod.nvdla --image 2004_2.jpg --rawdump | grep execution");        
   //printf("\n");
   *out_label = parse_output_dimg();
- #else
+  printf("    NVDLA Prediction: %d vs %d\n", *out_label, obj_id);
+#endif
   *out_label = *in_tr_val;
- #endif
 
   __hpvm__return(1, out_label_size);
 }
@@ -713,6 +713,7 @@ void get_dist_from_fft(/* 0 */ float * distance, size_t dist_size, /* 1 */
   if (max_psd > 1e-10*pow(8192,2)) {
     dist = ((float)(max_index*((float)RADAR_fs)/((float)(input_N))))*0.5*RADAR_c/((float)(RADAR_alpha));
   }
+  DEBUG(printf(" DIST: max_psd %f at idx %d : dist = %f\n", max_psd, max_index, dist));
   *distance = dist;
 }
 
@@ -736,40 +737,40 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
 }
 
 
-void post_execute_rad_kernel(distance_t ddist, distance_t dist)
+void post_execute_rad_kernel(distance_t tr_dist, distance_t dist)
 {
   // Get an error estimate (Root-Squared?)
+  float error;
   radar_total_calc++;
-  if (dist == INFINITY) {
-    if (ddist < 500.0) { // 100000.0) {
-      DEBUG(printf("%f vs %f => INF_PCT_ERR\n", dist, ddist));
-      radar_inf_errs++;
-    } else {
-      radar_inf_noerr++;
-    }      
-  } else if (ddist == 0.0) {
-    if (ddist != 0.0) {
-      DEBUG(printf("%f vs %f => INF_PCT_ERR\n", dist, ddist));
-      radar_zero_errs++;
-    } else {
-      radar_zero_noerr++;
-    }
+  if ((tr_dist >= 500.0) && (dist > 10000.0)) {
+    error = 0.0;
   } else {
-    float error   = (dist - ddist);
-    DEBUG(float abs_err = fabs(error));
-    float pct_err = error/ddist;
-    DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", dist, ddist, error, abs_err, pct_err));
-    if (pct_err == 0.0) {
-      hist_pct_errs[0]++;
-    } else if (pct_err < 0.01) {
-      hist_pct_errs[1]++;
-    } else if (pct_err < 0.1) {
-      hist_pct_errs[2]++;
-    } else if (pct_err < 1.00) {
-      hist_pct_errs[3]++;
-    } else {
-      hist_pct_errs[4]++;
-    }
+    error = (tr_dist - dist);
+  }
+  float abs_err = fabs(error);
+  float pct_err;
+  if (tr_dist != 0.0) {
+    pct_err = abs_err/tr_dist;
+  } else {
+    pct_err = abs_err;
+  }
+  
+  DEBUG(printf(" DIST_ERR: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
+  //printf("IDX: %u :: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", index, tr_dist, dist, error, abs_err, pct_err);
+  if (pct_err == 0.0) {
+    hist_pct_errs[0]++;
+  } else if (pct_err < 0.01) {
+    //printf("RADAR_LT001_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[1]++;
+  } else if (pct_err < 0.1) {
+    //printf("RADAR_LT010_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[2]++;
+  } else if (pct_err < 1.00) {
+    //printf("RADAR_LT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[3]++;
+  } else {
+    //printf("RADAR_GT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[4]++;
   }
 }
 

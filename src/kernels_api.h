@@ -59,10 +59,10 @@ typedef enum {error, success} status_t;
 typedef enum {
   myself = -1,
   no_label = 0,
+  bicycle,  /* bus */
   car,
-  truck,
   pedestrian,
-  bicycle,
+  truck,
   num_object_labels
 } label_t;
 
