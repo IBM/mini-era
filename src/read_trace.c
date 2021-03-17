@@ -44,6 +44,9 @@ int last_i = 0;
 int in_tok = 0;
 int in_lane = 0;
 
+unsigned time_steps;            // The number of elapsed time steps
+unsigned max_time_steps = 5000; // The max time steps to simulate (default to 5000)
+
 
 status_t init_trace_reader(char* trace_filename)
 {
@@ -55,6 +58,8 @@ status_t init_trace_reader(char* trace_filename)
     printf("Error: unable to open trace file %s\n", trace_filename);
     return error;
   }
+
+  time_steps = 0;
 
   return success;
 }
@@ -105,6 +110,9 @@ get_distance_token(char c)
 bool_t read_next_trace_record(vehicle_state_t vs)
 {
   DEBUG(printf("In read_next_trace_record\n"));
+  if (time_steps == max_time_steps) {
+    return false;
+  }
   if (feof(input_trace)) { 
     printf("ERROR : invocation of read_next_trace_record indicates feof\n");
     exit(-1);
@@ -183,6 +191,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
     }
   }
 #endif
+  time_steps++; // Iterate the count of time_steps so far
   return true;
 }
 

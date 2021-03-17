@@ -15,6 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _READ_TRACE_H
+#define _READ_TRACE_H
+
 /* File pointer to the input trace */
 extern FILE *input_trace;
 
@@ -24,3 +27,6 @@ bool_t read_next_trace_record(vehicle_state_t vs);
 bool_t eof_trace_reader();
 void closeout_trace_reader();
 
+extern unsigned max_time_steps; // The max stime steps to simulate
+
+#endif
