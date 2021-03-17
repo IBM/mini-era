@@ -28,5 +28,6 @@ bool_t eof_trace_reader();
 void closeout_trace_reader();
 
 extern unsigned max_time_steps; // The max stime steps to simulate
+extern unsigned rand_seed;
 
 #endif

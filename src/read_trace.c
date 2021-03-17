@@ -44,6 +44,8 @@ int last_i = 0;
 int in_tok = 0;
 int in_lane = 0;
 
+unsigned rand_seed = 0;
+
 unsigned time_steps;            // The number of elapsed time steps
 unsigned max_time_steps = 5000; // The max time steps to simulate (default to 5000)
 
@@ -60,6 +62,9 @@ status_t init_trace_reader(char* trace_filename)
   }
 
   time_steps = 0;
+
+  srand(rand_seed);
+  printf("Using rand seed: %u\n", rand_seed);
 
   return success;
 }
