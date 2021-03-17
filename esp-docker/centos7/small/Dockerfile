@@ -66,7 +66,6 @@ COPY --chown=espuser:espuser hpvm-miniera.tar.gz .
 RUN tar xvf hpvm-miniera.tar.gz && rm hpvm-miniera.tar.gz && \
     cd HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm && \
     printf 'y\n4\nX86;RISCV\n' | bash install.sh
-ENV PATH=/home/espuser/HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm/build:${PATH}
 RUN cd /home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla/ && \
     mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
     -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
@@ -75,7 +74,7 @@ RUN cd /home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla/ && \
   #    make epochs && cd /home/espuser && \
     # clone nvdla inputs
 RUN git clone -b docker-hpvm https://github.com/IBM/mini-era.git && cd mini-era && \
-    source ./setup_paths.sh && make epochs && make riscv && make && \
+    source ./setup_paths.sh && make epochs && cd && \
     git clone https://github.com/AkashIwnK/nvdla_inputs_repo.git  
 
 USER root
