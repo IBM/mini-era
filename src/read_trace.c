@@ -203,6 +203,7 @@ bool_t read_next_trace_record(vehicle_state_t vs)
 bool_t eof_trace_reader()
 {
   bool_t res = feof(input_trace);
+  res |= (time_steps == max_time_steps);
   DEBUG(printf("In eof_trace_reader feof = %u\n", res));
   return res;
 }
