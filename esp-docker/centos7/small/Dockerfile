@@ -71,9 +71,11 @@ RUN cd /home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla/ && \
     mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
     -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
     -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
-RUN cd /home/espuser/HPVM-EPOCHS-MINIERA/mini-era/ && source ./setup_paths.sh && \
-    make epochs && cd /home/espuser && \
+#RUN cd /home/espuser/HPVM-EPOCHS-MINIERA/mini-era/ && source ./setup_paths.sh && \
+  #    make epochs && cd /home/espuser && \
     # clone nvdla inputs
+RUN git clone -b docker-hpvm https://github.com/IBM/mini-era.git && cd mini-era && \
+    source ./setup_paths.sh && make epochs && make riscv && make && \
     git clone https://github.com/AkashIwnK/nvdla_inputs_repo.git  
 
 USER root
