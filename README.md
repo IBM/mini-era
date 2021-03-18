@@ -2,34 +2,34 @@
 
 This is the HPVM port of the Mini-ERA workload.
 
-## Requirements
+This distribution is intended to operate within the Docker container image with which it is distributed.
+This README assumes that you have not altered the locations of files, etc. in that image.  Should you alter the 
+directory structure, etc. you will most likely need to alter the contents of the setup_paths.sh (see below).
 
-Mini-ERA-HPVM Requirements:
+## Contents
 
-- HPVM (internal repository branch `hpvm-epochs0` located [here](https://gitlab.engr.illinois.edu/llvm/hpvm/-/tree/hpvm-epochs0))
-    * Refer to [HPVM README](https://gitlab.engr.illinois.edu/llvm/hpvm/-/blob/hpvm-epochs0/README.md) for set up instructions.
-    *Note: During installation, make sure target is set to X86;RISCV to be able to target the EPOCHS-0 RISC-V processor.*
-- ApproxHPVM (internal repository branch `approx_hpvm_nvdla` located [here](https://gitlab.engr.illinois.edu/llvm/hpvm/-/tree/approx_hpvm_nvdla).
-    * Refer to [ApproxHPVM README](https://gitlab.engr.illinois.edu/llvm/hpvm/-/blob/approx_hpvm_nvdla/README.md) for set up instructions.
-- GCC cross compiler for RISC-V, can be installed using ESP as follows:
-    * Clone ESP repository using: `git clone --recursive https://github.com/sld-columbia/esp.git`
-    * Checkout the epochs branch: `cd esp && git checkout epochs`
-    * Invoke the cross-compiler installation script: `./utils/scripts/build_riscv_toolchain.sh`
+Mini-ERA-HPVM includes:
 
-*Note: A pre-built version of the ESP libraries is provided in this repository.*
+- HPVM (internal repository branch snapshot)
+- ApproxHPVM (internal repository branch snapshot)
+- GCC cross compiler tools for RISC-V, currently taken from the Columbia University ESP environment
+- Pre-compiled versions of the ESP libraries (used to support compilation to and use of ESP-derived hardware accelerators)
 
 ## Installation and Execution
+The Docker build process should have resulted in a fully-populated image.  The contents are in 3 major subdirectories:
+- approxhpvm-nvdla
+- hpvm-epochs
+- mini-era
 
-### Checkout Mini-ERA repository
-```
-git clone https://github.com/IBM/mini-era.git
-cd mini-era
-git checkout hpvm
-```
+
+You should no need to do anything within the approxhpvm-nvdla or hpvm-epochs directories; those are the tools directories.
+The min-era directory holds the actual Mini-ERA workload (set up to build on HPVM).
+
 
 ### Setup required paths
-In order to successfully build Mini-ERA, certain paths needs to set in the `setup_paths.sh` script.
-To do that, modify `setup_paths.sh` to include the correct paths for the following variabls:
+In order to successfully build Mini-ERA, certain paths need to set using the `setup_paths.sh` script.
+You should be able to simply source the setup_paths.sh script directly, unless you have altered the default directory structure.
+If you have altered the default directory structure, modify `setup_paths.sh` to include the correct paths for the following variabls:
 * `HPVM_DIR` should point to the HPVM repo: `$(PATH_TO_HPVM_REPO)/hpvm`
 * `APPROXHPVM_DIR` should point to the ApproxHPVM repo: `$(PATH_TO_APPROXHPVM_REPO)`
 * `RISCV_BIN_DIR` should point to the bin folder for the cross-compiler: `$(PATH_TO_RISCV_TOOLCHAIN_BINARIES)`
@@ -38,17 +38,17 @@ To do that, modify `setup_paths.sh` to include the correct paths for the followi
 
 To build the HPVM version of Mini-ERA: 
 
-1.After modifying the setup script as described above, source it using `source ./set_paths.sh`
+1. After modifying the setup script as described above, source it using `source ./setup_paths.sh`
     - *Note: The scripts must be sourced using `source` because it sets up environment variables that will be needed by the Makefiles.*
-6. Build for desired target:
+2. Build for desired target:
     * For native architecture: `make` will generate the binary `miniera-hpvm-seq`
     * For epochs0 (risc-v host with fft, viterbi and NVLDA accelerators): `make epochs` will generate the binary `miniera-hpvm-epochs`
     * For all-software risc-v version: `make riscv` will generate the binary `miniera-hpvm-riscv`
 *Note that when building `riscv` and `epochs` target, an `ld` error will appearing saying that the eh_table_hdr will not be created.
 This error can be ignored, the binary is still being generated.
-7. To clean the build: `make clean`
+3. To clean the build: `make clean`
 
-*Note: the build must be cleaned before invoking make with a different target!
+*Note: the build must be cleaned before invoking make with a different target!  This make clean will also remove previously compiled targets, unless you move or rename them.
 
 ### Usage
 ```
@@ -67,15 +67,21 @@ Usage: ./miniera-hpvm-* <OPTIONS>
                :      5 = One long  msg per obstacle + 1 per time step
 ```
 
-### Execution (Example)
+### Execution (Example - locally)
 
 Trace-driven Mini-era requires the specification of the input trace (using -t <trace_file>) and also supports the specification of a message modeling behavior for the Viterbi kernel, using -v <N> (where N is an integer).  The corresponding behaviors are:
 
 ```
-./main.exe -t <trace_name>     (e.g. traces/test_trace1.new)
+./miniera-hpvm-seq -t traces/tt02.new
 ```
 
 By using the -v <N> behavior controls, one can simulate the Viterbi messaging work that could load the system when either operating with a single global (environmental) messsage model, with a pure swarm collaboration model (where each other nearby vehicle sends a message) and in a hybrid that includes both kinds of messaging.  The message length also allows one to consider the effect of larger and small message payload decoding on the overall Viterbi run-time impact.
+
+## Running on the EPOCHS SoC FPGA
+
+The miniera-hpvm-epochs executable can be run on an EPOCHS SoC (or FPGA emulation of an EPOCHS SoC) which includes at least one FFT, one Viterbi, 
+and one NVDLA CV/CNN accelerator.  This executable has been tested and confirmed to work. 
+Specific details for running the executable on your own hardware or FPGA may depend on your environment; look for additional documentation for that.
 
 ## More Information
 For more information about the Mini-ERA application, please visit the main IBM-Resaerch repository for the project: https://github.com/IBM/mini-era.

@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _sim_environs_h
-#define _sim_environs_h
+#ifndef _SIM_ENVIRONS_H
+#define _SIM_ENVIRONS_H
 
 #ifdef VERBOSE
  #define DEBUG(x) x

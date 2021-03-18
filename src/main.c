@@ -66,9 +66,9 @@ void print_usage(char * pname) {
   printf(" OPTIONS:\n");
   printf("    -h         : print this help information\n");
   printf("    -o         : output the Visualizer trace (to stdout)\n");
-#ifdef USE_SIM_ENVIRON
   printf("    -s <N>     : Sets the max number of time steps to simulate\n");
   printf("    -r <N>     : Sets the rand random number seed to N\n");
+#ifdef USE_SIM_ENVIRON
   printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
 #else
   printf("    -t <trace> : defines the input trace file to use\n");
@@ -1991,15 +1991,11 @@ int main(int argc, char *argv[])
       output_viz_trace = true;
       break;
     case 's':
-#ifdef USE_SIM_ENVIRON
       max_time_steps = atoi(optarg);
       printf("Using %u maximum time steps (simulation)\n", max_time_steps);
-#endif
       break;
     case 'r':
-#ifdef USE_SIM_ENVIRON
       rand_seed = atoi(optarg);
-#endif
       break;
     case 't':
 #ifndef USE_SIM_ENVIRON
