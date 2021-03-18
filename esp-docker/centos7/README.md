@@ -25,3 +25,5 @@ docker run -e DISPLAY --net=host -uespuser --rm -it <name>:<tag> /bin/bash
 ```bash
 docker run -e DISPLAY -v /tmp/.X11-unix -v $HOME/.Xauthority:/home/espuser/.Xauthority --net=host -uespuser --rm -it <name>:<tag> /bin/bash
 ```
+# Troubleshooting
+* If the build fails, try reducing the number of threads used in compilation in the Dockerfile lines 68/72 (default = 4)
