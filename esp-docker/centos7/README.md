@@ -4,7 +4,7 @@
 HPVM tarball must be present in this folder level.
 
 ```bash
-docker build -f <small/full>/Dockerfile -t <name>:<tag> .
+docker build -f <small/full>/Dockerfile -t <name>:<tag> ./
 ```
 # RUN
 ## Persistent container
