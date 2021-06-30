@@ -1,0 +1,34 @@
+# Mini-ERA configuration file
+
+# Set if you wish to cross-compile
+DO_CROSS_COMPILATION=y
+COMPILE_TO_ESP=y
+
+# Should always enable this one...
+CONFIG_ESP_INTERFACE=y
+
+# This next set ONLY applies to setups that support the hardware acceleratos
+#  This means a cross-compile to target the SoC/FPGA
+CONFIG_FFT_EN=y
+CONFIG_FFT_FX=32
+CONFIG_FFT_BITREV=y
+# This flag indicates which FFT version to use, 1 = fft_stratus and 2 = fft2_stratus
+CONFIG_FFT_ACCEL_VER=1
+FFT_DEVICE_BASE=/dev/fft_stratus
+#CONFIG_FFT_ACCEL_VER=2
+#FFT_DEVICE_BASE=/dev/fft2_stratus
+
+CONFIG_VITERBI_EN=y
+
+# This one "turns off" the Tensorflow code...
+CONFIG_KERAS_CV_BYPASS=y
+
+# This allows compilation to an executable with LOTS of debugging messages enabled.
+# CONFIG_VERBOSE is not set
+# CONFIG_VERBOSE=y
+
+# This allows compilation to an executable with T(only) hread-debugging messages enabled.
+# CONFIG_DBG_THREADS=y
+
+# This enables use of GDB, etc. (adds symbols to the compilation)
+CONFIG_GDB=y
