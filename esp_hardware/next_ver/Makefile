@@ -2,6 +2,7 @@ include ./hardware_config
 
 CPU ?= ariane
 ARCH ?= riscv
+EXE_EXTENSION=
 ifdef DO_CROSS_COMPILATION
  CROSS_COMPILE ?= riscv64-unknown-linux-gnu-
  EXE_EXTENSION=-RV
@@ -33,7 +34,12 @@ endif
 CFLAGS += -DUSE_ESP_INTERFACE
 #   endif
 
+SW_STR = SW
+FA_STR =
+VA_STR =
 ifdef CONFIG_FFT_EN
+ SW_STR = HW
+ FA_STR = -F$(CONFIG_FFT_ACCEL_VER)
  CFLAGS += -DHW_FFT
  CFLAGS += -DUSE_FFT_FX=$(CONFIG_FFT_FX)
  CFLAGS += -DUSE_FFT_ACCEL_VERSION=$(CONFIG_FFT_ACCEL_VER)
@@ -44,6 +50,8 @@ ifdef CONFIG_FFT_BITREV
 endif
 
 ifdef CONFIG_VITERBI_EN
+ SW_STR = HW
+ VA_STR = -V
  CFLAGS += -DHW_VIT
 endif
 
@@ -85,8 +93,8 @@ OBJ_S = $(SRC_T:%.c=obj_s/%.o)
 
 VPATH = ./src
 
-TARGET=mini-era.exe
-STARGET=mini-era-sim.exe
+TARGET=mini-era$(EXE_EXTENSION)-$(SW_STR)$(FA_STR)$(VA_STR).exe
+STARGET=sim-mini-era$(EXE_EXTENSION)-$(SW_STR)$(FA_STR)$(VA_STR).exe
 
 all: esp-libs obj_t obj_s $(TARGET) $(STARGET)
 
