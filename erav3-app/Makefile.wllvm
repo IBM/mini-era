@@ -1,4 +1,0 @@
-CC = wllvm -std=c99
-MFILE = Makefile.wllvm
-
-include Makefile.base

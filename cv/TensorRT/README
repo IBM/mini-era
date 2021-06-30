@@ -1,2 +1,0 @@
-This is the sampleINT8.cpp for creating a quantized INT8 model for a given dataset (MIO), using a caffe model (LeNET) trained on the dataset. Modifications are required (a new class Batchstream class for the dataset) in BatchStream.h in $TENSORRT_HOME/samples/common
-The data required to run this sample is in data/mio 
