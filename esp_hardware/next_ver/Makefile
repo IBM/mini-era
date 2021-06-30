@@ -1,14 +1,16 @@
-include ./.config
+include ./hardware_config
 
 CPU ?= ariane
 ARCH ?= riscv
 ifdef DO_CROSS_COMPILATION
-CROSS_COMPILE ?= riscv64-unknown-linux-gnu-
+ CROSS_COMPILE ?= riscv64-unknown-linux-gnu-
+ EXE_EXTENSION=-RV
 endif
 
 ifdef COMPILE_TO_ESP
-ESP_ROOT ?= ../../esp
-ESP_DRIVERS ?= $(ESP_ROOT)/soft/$(CPU)/drivers
+ ESP_ROOT ?= $(realpath ../../esp)
+ ESP_DRIVERS ?= $(ESP_ROOT)/soft/common/drivers
+ ESP_DRV_LINUX  = $(ESP_DRIVERS)/linux
 endif
 
 CC = gcc -std=c99
@@ -17,50 +19,62 @@ CC = gcc -std=c99
 INCDIR ?=
 INCDIR += -I./include
 ifdef COMPILE_TO_ESP
-INCDIR += -I$(ESP_DRIVERS)/include
+ INCDIR += -I$(ESP_DRIVERS)/common/include
+ INCDIR += -I$(ESP_DRIVERS)/linux/include
 endif
 
-CFLAGS ?= -O2
+CFLAGS ?= -O2 -g
 CFLAGS += $(INCDIR)
 CFLAGS += -DINT_TIME
 ifdef COMPILE_TO_ESP
-CFLAGS += -DCOMPILE_TO_ESP
+ CFLAGS += -DCOMPILE_TO_ESP
 endif
 #  -- ALWAYS use this one! --   ifdef CONFIG_ESP_INTERFACE
 CFLAGS += -DUSE_ESP_INTERFACE
 #   endif
+
 ifdef CONFIG_FFT_EN
-CFLAGS += -DHW_FFT
+ CFLAGS += -DHW_FFT
+ CFLAGS += -DUSE_FFT_FX=$(CONFIG_FFT_FX)
+ CFLAGS += -DUSE_FFT_ACCEL_VERSION=$(CONFIG_FFT_ACCEL_VER)
+ CFLAGS += -DFFT_DEV_BASE='"$(FFT_DEVICE_BASE)"'
 endif
-CFLAGS += -DUSE_FFT_FX=$(CONFIG_FFT_FX)
 ifdef CONFIG_FFT_BITREV
-CFLAGS += -DHW_FFT_BITREV
+ CFLAGS += -DHW_FFT_BITREV
 endif
+
 ifdef CONFIG_VITERBI_EN
-CFLAGS += -DHW_VIT
+ CFLAGS += -DHW_VIT
 endif
+
 ifdef CONFIG_KERAS_CV_BYPASS
-CFLAGS += -DBYPASS_KERAS_CV_CODE
+ CFLAGS += -DBYPASS_KERAS_CV_CODE
 endif
+
 ifdef CONFIG_VERBOSE
 CFLAGS += -DVERBOSE
 endif
 
+ifdef CONFIG_GDB
+CFLAGS += -g
+endif
+
 LDLIBS ?=
 ifdef COMPILE_TO_ESP
-LDLIBS += -L$(ESP_DRIVERS)/contig_alloc
-LDLIBS += -L$(ESP_DRIVERS)/test
-LDLIBS += -L$(ESP_DRIVERS)/libesp
+ LDLIBS += -L$(ESP_BUILD_DRIVERS)/contig_alloc
+ LDLIBS += -L$(ESP_BUILD_DRIVERS)/test
+ LDLIBS += -L$(ESP_BUILD_DRIVERS)/libesp
 endif
+LDLIBS += -L./
 
 LDFLAGS ?=
 LDFLAGS += -lm
 LDFLAGS += -lpthread
 ifdef COMPILE_TO_ESP
-LDFLAGS += -lrt
-LDFLAGS += -lesp
-LDFLAGS += -ltest
-LDFLAGS += -lcontig
+ LDFLAGS += -lrt
+ LDFLAGS += -lesp
+ LDFLAGS += -ltest
+ LDFLAGS += -lcontig
 endif
 
 SRC_T = $(foreach f, $(wildcard src/*.c), $(shell basename $(f)))
@@ -74,7 +88,42 @@ VPATH = ./src
 TARGET=mini-era.exe
 STARGET=mini-era-sim.exe
 
-all: obj_t obj_s $(TARGET) $(STARGET)
+all: esp-libs obj_t obj_s $(TARGET) $(STARGET)
+
+ESP_BUILD_DRIVERS     = esp-build/drivers
+
+esp-build:
+	@mkdir -p $(ESP_BUILD_DRIVERS)/contig_alloc
+	@mkdir -p $(ESP_BUILD_DRIVERS)/esp
+	@mkdir -p $(ESP_BUILD_DRIVERS)/esp_cache
+	@mkdir -p $(ESP_BUILD_DRIVERS)/libesp
+	@mkdir -p $(ESP_BUILD_DRIVERS)/probe
+	@mkdir -p $(ESP_BUILD_DRIVERS)/test
+	@mkdir -p $(ESP_BUILD_DRIVERS)/utils/baremetal
+	@mkdir -p $(ESP_BUILD_DRIVERS)/utils/linux
+	@ln -sf $(ESP_DRV_LINUX)/contig_alloc/* $(ESP_BUILD_DRIVERS)/contig_alloc
+	@ln -sf $(ESP_DRV_LINUX)/esp/* $(ESP_BUILD_DRIVERS)/esp
+	@ln -sf $(ESP_DRV_LINUX)/esp_cache/* $(ESP_BUILD_DRIVERS)/esp_cache
+	@ln -sf $(ESP_DRV_LINUX)/driver.mk $(ESP_BUILD_DRIVERS)
+	@ln -sf $(ESP_DRV_LINUX)/include $(ESP_BUILD_DRIVERS)
+	@ln -sf $(ESP_DRV_LINUX)/../common $(ESP_BUILD_DRIVERS)/../common
+
+esp-build-clean:
+
+esp-build-distclean: esp-build-clean
+	$(QUIET_CLEAN)$(RM) -rf esp-build
+
+ifdef COMPILE_TO_ESP
+esp-libs: esp-build
+	  CROSS_COMPILE=$(CROSS_COMPILE) DRIVERS=$(ESP_DRV_LINUX) $(MAKE) -C $(ESP_BUILD_DRIVERS)/contig_alloc/ libcontig.a
+	  cd $(ESP_BUILD_DRIVERS)/test; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/test
+	  cd $(ESP_BUILD_DRIVERS)/libesp; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/libesp
+	  cd $(ESP_BUILD_DRIVERS)/utils; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/utils
+else
+esp-libs: 
+
+endif
+.PHONY: esp-build-clean esp-build-distclean esp-libs
 
 obj_t/%.o: %.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@
@@ -85,19 +134,9 @@ obj_s/%.o: %.c
 $(OBJ_T): $(HDR_T)
 
 $(TARGET): $(OBJ_T)
-ifdef COMPILE_TO_ESP
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/contig_alloc/ libcontig.a
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/test
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/libesp
-endif
 	$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 
 $(STARGET): $(OBJ_S)
-ifdef COMPILE_TO_ESP
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/contig_alloc/ libcontig.a
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/test
-	CROSS_COMPILE=$(CROSS_COMPILE) $(MAKE) -C $(ESP_DRIVERS)/libesp
-endif
 	$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 
 clean:
@@ -105,6 +144,7 @@ clean:
 	$(RM) -r obj_t obj_s
 
 clobber: clean
+	$(RM) -rf esp-build
 
 
 obj_t:
@@ -114,7 +154,6 @@ obj_s:
 	mkdir $@
 
 .PHONY: all clean
-
 
 #depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(SRC_D)
 # DO NOT DELETE THIS LINE -- make depend depends on it.
