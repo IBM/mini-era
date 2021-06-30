@@ -1,0 +1,856 @@
+# Common targets, etc. for all makefiles
+
+OBJDIR      = obj
+IT_OBJDIR   = obj_it
+C_OBJDIR    = obj_c
+ITC_OBJDIR  = obj_itc
+FC_OBJDIR   = obj_fc
+ITFC_OBJDIR = obj_itfc
+
+OBJ_V_DIR     = obj_v
+C_OBJ_V_DIR   = obj_cv
+FC_OBJ_V_DIR  = obj_fcv
+
+OBJ_G_DIR    = obj_gp
+C_OBJ_G_DIR  = obj_cgp
+
+
+S_OBJDIR      = objs
+ITS_OBJDIR    = objs_it
+C_S_OBJDIR    = objs_c
+ITC_S_OBJDIR  = objs_itc
+FC_S_OBJDIR   = objs_fc
+ITFC_S_OBJDIR = objs_itfc
+
+
+S_OBJ_V_DIR     = objs_v
+C_S_OBJ_V_DIR   = objs_cv
+FC_S_OBJ_V_DIR  = objs_fcv
+
+S_OBJ_G_DIR    = objs_gp
+C_S_OBJ_G_DIR  = objs_cgp
+
+
+# The full mini-era target, etc.
+TARGET = main
+SRC    = kernels_api.c main.c \
+         radar/calculate_dist_from_fmcw.c \
+         viterbi/descrambler_function.c \
+         fft/fft-1d/fft.c \
+         fft/fft-1d/octave.c \
+         fft/fft-1d/timer.c \
+         viterbi/viterbi_decoder_generic.c \
+         viterbi/viterbi_parms.c \
+	 h264/cavlc.c \
+	 h264/decode.c \
+	 h264/framealloc.c \
+	 h264/interpred.c \
+	 h264/intrapred.c \
+	 h264/mathfunc.c \
+	 h264/nalu.c \
+	 h264/parset.c \
+	 h264/residual.c \
+	 h264/slice.c \
+	 h264/vlc.c \
+	 h264/do_h264_decode.c
+
+
+FSRC   = kernels_api.c main.c \
+         radar/calculate_dist_from_fmcw.c \
+         viterbi/descrambler_function.c \
+         fft/fft-1d/fft.c \
+         fft/fft-1d/octave.c \
+         fft/fft-1d/timer.c \
+         viterbi/viterbi_flat.c \
+         viterbi/viterbi_parms.c \
+	 h264/cavlc.c \
+	 h264/decode.c \
+	 h264/framealloc.c \
+	 h264/interpred.c \
+	 h264/intrapred.c \
+	 h264/mathfunc.c \
+	 h264/nalu.c \
+	 h264/parset.c \
+	 h264/residual.c \
+	 h264/slice.c \
+	 h264/vlc.c \
+	 h264/do_h264_decode.c
+
+
+T_SRC   = $(SRC) read_trace.c
+T_FSRC  = $(FSRC) read_trace.c
+#BT_SRC  = $(foreach f, $(T_SRC), $(shell basename $(f)))
+#BT_FSRC = $(foreach f, $(T_SRC), $(shell basename $(f)))
+OBJ     = $(T_SRC:%.c=$(OBJDIR)/%.o)
+OBJ_V   = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
+OBJ_G   = $(T_SRC:%.c=$(OBJ_G_DIR)/%.o)
+IT_OBJ  = $(T_SRC:%.c=$(IT_OBJDIR)/%.o)
+FOBJ    = $(T_SRC:%.c=$(OBJDIR)/%.o)
+FOBJ_V  = $(T_SRC:%.c=$(OBJ_V_DIR)/%.o)
+IT_FOBJ = $(T_SRC:%.c=$(IT_OBJDIR)/%.o)
+
+#$(info $$SRC is [${SRC}])
+#$(info $$T_SRC is [${T_SRC}])
+#$(info $$IT_OBJDIR is [${IT_OBJDIR}])
+#$(info $$IT_OBJ is [${IT_OBJ}])
+
+
+S_TARGET = sim_main
+S_SRC    = $(SRC) sim_environs.c
+S_OBJ    = $(S_SRC:%.c=$(S_OBJDIR)/%.o)
+S_OBJ_V  = $(S_SRC:%.c=$(S_OBJ_V_DIR)/%.o)
+S_OBJ_G  = $(S_SRC:%.c=$(S_OBJ_G_DIR)/%.o)
+ITS_OBJ  = $(S_SRC:%.c=$(ITS_OBJDIR)/%.o)
+
+# The C-code only target (it bypasses KERAS Python code)
+C_TARGET = cmain
+C_OBJ    = $(T_SRC:%.c=$(C_OBJDIR)/%.o)
+C_OBJ_V  = $(T_SRC:%.c=$(C_OBJ_V_DIR)/%.o)
+C_OBJ_G  = $(T_SRC:%.c=$(C_OBJ_G_DIR)/%.o)
+FC_OBJ   = $(T_FSRC:%.c=$(FC_OBJDIR)/%.o)
+FC_OBJ_V = $(T_FSRC:%.c=$(FC_OBJ_V_DIR)/%.o)
+ITC_OBJ  = $(T_SRC:%.c=$(ITC_OBJDIR)/%.o)
+ITFC_OBJ = $(T_FSRC:%.c=$(ITFC_OBJDIR)/%.o)
+
+#TC_TARGET = t-cmain
+TC_OBJ    = $(T_SRC:%.c=$(C_OBJDIR)/%.o)
+TC_OBJ_V  = $(T_SRC:%.c=$(C_OBJ_V_DIR)/%.o)
+TC_OBJ_G  = $(T_SRC:%.c=$(C_OBJ_G_DIR)/%.o)
+TFC_OBJ   = $(T_FSRC:%.c=$(FC_OBJDIR)/%.o)
+TFC_OBJ_V = $(T_FSRC:%.c=$(FC_OBJ_V_DIR)/%.o)
+
+
+C_S_TARGET = csim_main
+C_S_OBJ = $(S_SRC:%.c=$(C_S_OBJDIR)/%.o)
+C_S_OBJ_V = $(S_SRC:%.c=$(C_S_OBJ_V_DIR)/%.o)
+C_S_OBJ_G = $(S_SRC:%.c=$(C_S_OBJ_G_DIR)/%.o)
+FC_S_OBJ = $(S_SRC:%.c=$(FC_S_OBJDIR)/%.o)
+FC_S_OBJ_V = $(S_SRC:%.c=$(FC_S_OBJ_V_DIR)/%.o)
+
+#TC_S_TARGET = t-csim_main
+TC_S_OBJ    = $(S_SRC:%.c=$(C_S_OBJDIR)/%.o)
+TC_S_OBJ_V  = $(S_SRC:%.c=$(C_S_OBJ_V_DIR)/%.o)
+TFC_S_OBJ   = $(S_SRC:%.c=$(FC_S_OBJDIR)/%.o)
+TFC_S_OBJ_V = $(S_SRC:%.c=$(FC_S_OBJ_V_DIR)/%.o)
+
+ITS_OBJ     = $(S_SRC:%.c=$(ITS_OBJDIR)/%.o)
+ITC_S_OBJ   = $(S_SRC:%.c=$(ITC_S_OBJDIR)/%.o)
+ITFC_S_OBJ  = $(S_SRC:%.c=$(ITFC_S_OBJDIR)/%.o)
+
+TRGN_SRC = sim_environs.c
+TRGN_OBJ = $(TRGN_SRC:%.c=obj/%.o)
+TRGN_OBJ_V = $(TRGN_SRC:%.c=obj_v/%.o)
+
+G_SRC 	= utils/gen_trace.c
+G_OBJ	= $(G_SRC:%.c=obj/%.o)
+
+$(TARGET): $(OBJDIR)  $(OBJ) 
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+it-$(TARGET): $(IT_OBJDIR)  $(IT_OBJ) 
+	$(CC) $(IT_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+f$(TARGET): $(OBJDIR)  $(OBJ) 
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+it-f$(TARGET): $(OBJDIR)  $(IT_OBJ) 
+	$(CC) $(IT_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+$(C_TARGET): $(C_OBJDIR) $(C_OBJ) 
+	$(CC) $(C_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+it-$(C_TARGET): $(ITC_OBJDIR) $(ITC_OBJ) 
+	$(CC) $(ITC_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+f$(C_TARGET): $(FC_OBJDIR) $(FC_OBJ) 
+	$(CC) $(FC_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+it-f$(C_TARGET): $(ITFC_OBJDIR) $(ITFC_OBJ) 
+	$(CC) $(ITFC_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+v$(TARGET): $(OBJ_V_DIR) $(OBJ_V) 
+	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(C_TARGET): $(C_OBJ_V_DIR) $(C_OBJ_V) 
+	$(CC) $(C_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+vf$(C_TARGET): $(FC_OBJ_V_DIR) $(FC_OBJ_V) 
+	$(CC) $(FC_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+
+
+gp_$(TARGET): $(OBJ_G_DIR) $(OBJ_G) 
+	$(CC) $(OBJ_G) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -pg -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+gp_$(C_TARGET): $(C_OBJ_G_DIR) $(C_OBJ_G) 
+	$(CC) $(C_OBJ_G) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -pg -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+
+$(S_TARGET): $(S_OBJDIR)  $(S_OBJ) 
+	$(CC) $(S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+it-$(S_TARGET): $(ITS_OBJDIR)  $(ITS_OBJ) 
+	$(CC) $(ITS_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+$(C_S_TARGET): $(C_S_OBJDIR) $(C_S_OBJ) 
+	$(CC) $(C_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+f$(C_S_TARGET): $(FC_S_OBJDIR) $(FC_S_OBJ) 
+	$(CC) $(FC_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+it-$(C_S_TARGET): $(ITC_S_OBJDIR) $(ITC_S_OBJ) 
+	$(CC) $(ITC_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+it-f$(C_S_TARGET): $(ITFC_S_OBJDIR) $(ITFC_S_OBJ) 
+	$(CC) $(ITFC_S_OBJ) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+v$(S_TARGET): $(S_OBJ_V_DIR) $(S_OBJ_V) 
+	$(CC) $(S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+v$(C_S_TARGET): $(C_S_OBJ_V_DIR) $(C_S_OBJ_V) 
+	$(CC) $(C_S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+vf$(C_S_TARGET): $(FC_S_OBJ_V_DIR) $(FC_S_OBJ_V) 
+	$(CC) $(FC_S_OBJ_V) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+gp_$(S_TARGET): $(S_OBJ_G_DIR) $(S_OBJ_G) 
+	$(CC) $(S_OBJ_G) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -pg -o $@.exe $(LFLAGS) $(LIBS) $(PYTHONLIBS)
+
+gp_$(C_S_TARGET): $(C_S_OBJ_G_DIR) $(C_S_OBJ_G) 
+	$(CC) $(C_S_OBJ_G) $(CFLAGS) $(INCLUDES) $(PYTHONINCLUDES) -pg -o $@.exe $(LFLAGS) $(LIBS) $(CPYTHONLIBS)
+
+
+
+ctrace: cobjdirs $(C_TARGET) f$(C_TARGET) it-$(C_TARGET) it-f$(C_TARGET) v$(C_TARGET) vf$(C_TARGET) gp_$(C_TARGET) 
+
+trace: objdirs $(TARGET) it-$(TARGET) v$(TARGET) gp_$(TARGET)
+
+csim: cobjdirs $(C_S_TARGET) f$(C_S_TARGET) it-$(C_S_TARGET) it-f$(C_S_TARGET) v$(C_S_TARGET) vf$(C_S_TARGET) gp_$(C_S_TARGET)
+
+sim: objdirs $(S_TARGET) it-$(S_TARGET) v$(TARGET) gp_$(TARGET)
+
+
+all: objdirs trace sim util_prog cver
+
+cver: cobjdirs ctrace csim util_prog
+
+objdirs: $(OBJDIR) $(IT_OBJDIR) $(OBJ_V_DIR) $(OBJ_G_DIR) $(S_OBJDIR) $(ITS_OBJDIR) $(S_OBJ_V_DIR) $(S_OBJ_G_DIR)
+
+cobjdirs: $(C_OBJDIR) $(FC_OBJDIR) $(ITC_OBJDIR) $(ITFC_OBJDIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR) $(C_OBJ_G_DIR) $(C_S_OBJDIR) $(FC_S_OBJDIR) $(ITC_S_OBJDIR) $(ITFC_S_OBJDIR) $(C_S_OBJ_V_DIR) $(FC_S_OBJ_V_DIR) $(C_S_OBJ_G_DIR)
+
+
+
+util_prog:
+	cd utils; make -f $(MFILE) all
+
+test: 
+	cd utils; make -f $(MFILE) test
+
+vtest: 
+	cd utils; make -f $(MFILE) vtest
+
+tracegen: 
+	cd utils; make -f $(MFILE) tracegen
+
+
+
+$(OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(T_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(IT_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(C_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TC_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(ITC_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(FC_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TFC_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(ITFC_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(T_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(C_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TC_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(FC_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TFC_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(T_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(C_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TC_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+
+$(S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TS_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(ITS_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(C_S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TC_S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(ITC_S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(FC_S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TFC_S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(ITFC_S_OBJDIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(S_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TS_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(C_S_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TC_S_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(FC_S_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TFC_S_OBJ_V_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(S_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TS_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(C_S_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+$(TC_S_OBJ_G_DIR):
+	mkdir $@
+	mkdir -p $@/viterbi
+	mkdir -p $@/radar
+	mkdir -p $@/h264
+	mkdir -p $@/fft/fft-1d
+
+
+
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
+
+$(T_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -o $@ $(PYTHONLIBS) -c $<
+
+$(IT_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -o $@ $(PYTHONLIBS) -c $<
+
+$(C_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(TC_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(ITC_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(TFC_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(ITFC_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(OBJ_G_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -g -pg -o $@ $(PYTHONLIBS) -c $<
+
+$(C_OBJ_G_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DBYPASS_KERAS_CV_CODE -g -pg -o $@ $(PYTHONLIBS) -c $<
+
+
+
+$(S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
+
+$(TS_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
+
+$(ITS_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DUSE_SIM_ENVIRON -o $@ $(PYTHONLIBS) -c $<
+
+$(S_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -o $@ $(PYTHONLIBS) -c $<
+
+$(S_OBJ_G_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -g -pg -o $@ $(PYTHONLIBS) -c $<
+
+$(C_S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(ITC_S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_S_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(C_S_OBJ_G_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -g -pg -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(ITFC_S_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DINT_TIME -DUSE_SIM_ENVIRON -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+$(FC_S_OBJ_V_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_SIM_ENVIRON -DVERBOSE -DBYPASS_KERAS_CV_CODE -o $@ $(PYTHONLIBS) -c $<
+
+
+
+clean:
+	$(RM) $(TARGET).exe $(OBJ)
+	$(RM) it-$(TARGET).exe $(IT_OBJ)
+	$(RM) $(C_TARGET).exe $(C_OBJ)
+	$(RM) it-$(C_TARGET).exe $(ITC_OBJ)
+	$(RM) f$(C_TARGET).exe $(FC_OBJ)
+	$(RM) it-f$(C_TARGET).exe $(ITFC_OBJ)
+	$(RM) v$(TARGET).exe $(OBJ_V)
+	$(RM) v$(C_TARGET).exe $(C_OBJ_V)
+	$(RM) vf$(C_TARGET).exe $(FC_OBJ_V)
+	$(RM) gp_$(TARGET).exe $(OBJ_G)
+	$(RM) gp_$(C_TARGET).exe $(C_OBJ_G)
+	$(RM) $(S_TARGET).exe $(S_OBJ)
+	$(RM) it-$(S_TARGET).exe $(ITS_OBJ)
+	$(RM) $(C_S_TARGET).exe $(C_S_OBJ)
+	$(RM) f$(C_S_TARGET).exe $(FC_S_OBJ)
+	$(RM) it-$(C_S_TARGET).exe $(ITC_S_OBJ)
+	$(RM) it-f$(C_S_TARGET).exe $(ITFC_S_OBJ)
+	$(RM) v$(S_TARGET).exe $(S_OBJ_V)
+	$(RM) vf$(S_TARGET).exe $(FS_OBJ_V)
+	$(RM) v$(C_S_TARGET).exe $(C_S_OBJ_V)
+	$(RM) vf$(C_S_TARGET).exe $(FC_S_OBJ_V)
+	$(RM) gp_$(S_TARGET).exe $(S_OBJ_G)
+	$(RM) gp_$(C_S_TARGET).exe $(C_S_OBJ_G)
+	$(RM) test  $(TRGN_OBJ)
+	$(RM) tracegen  $(G_OBJ)
+
+clobber: clean
+	$(RM) -rf $(OBJDIR) $(IT_OBJDIR)
+	$(RM) -rf $(C_OBJDIR) $(ITC_OBJDIR)
+	$(RM) -rf $(FC_OBJDIR) $(ITFC_OBJDIR)
+	$(RM) -rf $(OBJ_V_DIR) $(C_OBJ_V_DIR) $(FC_OBJ_V_DIR)
+	$(RM) -rf $(OBJ_G_DIR) $(C_OBJ_G_DIR)
+	$(RM) -rf $(S_OBJDIR) $(ITS_OBJDIR)
+	$(RM) -rf $(C_S_OBJDIR) $(ITC_S_OBJDIR)
+	$(RM) -rf $(FC_S_OBJDIR) $(ITFC_S_OBJDIR)
+	$(RM) -rf $(S_OBJ_V_DIR) $(C_S_OBJ_V_DIR) $(FC_S_OBJ_V_DIR)
+	$(RM) -rf $(S_OBJ_G_DIR) $(C_S_OBJ_G_DIR)
+
+allclean: clobber
+	cd utils; make -f $(MFILE) allclean
+	cd radar; make -f $(MFILE) clean
+	cd viterbi; make -f $(MFILE) clean
+
+
+$(OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
+$(OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+$(OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(OBJDIR)/h264/framealloc.o: h264/global.h 
+$(OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(OBJDIR)/h264/nalu.o: h264/global.h
+$(OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(OBJDIR)/h264/residual.o: h264/global.h 
+$(OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(OBJDIR)/h264/vlc.o: h264/global.h
+$(OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(C_OBJDIR)/kernels_api.o: kernels_api.h read_trace.h
+$(C_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_OBJDIR)/read_trace.o: kernels_api.h read_trace.h
+$(C_OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_OBJDIR)/h264/framealloc.o: h264/global.h 
+$(C_OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_OBJDIR)/h264/nalu.o: h264/global.h
+$(C_OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_OBJDIR)/h264/residual.o: h264/global.h 
+$(C_OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_OBJDIR)/h264/vlc.o: h264/global.h
+$(C_OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(OBJ_V_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(OBJ_V_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(OBJ_V_DIR)/h264/framealloc.o: h264/global.h 
+$(OBJ_V_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(OBJ_V_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(OBJ_V_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(OBJ_V_DIR)/h264/nalu.o: h264/global.h
+$(OBJ_V_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(OBJ_V_DIR)/h264/residual.o: h264/global.h 
+$(OBJ_V_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(OBJ_V_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(OBJ_V_DIR)/h264/vlc.o: h264/global.h
+$(OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(C_OBJ_V_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(C_OBJ_V_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_OBJ_V_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_OBJ_V_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(C_OBJ_V_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_OBJ_V_DIR)/h264/framealloc.o: h264/global.h 
+$(C_OBJ_V_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_OBJ_V_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_OBJ_V_DIR)/h264/nalu.o: h264/global.h
+$(C_OBJ_V_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/residual.o: h264/global.h 
+$(C_OBJ_V_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_OBJ_V_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_OBJ_V_DIR)/h264/vlc.o: h264/global.h
+$(C_OBJ_V_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(OBJ_G_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(OBJ_G_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(C_OBJ_G_DIR)/kernels_api.o: kernels_api.h read_trace.h
+$(C_OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_OBJ_G_DIR)/read_trace.o: kernels_api.h read_trace.h
+$(C_OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(C_OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(C_OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(C_OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(C_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+
+$(S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(S_OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(S_OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(S_OBJDIR)/h264/framealloc.o: h264/global.h 
+$(S_OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(S_OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(S_OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(S_OBJDIR)/h264/nalu.o: h264/global.h
+$(S_OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(S_OBJDIR)/h264/residual.o: h264/global.h 
+$(S_OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(S_OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(S_OBJDIR)/h264/vlc.o: h264/global.h
+$(S_OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(C_S_OBJDIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(C_S_OBJDIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_S_OBJDIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_S_OBJDIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(C_S_OBJDIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_S_OBJDIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_S_OBJDIR)/h264/framealloc.o: h264/global.h 
+$(C_S_OBJDIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_S_OBJDIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_S_OBJDIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_S_OBJDIR)/h264/nalu.o: h264/global.h
+$(C_S_OBJDIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_S_OBJDIR)/h264/residual.o: h264/global.h 
+$(C_S_OBJDIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_S_OBJDIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_S_OBJDIR)/h264/vlc.o: h264/global.h
+$(C_S_OBJDIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(S_OBJ_G_DIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(S_OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(S_OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(S_OBJ_G_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(S_OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(S_OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(S_OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(S_OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(S_OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(S_OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(S_OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(S_OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(S_OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(S_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+$(C_S_OBJ_G_DIR)/kernels_api.o: kernels_api.h sim_environs.h
+$(C_S_OBJ_G_DIR)/kernels_api.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h
+$(C_S_OBJ_G_DIR)/kernels_api.o: radar/calc_fmcw_dist.h
+$(C_S_OBJ_G_DIR)/sim_environs.o: kernels_api.h sim_environs.h
+$(C_S_OBJ_G_DIR)/h264/cavlc.o: h264/global.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+$(C_S_OBJ_G_DIR)/h264/framealloc.o: h264/global.h 
+$(C_S_OBJ_G_DIR)/h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+$(C_S_OBJ_G_DIR)/h264/intrapred.o: h264/global.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/mathfunc.o: h264/global.h h264/mathfunc.h
+$(C_S_OBJ_G_DIR)/h264/nalu.o: h264/global.h
+$(C_S_OBJ_G_DIR)/h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/residual.o: h264/global.h 
+$(C_S_OBJ_G_DIR)/h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+$(C_S_OBJ_G_DIR)/h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+$(C_S_OBJ_G_DIR)/h264/vlc.o: h264/global.h
+$(C_S_OBJ_G_DIR)/h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h
+
+obj/sim_environs.o: utils/sim_environs.h
+
+obj_v/sim_environs.o: utils/sim_environs.h
+
+#obj/sim_environs.o: viterbi/utils.h viterbi/viterbi_decoder_generic.h viterbi/base.h
+
+obj/gen_trace.o: gen_trace.h
+
+
+h264/cavlc.o: h264/global.h h264/vlc.h
+h264/decode.o: h264/global.h h264/parset.h h264/decode.h h264/slice.h
+h264/framealloc.o: h264/global.h 
+h264/interpred.o: h264/global.h h264/vlc.h h264/mathfunc.h
+h264/intrapred.o: h264/global.h h264/vlc.h
+h264/mathfunc.o: h264/global.h h264/mathfunc.h
+h264/nalu.o: h264/global.h
+h264/parset.o: h264/global.h h264/framealloc.h h264/vlc.h
+h264/residual.o: h264/global.h 
+h264/slice.o: h264/global.h h264/intrapred.h h264/vlc.h
+h264/slice.o: h264/cavlc.h h264/mathfunc.h h264/residual.h h264/interpred.h
+h264/vlc.o: h264/global.h
+h264/do_h264_decode.o: h264/global.h h264/nalu.h h264/decode.h

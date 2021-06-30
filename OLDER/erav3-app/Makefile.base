@@ -1,0 +1,472 @@
+CC = gcc -std=c99
+MFILE = Makefile
+
+COPTF0 = -O0
+COPTF2 = -O2
+COPTF3 = -O3
+
+CFLAGS = -pedantic -Wall -g $(COPTF2)
+#CFLAGS += -L/usr/lib/python2.7/config-x86_64-linux-gnu -L/usr/lib -lpython2.7 -lpthread -ldl  -lutil -lm  -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
+#CFLAGS +=  -lm -Xlinker -export-dynamic
+
+INCLUDES =
+
+
+LFLAGS = 
+#LFLAGS += 
+#LIBS = -lviterbi -lfmcwdist -lpthread -ldl -lutil -lm -lpython2.7
+LIBS     = -lm
+
+OBJDIR      = obj
+V_OBJDIR    = obj_v
+E_OBJDIR    = obj_e
+VE_OBJDIR   = obj_ve
+X_OBJDIR    = obj_x
+XE_OBJDIR   = obj_xe
+VX_OBJDIR   = obj_vx
+VXE_OBJDIR  = obj_vxe
+R_OBJDIR    = obj_r
+VR_OBJDIR   = obj_vr
+RE_OBJDIR   = obj_re
+VRE_OBJDIR  = obj_vre
+
+# The full mini-era target, etc.
+TARGET     = erav3c
+E_TARGET   = erav3c
+X_TARGET   = xmit_erav3c
+R_TARGET   = recv_erav3c
+E_TARGET   = erav3c_esp
+XE_TARGET  = xmit_erav3c_esp
+RE_TARGET  = recv_erav3c_esp
+V_TARGET   = verbose_erav3c
+VX_TARGET  = verbose_xmit_erav3c
+VR_TARGET  = verbose_recv_erav3c
+VE_TARGET  = verbose_erav3c_esp
+VXE_TARGET = verbose_xmit_erav3c_esp
+VRE_TARGET = verbose_recv_erav3c_esp
+
+XMIT_SRC = xmit_pipe.c \
+	   crc.c
+
+RECV_SRC = recv_pipe.c\
+	   complex_ops.c \
+	   delay.c \
+	   gr_equalizer.c \
+	   ofdm.c \
+	   sync_long.c \
+	   fir.c \
+	   sync_short.c \
+	   viterbi_flat.c \
+	   descrambler_function.c \
+	   simple_dft.c
+
+COMMON_SRC = fft-1d.c 
+
+SRC    = main.c kernels_api.c $(XMIT_SRC) $(RECV_SRC) $(COMMON_SRC)
+X_SRC  = xmit_main.c kernels_api.c $(XMIT_SRC) $(COMMON_SRC)
+R_SRC  = recv_main.c kernels_api.c $(RECV_SRC) $(COMMON_SRC)
+OBJ    = $(SRC:%.c=$(OBJDIR)/%.o)
+OBJ_V  = $(SRC:%.c=$(V_OBJDIR)/%.o)
+E_OBJ  = $(SRC:%.c=$(E_OBJDIR)/%.o)
+E_OBJ_V  = $(SRC:%.c=$(VE_OBJDIR)/%.o)
+X_OBJ    = $(X_SRC:%.c=$(X_OBJDIR)/%.o)
+XE_OBJ   = $(X_SRC:%.c=$(XE_OBJDIR)/%.o)
+X_OBJ_V  = $(X_SRC:%.c=$(VX_OBJDIR)/%.o)
+XE_OBJ_V = $(X_SRC:%.c=$(VXE_OBJDIR)/%.o)
+R_OBJ    = $(R_SRC:%.c=$(R_OBJDIR)/%.o)
+R_OBJ_V  = $(R_SRC:%.c=$(VR_OBJDIR)/%.o)
+RE_OBJ   = $(R_SRC:%.c=$(RE_OBJDIR)/%.o)
+RE_OBJ_V = $(R_SRC:%.c=$(VRE_OBJDIR)/%.o)
+
+#$(info $$SRC is [${SRC}])
+#$(info $$OBJ is [${OBJ}])
+
+
+all: $(TARGET) $(V_TARGET) $(E_TARGET) $(VE_TARGET) $(X_TARGET) $(VX_TARGET) $(R_TARGET) $(VR_TARGET) $(XE_TARGET) $(VXE_TARGET) $(RE_TARGET) $(VRE_TARGET)
+
+$(TARGET): $(OBJDIR)  $(OBJ) 
+	$(CC) $(OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(V_TARGET): $(V_OBJDIR)  $(OBJ_V) 
+	$(CC) $(OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+$(E_TARGET): $(E_OBJDIR)  $(E_OBJ) 
+	$(CC) $(E_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VE_TARGET): $(VE_OBJDIR)  $(E_OBJ_V) 
+	$(CC) $(E_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
+$(X_TARGET): $(X_OBJDIR)  $(X_OBJ) 
+	$(CC) $(X_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VX_TARGET): $(VX_OBJDIR)  $(X_OBJ_V) 
+	$(CC) $(X_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
+$(R_TARGET): $(R_OBJDIR)  $(R_OBJ) 
+	$(CC) $(R_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VR_TARGET): $(VR_OBJDIR)  $(R_OBJ_V) 
+	$(CC) $(R_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
+$(XE_TARGET): $(XE_OBJDIR)  $(XE_OBJ) 
+	$(CC) $(XE_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VXE_TARGET): $(VXE_OBJDIR)  $(XE_OBJ_V) 
+	$(CC) $(XE_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
+$(RE_TARGET): $(RE_OBJDIR)  $(RE_OBJ) 
+	$(CC) $(RE_OBJ) $(CFLAGS) $(INCLUDES) -o $@ $(LFLAGS) $(LIBS)
+
+$(VRE_TARGET): $(VRE_OBJDIR)  $(RE_OBJ_V) 
+	$(CC) $(RE_OBJ_V) $(CFLAGS) $(INCLUDES) -DDEBUG_MODE -o $@ $(LFLAGS) $(LIBS)
+
+
+
+$(OBJDIR):
+	mkdir $@
+
+$(V_OBJDIR):
+	mkdir $@
+
+$(E_OBJDIR):
+	mkdir $@
+
+$(VE_OBJDIR):
+	mkdir $@
+
+$(R_OBJDIR):
+	mkdir $@
+
+$(VR_OBJDIR):
+	mkdir $@
+
+$(RE_OBJDIR):
+	mkdir $@
+
+$(VRE_OBJDIR):
+	mkdir $@
+
+$(X_OBJDIR):
+	mkdir $@
+
+$(VX_OBJDIR):
+	mkdir $@
+
+$(XE_OBJDIR):
+	mkdir $@
+
+$(VXE_OBJDIR):
+	mkdir $@
+
+
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DUSE_RECV_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(V_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(E_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(VE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(X_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VX_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_XMIT_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(R_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_RECV_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VR_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(XE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_ESP_INTERFACE -DUSE_XMIT_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VXE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_ESP_INTERFACE -DUSE_XMIT_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+$(RE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_ESP_INTERFACE -DUSE_RECV_PIPE -o $@ $(PYTHONLIBS) -c $<
+
+$(VRE_OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(PYTHONINCLUDES) -DUSE_ESP_INTERFACE -DUSE_RECV_PIPE -DDEBUG_MODE -o $@ $(PYTHONLIBS) -c $<
+
+
+clean:
+	$(RM) $(TARGET)    $(OBJ)    $(V_TARGET)   $(V_OBJ) 
+	$(RM) $(X_TARGET)  $(X_OBJ)  $(VX_TARGET)  $(VX_OBJ) 
+	$(RM) $(R_TARGET)  $(R_OBJ)  $(VR_TARGET)  $(VR_OBJ) 
+	$(RM) $(E_TARGET)  $(E_OBJ)  $(VE_TARGET)  $(VE_OBJ) 
+	$(RM) $(XE_TARGET) $(XE_OBJ) $(VXE_TARGET) $(VXE_OBJ) 
+	$(RM) $(RE_TARGET) $(RE_OBJ) $(VRE_TARGET) $(VRE_OBJ) 
+
+clobber: clean
+	$(RM) -rf $(OBJDIR)    $(V_OBJDIR)
+	$(RM) -rf $(X_OBJDIR)  $(VX_OBJDIR)
+	$(RM) -rf $(R_OBJDIR)  $(VR_OBJDIR)
+	$(RM) -rf $(E_OBJDIR)  $(VE_OBJDIR)
+	$(RM) -rf $(XE_OBJDIR) $(VXE_OBJDIR)
+	$(RM) -rf $(RE_OBJDIR) $(VRE_OBJDIR)
+
+allclean: clobber
+
+
+#DEPENDENCIES: Listed by target object directory; taken from make depend
+#OBJDIR      = obj
+$(OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(OBJDIR)/crc.o: crc.h
+$(OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(OBJDIR)/descrambler_function.o: debug.h base.h
+$(OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#V_OBJDIR    = obj_v
+$(V_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(V_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(V_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(V_OBJDIR)/crc.o: crc.h
+$(V_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(V_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(V_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(V_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(V_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(V_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(V_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(V_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(V_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(V_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(V_OBJDIR)/descrambler_function.o: debug.h base.h
+$(V_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(V_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#E_OBJDIR    = obj_v
+$(E_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(E_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(E_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(E_OBJDIR)/crc.o: crc.h
+$(E_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(E_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(E_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(E_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(E_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(E_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(E_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(E_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(E_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(E_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(E_OBJDIR)/descrambler_function.o: debug.h base.h
+$(E_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(E_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#VE_OBJDIR    = obj_v
+$(VE_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VE_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VE_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(VE_OBJDIR)/crc.o: crc.h
+$(VE_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(VE_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(VE_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(VE_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(VE_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(VE_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(VE_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(VE_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(VE_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(VE_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(VE_OBJDIR)/descrambler_function.o: debug.h base.h
+$(VE_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(VE_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#X_OBJDIR    = obj_x
+$(X_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(X_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(X_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(X_OBJDIR)/crc.o: crc.h
+$(X_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(X_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(X_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(X_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(X_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(X_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(X_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(X_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(X_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(X_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(X_OBJDIR)/descrambler_function.o: debug.h base.h
+$(X_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(X_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#VX_OBJDIR   = obj_vx
+$(VX_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VX_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VX_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(VX_OBJDIR)/crc.o: crc.h
+$(VX_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(VX_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(VX_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(VX_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(VX_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(VX_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(VX_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(VX_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(VX_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(VX_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(VX_OBJDIR)/descrambler_function.o: debug.h base.h
+$(VX_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(VX_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#R_OBJDIR    = obj_r
+$(R_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(R_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(R_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(R_OBJDIR)/crc.o: crc.h
+$(R_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(R_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(R_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(R_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(R_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(R_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(R_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(R_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(R_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(R_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(R_OBJDIR)/descrambler_function.o: debug.h base.h
+$(R_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(R_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#VR_OBJDIR   = obj_vr
+$(VR_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VR_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VR_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(VR_OBJDIR)/crc.o: crc.h
+$(VR_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(VR_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(VR_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(VR_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(VR_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(VR_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(VR_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(VR_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(VR_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(VR_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(VR_OBJDIR)/descrambler_function.o: debug.h base.h
+$(VR_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(VR_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#RE_OBJDIR   = obj_re
+$(RE_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(RE_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(RE_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(RE_OBJDIR)/crc.o: crc.h
+$(RE_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(RE_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(RE_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(RE_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(RE_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(RE_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(RE_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(RE_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(RE_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(RE_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(RE_OBJDIR)/descrambler_function.o: debug.h base.h
+$(RE_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(RE_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#VRE_OBJDIR  = obj_vre
+$(VRE_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VRE_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VRE_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(VRE_OBJDIR)/crc.o: crc.h
+$(VRE_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(VRE_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(VRE_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(VRE_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(VRE_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(VRE_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(VRE_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(VRE_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(VRE_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(VRE_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(VRE_OBJDIR)/descrambler_function.o: debug.h base.h
+$(VRE_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(VRE_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#XE_OBJDIR   = obj_re
+$(XE_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(XE_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(XE_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(XE_OBJDIR)/crc.o: crc.h
+$(XE_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(XE_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(XE_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(XE_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(XE_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(XE_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(XE_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(XE_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(XE_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(XE_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(XE_OBJDIR)/descrambler_function.o: debug.h base.h
+$(XE_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(XE_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+#VXE_OBJDIR  = obj_vre
+$(VXE_OBJDIR)/main.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VXE_OBJDIR)/kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+$(VXE_OBJDIR)/xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+$(VXE_OBJDIR)/crc.o: crc.h
+$(VXE_OBJDIR)/recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+$(VXE_OBJDIR)/recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+$(VXE_OBJDIR)/complex_ops.o: complex_ops.h type.h base.h
+$(VXE_OBJDIR)/delay.o: debug.h delay.h type.h base.h
+$(VXE_OBJDIR)/gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+$(VXE_OBJDIR)/ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+$(VXE_OBJDIR)/sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+$(VXE_OBJDIR)/fir.o: debug.h type.h sync_short.h base.h fir.h
+$(VXE_OBJDIR)/sync_short.o: debug.h sync_short.h type.h base.h
+$(VXE_OBJDIR)/viterbi_flat.o: debug.h base.h viterbi_flat.h
+$(VXE_OBJDIR)/descrambler_function.o: debug.h base.h
+$(VXE_OBJDIR)/simple_dft.o: debug.h simple_dft.h
+$(VXE_OBJDIR)/fft-1d.o: fft-1d.h debug.h
+
+
+depend:;	makedepend -f$(MFILE) -Y -DUSE_ESP_INTERFACE -DUSE_RECV_PIPE -DDEBUG_MODE -m -- $(CFLAGS) -- $(SRC)
+# DO NOT DELETE THIS LINE -- make depend depends on it.
+
+main.o: debug.h kernels_api.h base.h recv_pipe.h
+kernels_api.o: debug.h kernels_api.h base.h recv_pipe.h
+xmit_pipe.o: debug.h base.h xmit_pipe.h fft-1d.h crc.h
+crc.o: crc.h
+recv_pipe.o: debug.h type.h base.h delay.h complex_ops.h fir.h sync_short.h
+recv_pipe.o: sync_long.h gr_equalizer.h ofdm.h fft-1d.h recv_pipe.h
+complex_ops.o: complex_ops.h type.h base.h
+delay.o: debug.h delay.h type.h base.h
+gr_equalizer.o: debug.h type.h base.h viterbi_flat.h gr_equalizer.h
+ofdm.o: debug.h type.h base.h ofdm.h viterbi_flat.h
+sync_long.o: debug.h complex_ops.h type.h base.h fir.h sync_long.h
+fir.o: debug.h type.h sync_short.h base.h fir.h
+sync_short.o: debug.h sync_short.h type.h base.h
+viterbi_flat.o: debug.h base.h viterbi_flat.h
+descrambler_function.o: debug.h base.h
+simple_dft.o: debug.h simple_dft.h
+fft-1d.o: fft-1d.h debug.h
