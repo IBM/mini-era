@@ -83,8 +83,8 @@ void print_usage(char * pname) {
 #else
   printf("    -t <trace> : defines the input trace file <trace> to use\n");
 #endif
-  printf("    -f <N>     : defines Log2 number of FFT samples\n");
-  printf("               :      14 = 2^14 = 16k samples (default); 10 = 1k samples\n");
+  printf("    -f <N>     : defines which Radar Dictionary Set is used for Critical FFT Tasks\n");
+  printf("               :      Each Set of Radar Dictionary Entries Can use a different sample size, etc.\n");
   printf("    -n <N>     : defines number of Viterbi messages per time step behavior:\n");
   printf("               :      0 = One message per time step\n");
   printf("               :      1 = One message per obstacle per time step\n");
