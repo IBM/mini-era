@@ -166,7 +166,7 @@ unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the f
 
 #ifdef HW_VIT
 // These are Viterbi Harware Accelerator Variales, etc.
-#define VIT_DEVNAME	"/dev/vitdodec.0"
+#define VIT_DEVNAME	"/dev/vitdodec_stratus.0"
 
 int vitHW_fd;
 contig_handle_t vitHW_mem;
@@ -208,13 +208,7 @@ static void init_vit_parameters()
 
 #ifdef HW_FFT
 // These are FFT Harware Accelerator Variables, etc.
-#if (USE_FFT_FX == 64)
- #define FFT_DEVNAME  "/dev/fft.0"
-#elif (USE_FFT_FX == 32)
- #define FFT_DEVNAME  "/dev/fft.1"
-#else
- #define FFT_DEVNAME  "/dev/no-dev.0"
-#endif
+#define FFT_DEVNAME  "/dev/fft_stratus.0"
 
 /* int32_t fftHW_log_len = FFTHW_LOG_LEN; */
 /* int32_t fftHW_len     = FFTHW_LEN; */
