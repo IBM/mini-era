@@ -31,8 +31,11 @@ typedef float distance_t;
 #include "calc_fmcw_dist.h"
 
 typedef struct {
-  unsigned int index;
-  unsigned int return_id;
+  unsigned int index;          // A global index (of all radar dictionary entries
+  unsigned int set;            // The set this entry is in
+  unsigned int index_in_set;   // The index in the set for this entry
+  unsigned int return_id;      // An entry-defined return ID 
+  unsigned int log_nsamples;
   float distance;
   float return_data[2 * MAX_RADAR_N];
 } radar_dict_entry_t;
@@ -138,6 +141,11 @@ extern unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
 
 extern unsigned rand_seed;
 
+#define MAX_RDICT_SAMPLE_SETS   4   // This should be updated eventually...
+extern unsigned int num_radar_samples_sets;
+extern unsigned int crit_fft_samples_set;
+extern unsigned int radar_log_nsamples_per_dict_set[MAX_RDICT_SAMPLE_SETS];
+
 /* Input Trace Functions */
 status_t init_trace_reader(char * tr_fn);
 bool_t eof_trace_reader(void);
@@ -157,7 +165,7 @@ void    post_execute_cv_kernel(label_t tr_val, label_t d_object);
 
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs);
 distance_t execute_rad_kernel(float * inputs);
-void       post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist);
+void       post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_dist, distance_t dist);
 
 vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs);
 message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs);

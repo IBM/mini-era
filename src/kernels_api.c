@@ -125,14 +125,18 @@ unsigned label_mismatch[NUM_OBJECTS][NUM_OBJECTS] = {{0, 0, 0, 0, 0}, {0, 0, 0, 
 /*   float return_data[2 * RADAR_N]; */
 /* } radar_dict_entry_t; */
 
-#define MAX_RDICT_ENTRIES   12   // This should be updated eventually...
-unsigned int        num_radar_dictionary_items = 0;
-radar_dict_entry_t* the_radar_return_dict;
+#define MAX_RDICT_ENTRIES      12   // This should be updated eventually...
+unsigned int         crit_fft_samples_set = 0; // The FFT set used for radara returns.
+unsigned int         num_radar_samples_sets = 0;
+unsigned int         radar_dict_items_per_set = 0;
+radar_dict_entry_t** the_radar_return_dict;
+unsigned int         radar_log_nsamples_per_dict_set[MAX_RDICT_SAMPLE_SETS];
 
 unsigned radar_total_calc = 0;
-unsigned hist_pct_errs[MAX_RDICT_ENTRIES][5];// = {0, 0, 0, 0, 0}; // One per distance, plus global?
-unsigned hist_distances[MAX_RDICT_ENTRIES];
+unsigned hist_pct_errs[MAX_RDICT_SAMPLE_SETS][MAX_RDICT_ENTRIES][5];// = {0, 0, 0, 0, 0}; // One per distance, plus global?
+unsigned hist_distances[MAX_RDICT_SAMPLE_SETS][MAX_RDICT_ENTRIES];
 char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
+unsigned radar_inputs_histogram[MAX_RDICT_SAMPLE_SETS][MAX_RDICT_ENTRIES];
 
 /* These are some top-level defines needed for VITERBI */
 /* typedef struct { */
@@ -270,57 +274,100 @@ status_t init_rad_kernel(char* dict_fn)
   if (!dictF)
   {
     printf("Error: unable to open dictionary file %s\n", dict_fn);
+    fclose(dictF);
     return error;
   }
   // Read the number of definitions
-  if (fscanf(dictF, "%u\n", &num_radar_dictionary_items))
-    ;
-  if (num_radar_dictionary_items > MAX_RDICT_ENTRIES) {
-    printf("ERROR : Dictionary contains %u entries, but %u is MAX_RDICT_ENTRIES\n", num_radar_dictionary_items, MAX_RDICT_ENTRIES);
+  if (fscanf(dictF, "%u %u\n", &num_radar_samples_sets, &radar_dict_items_per_set) != 2) {
+    printf("ERROR reading the number of Radar Dictionary sets and items per set\n");
     exit(-2);
   }
-  DEBUG(printf("  There are %u dictionary entries\n", num_radar_dictionary_items));
-  
-  the_radar_return_dict = (radar_dict_entry_t*)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
-  if (the_radar_return_dict == NULL) 
-  {
-    printf("ERROR : Cannot allocate Radar Trace Dictionary memory space");
+  DEBUG(printf("  There are %u dictionary sets of %u entries each\n", num_radar_samples_sets, radar_dict_items_per_set));
+  the_radar_return_dict = (radar_dict_entry_t**)calloc(num_radar_samples_sets, sizeof(radar_dict_entry_t*));
+  if (the_radar_return_dict == NULL) {
+    printf("ERROR : Cannot allocate Radar Trace Dictionary memory space\n");
+    fclose(dictF);
     return error;
   }
-
-  unsigned tot_dict_values = 0;
-  for (int di = 0; di < num_radar_dictionary_items; di++) {
-    unsigned entry_id;
-    float entry_dist;
-    unsigned entry_dict_values = 0;
-    if (fscanf(dictF, "%u %f", &entry_id, &entry_dist))
-      ;
-    DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
-    the_radar_return_dict[di].index = di;
-    the_radar_return_dict[di].return_id = entry_id;
-    the_radar_return_dict[di].distance =  entry_dist;
-    DEBUG(printf("     Read rad dictionary entry %u : %u %f  : IDX %u\n", di, the_radar_return_dict[di].return_id, the_radar_return_dict[di].distance, the_radar_return_dict[di].index));
-    for (int i = 0; i < 2*RADAR_N; i++) {
-      float fin;
-      if (fscanf(dictF, "%f", &fin))
-	;
-      the_radar_return_dict[di].return_data[i] = fin;
-      tot_dict_values++;
-      entry_dict_values++;
+  for (int si = 0; si < num_radar_samples_sets; si++) {
+    the_radar_return_dict[si] = (radar_dict_entry_t*)calloc(radar_dict_items_per_set, sizeof(radar_dict_entry_t));
+    if (the_radar_return_dict[si] == NULL) {
+      printf("ERROR : Cannot allocate Radar Trace Dictionary memory space for set %u\n", si);
+    fclose(dictF);
+      return error;
     }
-    DEBUG(printf("    Read in dict entry %u with %u total values\n", di, entry_dict_values));
   }
-  DEBUG(printf("  Read %u dict entries with %u values across them all\n", num_radar_dictionary_items, tot_dict_values));
+  unsigned tot_dict_values = 0;
+  unsigned tot_index = 0;
+  for (int si = 0; si < num_radar_samples_sets; si++) {
+    if (fscanf(dictF, "%u\n", &(radar_log_nsamples_per_dict_set[si])) != 1) {
+      printf("ERROR reading the number of Radar Dictionary samples for set %u\n", si);
+      exit(-2);
+    }
+    DEBUG(printf("  Dictionary set %u entries should all have %u log_nsamples\n", si, radar_log_nsamples_per_dict_set[si]));
+    for (int di = 0; di < radar_dict_items_per_set; di++) {
+      unsigned entry_id;
+      unsigned entry_log_nsamples;
+      float entry_dist;
+      unsigned entry_dict_values = 0;
+      if (fscanf(dictF, "%u %u %f", &entry_id, &entry_log_nsamples, &entry_dist) != 3) {
+	printf("ERROR reading Radar Dictionary set %u entry %u header\n", si, di);
+	exit(-2);
+      }
+      if (radar_log_nsamples_per_dict_set[si] != entry_log_nsamples) {
+	printf("ERROR reading Radar Dictionary set %u entry %u header : Mismatch in log2 samples : %u vs %u\n", si, di, entry_log_nsamples, radar_log_nsamples_per_dict_set[si]);
+	exit(-2);
+      }
+	
+      DEBUG(printf("  Reading rad dictionary set %u entry %u : %u %u %f\n", si, di, entry_id, entry_log_nsamples, entry_dist));
+      the_radar_return_dict[si][di].index = tot_index++;  // Set, and increment total index
+      the_radar_return_dict[si][di].set = si;
+      the_radar_return_dict[si][di].index_in_set = di;
+      the_radar_return_dict[si][di].return_id = entry_id;
+      the_radar_return_dict[si][di].log_nsamples = entry_log_nsamples;
+      the_radar_return_dict[si][di].distance =  entry_dist;
+      for (int i = 0; i < 2*(1<<entry_log_nsamples); i++) {
+	float fin;
+	if (fscanf(dictF, "%f", &fin) != 1) {
+	  printf("ERROR reading Radar Dictionary set %u entry %u data entries\n", si, di);
+	  exit(-2);
+	}
+	the_radar_return_dict[si][di].return_data[i] = fin;
+	tot_dict_values++;
+	entry_dict_values++;
+      }
+      DEBUG(printf("    Read in dict set %u entry %u with %u total values\n", si, di, entry_dict_values));
+    } // for (int di across radar dictionary entries per set
+    DEBUG(printf("   Done reading in Radar dictionary set %u\n", si));
+  } // for (si across radar dictionary sets)
+  DEBUG(printf("  Read %u sets with %u entries totalling %u values across them all\n", num_radar_samples_sets, radar_dict_items_per_set, tot_dict_values));
   if (!feof(dictF)) {
     printf("NOTE: Did not hit eof on the radar dictionary file %s\n", dict_fn);
+    while(!feof(dictF)) {
+      char c;
+      if (fscanf(dictF, "%c", &c) != 1) {
+	printf("Couldn't read final character\n");
+      } else {
+	printf("Next char is %c = %u = 0x%x\n", c, c, c);
+      }
+    }
+    //if (!feof(dictF)) { printf("and still no EOF\n"); } 
   }
   fclose(dictF);
 
   // Initialize hist_pct_errs values
-  for (int di = 0; di < num_radar_dictionary_items; di++) {
-    hist_distances[di] = 0;
-    for (int i = 0; i < 5; i++) {
-      hist_pct_errs[di][i] = 0;
+  for (int si = 0; si < num_radar_samples_sets; si++) {
+    for (int di = 0; di < radar_dict_items_per_set; di++) {
+      hist_distances[si][di] = 0;
+      for (int i = 0; i < 5; i++) {
+	hist_pct_errs[si][di][i] = 0;
+      }
+    }
+  }
+    //Clear the inputs (injected) histogram
+  for (int i = 0; i < MAX_RDICT_SAMPLE_SETS; i++) {
+    for (int j = 0; j < MAX_RDICT_ENTRIES; j++) {
+      radar_inputs_histogram[i][j] = 0;
     }
   }
 
@@ -401,13 +448,16 @@ status_t init_vit_kernel(char* dict_fn)
 
   // Read in the trace message dictionary from the trace file
   // Read the number of messages
-  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items))
-    ;
+  if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items) != 1) {
+    printf("ERROR reading the number of Viterbi Dictionary items\n");
+    exit(-2);
+  }    
   DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
   the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
   {
-    printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
+    printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space\n");
+    fclose(dictF);
     return error;
   }
 
@@ -417,19 +467,27 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
 
     int mnum, mid;
-    if (fscanf(dictF, "%d %d\n", &mnum, &mid))
-      ;
+    if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
+      printf("Error reading viterbi kernel dictionary enry %u header: Message_number and Message_id\n", i);
+      fclose(dictF);
+      exit(-6);
+    }
     DEBUG(printf(" V_MSG: num %d Id %d\n", mnum, mid));
     if (mnum != i) {
       printf("ERROR : Check Viterbi Dictionary : i = %d but Mnum = %d  (Mid = %d)\n", i, mnum, mid);
+      fclose(dictF);
       exit(-5);
     }
-    the_viterbi_trace_dict[i].msg_id = mnum;
+    the_viterbi_trace_dict[i].msg_num = mnum;
     the_viterbi_trace_dict[i].msg_id = mid;
 
     int in_bpsc, in_cbps, in_dbps, in_encoding, in_rate; // OFDM PARMS
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate))
-      ;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate) != 5) {
+      printf("Error reading viterbi kernel dictionary entry %u bpsc, cbps, dbps, encoding and rate info\n", i);
+      fclose(dictF);
+      exit(-2);
+    }
+
     DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
     the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
     the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
@@ -438,8 +496,11 @@ status_t init_vit_kernel(char* dict_fn)
     the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
-    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits))
-      ;
+    if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits) != 5) {
+      printf("Error reading viterbi kernel dictionary entry %u psdu num_sym, pad, n_encoded_bits and n_data_bits\n", i);
+      fclose(dictF);
+      exit(-2);
+    }
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
     the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
     the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
@@ -451,8 +512,11 @@ status_t init_vit_kernel(char* dict_fn)
     DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
     for (int ci = 0; ci < num_in_bits; ci++) { 
       unsigned c;
-      if (fscanf(dictF, "%u ", &c))
-	;
+      if (fscanf(dictF, "%u ", &c) != 1) {
+	printf("Error reading viterbi kernel dictionary entry %u data\n", i);
+	fclose(dictF);
+	exit(-6);
+      }
       #ifdef SUPER_VERBOSE
       printf("%u ", c);
       #endif
@@ -700,11 +764,12 @@ void post_execute_cv_kernel(label_t tr_val, label_t cv_object)
 radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs)
 {
   DEBUG(printf("In iterate_rad_kernel\n"));
-
   unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The proper message for this time step and car-lane
-
-  return &(the_radar_return_dict[tr_val]);
+  radar_inputs_histogram[crit_fft_samples_set][tr_val]++;
+  //printf("Incrementing radar_inputs_histogram[%u][%u] to %u\n", crit_fft_samples_set, tr_val, radar_inputs_histogram[crit_fft_samples_set][tr_val]);
+  return &(the_radar_return_dict[crit_fft_samples_set][tr_val]);
 }
+  
 
 
 distance_t execute_rad_kernel(float * inputs)
@@ -715,17 +780,17 @@ distance_t execute_rad_kernel(float * inputs)
   DEBUG(printf("  Calling calculate_peak_dist_from_fmcw\n"));
   distance_t dist = calculate_peak_dist_from_fmcw(inputs);
   DEBUG(printf("  Returning distance = %.1f\n", dist));
-
   return dist;
 }
 
 
-void post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist)
+void post_execute_rad_kernel(unsigned set, unsigned index, distance_t tr_dist, distance_t dist)
 {
   // Get an error estimate (Root-Squared?)
   float error;
   radar_total_calc++;
-  hist_distances[index]++;
+  hist_distances[set][index]++;
+  //printf("Setting hist_distances[%u][%u] to %u\n", set, index, hist_distances[set][index]);
   if ((tr_dist >= 500.0) && (dist > 10000.0)) {
     error = 0.0;
   } else {
@@ -742,19 +807,18 @@ void post_execute_rad_kernel(unsigned index, distance_t tr_dist, distance_t dist
   DEBUG(printf("%f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", tr_dist, dist, error, abs_err, pct_err));
   //printf("IDX: %u :: %f vs %f : ERROR : %f   ABS_ERR : %f PCT_ERR : %f\n", index, tr_dist, dist, error, abs_err, pct_err);
   if (pct_err == 0.0) {
-    hist_pct_errs[index][0]++;
+    hist_pct_errs[set][index][0]++;
   } else if (pct_err < 0.01) {
-    //printf("RADAR_LT001_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[index][1]++;
+    hist_pct_errs[set][index][1]++;
   } else if (pct_err < 0.1) {
-    //printf("RADAR_LT010_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[index][2]++;
+    printf("RADAR_LT010_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[set][index][2]++;
   } else if (pct_err < 1.00) {
-    //printf("RADAR_LT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[index][3]++;
+    printf("RADAR_LT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[set][index][3]++;
   } else {
-    //printf("RADAR_GT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
-    hist_pct_errs[index][4]++;
+    printf("RADAR_GT100_ERR : %f vs %f : ERROR : %f   PCT_ERR : %f\n", tr_dist, dist, error, pct_err);
+    hist_pct_errs[set][index][4]++;
   }
 }
 
@@ -825,6 +889,7 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs)
   // Here we determine short or long messages, based on global vit_msgs_size; offset is into the Dictionary
   int msg_offset = vit_msgs_size * NUM_MESSAGES; // 0 = short messages, 4 = long messages
 
+  viterbi_messages_histogram[vit_msgs_size][tr_val]++; 
   switch(tr_val) {
   case 0: // safe_to_move_right_or_left
     trace_msg = &(the_viterbi_trace_dict[0 + msg_offset]);
@@ -1031,18 +1096,23 @@ void closeout_cv_kernel()
 void closeout_rad_kernel()
 {
   printf("\nHistogram of Radar Distances:\n");
-  for (int di = 0; di < num_radar_dictionary_items; di++) {
-    printf("    %3u | %8.3f | %9u \n", di, the_radar_return_dict[di].distance, hist_distances[di]);
+  printf("    %3s | %3s | %8s | %9s \n", "Set", "Idx", "Distance", "Occurs");
+  for (int si = 0; si < num_radar_samples_sets; si++) {
+    for (int di = 0; di < radar_dict_items_per_set; di++) {
+      printf("    %3u | %3u | %8.3f | %9u \n", si, di, the_radar_return_dict[si][di].distance, hist_distances[si][di]);
+    }
   }
 
   printf("\nHistogram of Radar Distance ABS-PCT-ERROR:\n");
   unsigned totals[] = {0, 0, 0, 0, 0};
   
-  for (int di = 0; di < num_radar_dictionary_items; di++) {
-    printf("    Entry %u Id %u Distance %f Occurs %u Histogram:\n", di, the_radar_return_dict[di].index, the_radar_return_dict[di].distance, hist_distances[di]);
-    for (int i = 0; i < 5; i++) {
-      printf("    %7s | %9u \n", hist_pct_err_label[i], hist_pct_errs[di][i]);
-      totals[i] += hist_pct_errs[di][i];
+  for (int si = 0; si < num_radar_samples_sets; si++) {
+    for (int di = 0; di < radar_dict_items_per_set; di++) {
+      printf("    Set %u Entry %u Id %u Distance %f Occurs %u Histogram:\n", si, di, the_radar_return_dict[si][di].index, the_radar_return_dict[si][di].distance, hist_distances[si][di]);
+      for (int i = 0; i < 5; i++) {
+	printf("    %7s | %9u \n", hist_pct_err_label[i], hist_pct_errs[si][di][i]);
+	totals[i] += hist_pct_errs[si][di][i];
+      }
     }
   }
 
@@ -1050,6 +1120,16 @@ void closeout_rad_kernel()
   for (int i = 0; i < 5; i++) {
     printf("  %7s | %9u \n", hist_pct_err_label[i], totals[i]);
   }
+
+
+  printf("\nHistogram of Radar Task Inputs Used:\n");
+  printf("    %3s | %5s | %9s \n", "Set", "Entry", "NumOccurs");
+  for (int si = 0; si < num_radar_samples_sets; si++) {
+    for (int di = 0; di < radar_dict_items_per_set; di++) {
+      printf("    %3u | %3u | %9u \n", si, di, radar_inputs_histogram[si][di]);
+    }
+  }
+  printf("\n");
 }
 
 void closeout_vit_kernel()

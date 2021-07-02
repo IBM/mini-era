@@ -21,9 +21,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <getopt.h>
+
 #include "kernels_api.h"
 #include "sim_environs.h"
-#include "getopt.h"
 
 #define TIME
 
@@ -69,7 +70,7 @@ unsigned time_step;
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
-  printf("    -h         : print this helpfule usage info\n");
+  printf("    -h         : print this helpful usage info\n");
   printf("    -o         : print the Visualizer output traace information during the run\n");
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
   printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
@@ -96,6 +97,7 @@ void print_usage(char * pname) {
 }
 
 
+	 
 int main(int argc, char *argv[])
 {
   vehicle_state_t vehicle_state;
@@ -143,13 +145,8 @@ int main(int argc, char *argv[])
 #endif
       break;
     case 'f':
-      fft_logn_samples = atoi(optarg);
-      if ((fft_logn_samples == 10) || (fft_logn_samples == 14)) {
-	printf("Using 2^%u = %u samples for the FFT\n", fft_logn_samples, (1<<fft_logn_samples));
-      } else {
-	printf("Cannot specify FFT logn samples value %u (Legal values are 10, 14)\n", fft_logn_samples);
-	exit(-1);
-      }
+      crit_fft_samples_set = atoi(optarg);
+      printf("Using Radar Dictionary samples set %u for the critical FFT tasks\n", crit_fft_samples_set);
       break;
     case 'r':
 #ifdef USE_SIM_ENVIRON
@@ -203,7 +200,7 @@ int main(int argc, char *argv[])
 
 
   if (rad_dict[0] == '\0') {
-    sprintf(rad_dict, "traces/radar_dictionary.dfn");
+    sprintf(rad_dict, "traces/norm_radar_16k_dictionary.dfn");
   }
   if (vit_dict[0] == '\0') {
     sprintf(vit_dict, "traces/vit_dictionary.dfn");
@@ -249,6 +246,7 @@ int main(int argc, char *argv[])
     return 1;
   }
 #endif
+
   /* Kernels initialization */
   printf("Initializing the CV kernel...\n");
   if (!init_cv_kernel(cv_py_file, cv_dict))
@@ -269,6 +267,11 @@ int main(int argc, char *argv[])
     return 1;
   }
 
+  if (crit_fft_samples_set >= num_radar_samples_sets) {
+    printf("ERROR : Selected FFT Tasks from Radar Dictionary Set %u but there are only %u sets in the dictionary %s\n", crit_fft_samples_set, num_radar_samples_sets, rad_dict);
+    exit(-1);
+  }
+    
   /* We assume the vehicle starts in the following state:
    *  - Lane: center
    *  - Speed: 50 mph
@@ -286,7 +289,7 @@ int main(int argc, char *argv[])
 /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
   time_step = 0;
  #ifdef TIME
-  struct timeval stop, start;
+  struct timeval stop_prog, start_prog;
 
   struct timeval stop_iter_rad, start_iter_rad;
   struct timeval stop_iter_vit, start_iter_vit;
@@ -315,15 +318,18 @@ int main(int argc, char *argv[])
  #endif // TIME
 
   printf("Starting the main loop...\n");
-  fflush(stdout);
   /* The input trace contains the per-epoch (time-step) input data */
-#ifdef USE_SIM_ENVIRON
+ #ifdef TIME
+  gettimeofday(&start_prog, NULL);
+ #endif
+  
+ #ifdef USE_SIM_ENVIRON
   DEBUG(printf("\n\nTime Step %d\n", time_step));
   while (iterate_sim_environs(vehicle_state))
-#else //TRACE DRIVEN MODE
+ #else //TRACE DRIVEN MODE
   read_next_trace_record(vehicle_state);
   while (!eof_trace_reader())
-#endif
+ #endif
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
 
@@ -417,7 +423,7 @@ int main(int argc, char *argv[])
 
     // POST-EXECUTE each kernels to gather stats, etc.
     post_execute_cv_kernel(cv_tr_label, label);
-    post_execute_rad_kernel(rdentry_p->index, rdict_dist, distance);
+    post_execute_rad_kernel(rdentry_p->set, rdentry_p->index_in_set, rdict_dist, distance);
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, message);
     }
@@ -431,19 +437,19 @@ int main(int argc, char *argv[])
 
     #ifdef TIME
     time_step++;
-    if (time_step == 1) {
-      gettimeofday(&start, NULL);
-    }
-    #endif
+   #endif
 
     #ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
     #endif
   }
 
-  #ifdef TIME
-  	gettimeofday(&stop, NULL);
-  #endif
+ #ifdef TIME
+  gettimeofday(&stop_prog, NULL);
+ #endif
+
+  /* All the trace/simulation-time has been completed -- Quitting... */
+  printf("\nRun completed %u time steps\n\n", time_step);
 
   /* All the traces have been fully consumed. Quitting... */
   closeout_cv_kernel();
@@ -452,7 +458,7 @@ int main(int argc, char *argv[])
 
   #ifdef TIME
   {
-    uint64_t total_exec = (uint64_t) (stop.tv_sec - start.tv_sec) * 1000000 + (uint64_t) (stop.tv_usec - start.tv_usec);
+    uint64_t total_exec = (uint64_t) (stop_prog.tv_sec - start_prog.tv_sec) * 1000000 + (uint64_t) (stop_prog.tv_usec - start_prog.tv_usec);
     uint64_t iter_rad   = (uint64_t) (iter_rad_sec) * 1000000 + (uint64_t) (iter_rad_usec);
     uint64_t iter_vit   = (uint64_t) (iter_vit_sec) * 1000000 + (uint64_t) (iter_vit_usec);
     uint64_t iter_cv    = (uint64_t) (iter_cv_sec)  * 1000000 + (uint64_t) (iter_cv_usec);
