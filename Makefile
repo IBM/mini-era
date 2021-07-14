@@ -162,7 +162,6 @@ $(info $$NVDLA_RUNTIME is [${NVDLA_RUNTIME}])
 $(info $$NVDLA_RUNTIME_DIR is [${NVDLA_RUNTIME_DIR}])
 
 ifdef CONFIG_CV_CNN_EN
-
 MODULE := nvdla_runtime
 
 include $(ROOT)/make/macros.mk
@@ -177,13 +176,19 @@ MODULE_CPPFLAGS := --std=c++11 -fexceptions -fno-rtti
 NVDLA_FLAGS := -pthread -L$(ROOT)/external/ -ljpeg -L$(ROOT)/out/core/src/runtime/libnvdla_runtime -lnvdla_runtime  -Wl,-rpath=.
 
 include esp_hardware/nvdla/rules.mk
+
+$(info $$ALLMODULE_OBJS is [${ALLMODULE_OBJS}])
+$(info $$MODULE_OBJS is [${MODULE_OBJS}])
 endif
 
-#-----------------------------------------------------------------------------------------------
 
-$(NVDLA_MODULE):
+#-----------------------------------------------------------------------------------------------
+$(NVDLA_RUNTIME):
 	@echo -e ${YEL}Compiling NVDLA Runtime Library${NC}
 	@cd $(NVDLA_RUNTIME_DIR) && make ROOT=$(ROOT) runtime
+
+
+$(NVDLA_MODULE): $(NVDLA_RUNTIME)
 	#@echo -e ${YEL}Compiling HPVM Module for NVDLA${NC}
 	#@cd $(NVDLA_MAKE_DIR) && python gen_me_hpvm_mod.py && cp $(NVDLA_RES_DIR)/$(NVDLA_MODULE) $(CUR_DIR)
 
@@ -197,14 +202,14 @@ obj_s/%.o: %.c
 
 $(OBJ_T): $(HDR_T)
 
-$(TARGET): $(OBJ_T) $(NVDLA_MODULE)
+$(TARGET): $(OBJ_T) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
 	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
 	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_T) -o wnvdla_test.o
 	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
 	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 	rm wnvdla_test.o
 
-$(STARGET): $(OBJ_S) $(NVDLA_MODULE)
+$(STARGET): $(OBJ_S) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
 	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
 	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_S) -o wnvdla_test.o
 	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
@@ -212,11 +217,14 @@ $(STARGET): $(OBJ_S) $(NVDLA_MODULE)
 	rm wnvdla_test.o
 
 clean:
-	$(RM) $(OBJ_T) $(OBJ_S) $(TARGET) $(STARGET)
+	$(RM) $(OBJ_T) $(OBJ_S)
 	$(RM) -r obj_t obj_s
+	if [ -f "$(NVDLA_MODULE)" ]; then rm $(NVDLA_MODULE); fi
+	if [ -d "$(NVDLA_RUNTIME)" ]; then rm -rf $(NVDLA_RUNTIME); fi
 
 clobber: clean
 	$(RM) -rf esp-build
+	$(RM) $(TARGET) $(STARGET)
 
 
 obj_t:
