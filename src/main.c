@@ -77,8 +77,8 @@ void print_usage(char * pname) {
   printf("    -R <file>  : defines the input Radar dictionary file <file> to use\n");
   printf("    -V <file>  : defines the input Viterbi dictionary file <file> to use\n");
   printf("    -C <file>  : defines the input CV/CNN dictionary file <file> to use\n");
-#ifdef USE_SIM_ENVIRON
   printf("    -s <N>     : Sets the max number of time steps to simulate\n");
+#ifdef USE_SIM_ENVIRON
   printf("    -r <N>     : Sets the rand random number seed to N\n");
   printf("    -A         : Allow obstacle vehciles in All lanes (otherwise not in left or right hazard lanes)\n");
   printf("    -W <wfile> : defines the world environment parameters description file <wfile> to use\n");
