@@ -5,6 +5,7 @@ ARCH ?= riscv
 EXE_EXTENSION=
 ifdef DO_CROSS_COMPILATION
  CROSS_COMPILE ?= riscv64-unknown-linux-gnu-
+ TOOLCHAIN_PREFIX ?= $(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-
  EXE_EXTENSION=-RV
 endif
 
@@ -34,11 +35,11 @@ endif
 CFLAGS += -DUSE_ESP_INTERFACE
 #   endif
 
-SW_STR = SW
+SW_STR = -SW
 FA_STR =
 VA_STR =
 ifdef CONFIG_FFT_EN
- SW_STR = HW
+ SW_STR = -HW
  FA_STR = -F$(CONFIG_FFT_ACCEL_VER)
  CFLAGS += -DHW_FFT
  CFLAGS += -DUSE_FFT_FX=$(CONFIG_FFT_FX)
@@ -50,13 +51,20 @@ ifdef CONFIG_FFT_BITREV
 endif
 
 ifdef CONFIG_VITERBI_EN
- SW_STR = HW
+ SW_STR = -HW
  VA_STR = -V
  CFLAGS += -DHW_VIT
 endif
 
 ifdef CONFIG_KERAS_CV_BYPASS
  CFLAGS += -DBYPASS_KERAS_CV_CODE
+endif
+
+ifdef CONFIG_CV_CNN_EN
+ SW_STR = -HW
+ CA_STR = -C
+ CFLAGS += -DHW_CV -DENABLE_NVDLA
+ NVDLA_MODULE = hpvm-mod.nvdla
 endif
 
 ifdef CONFIG_VERBOSE
@@ -93,8 +101,8 @@ OBJ_S = $(SRC_T:%.c=obj_s/%.o)
 
 VPATH = ./src
 
-TARGET=mini-era$(EXE_EXTENSION)-$(SW_STR)$(FA_STR)$(VA_STR).exe
-STARGET=sim-mini-era$(EXE_EXTENSION)-$(SW_STR)$(FA_STR)$(VA_STR).exe
+TARGET=mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR).exe
+STARGET=sim-mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR).exe
 
 all: esp-libs obj_t obj_s $(TARGET) $(STARGET)
 
@@ -133,6 +141,54 @@ esp-libs:
 endif
 .PHONY: esp-build-clean esp-build-distclean esp-libs
 
+
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+
+CUR_DIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+$(info $$CUR_DIR is [${CUR_DIR}])
+
+ROOT := $(CUR_DIR)/sw/umd
+TOP := $(ROOT)
+$(info $$ROOT is [${ROOT}])
+
+ESP_NVDLA_DIR = esp_hardware/nvdla
+#INCLUDES +=  -I$(SRC_DIR) -I$(ESP_NVDLA_DIR) -I$(TOP)/core/include
+INC_DIR +=  -I$(ESP_NVDLA_DIR) -I$(ROOT)/core/include
+
+NVDLA_RUNTIME_DIR = $(ROOT)
+NVDLA_RUNTIME = $(NVDLA_RUNTIME_DIR)/out
+$(info $$NVDLA_RUNTIME is [${NVDLA_RUNTIME}])
+$(info $$NVDLA_RUNTIME_DIR is [${NVDLA_RUNTIME_DIR}])
+
+ifdef CONFIG_CV_CNN_EN
+
+MODULE := nvdla_runtime
+
+include $(ROOT)/make/macros.mk
+
+BUILDOUT ?= $(ROOT)/out/apps/runtime
+BUILDDIR := $(BUILDOUT)/$(MODULE)
+TEST_BIN := $(BUILDDIR)/$(MODULE)
+
+MODULE_COMPILEFLAGS := -W -Wall -Wno-multichar -Wno-unused-parameter -Wno-unused-function -Werror-implicit-function-declaration
+MODULE_CFLAGS := --std=c99
+MODULE_CPPFLAGS := --std=c++11 -fexceptions -fno-rtti
+NVDLA_FLAGS := -pthread -L$(ROOT)/external/ -ljpeg -L$(ROOT)/out/core/src/runtime/libnvdla_runtime -lnvdla_runtime  -Wl,-rpath=.
+
+include esp_hardware/nvdla/rules.mk
+endif
+
+#-----------------------------------------------------------------------------------------------
+
+$(NVDLA_MODULE):
+	@echo -e ${YEL}Compiling NVDLA Runtime Library${NC}
+	@cd $(NVDLA_RUNTIME_DIR) && make ROOT=$(ROOT) runtime
+	#@echo -e ${YEL}Compiling HPVM Module for NVDLA${NC}
+	#@cd $(NVDLA_MAKE_DIR) && python gen_me_hpvm_mod.py && cp $(NVDLA_RES_DIR)/$(NVDLA_MODULE) $(CUR_DIR)
+
+#-----------------------------------------------------------------------------------------------
+
 obj_t/%.o: %.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@
 
@@ -141,11 +197,19 @@ obj_s/%.o: %.c
 
 $(OBJ_T): $(HDR_T)
 
-$(TARGET): $(OBJ_T)
-	$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
+$(TARGET): $(OBJ_T) $(NVDLA_MODULE)
+	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
+	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_T) -o wnvdla_test.o
+	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
+	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
+	rm wnvdla_test.o
 
-$(STARGET): $(OBJ_S)
-	$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
+$(STARGET): $(OBJ_S) $(NVDLA_MODULE)
+	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
+	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_S) -o wnvdla_test.o
+	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
+	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
+	rm wnvdla_test.o
 
 clean:
 	$(RM) $(OBJ_T) $(OBJ_S) $(TARGET) $(STARGET)

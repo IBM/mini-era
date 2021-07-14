@@ -30,8 +30,8 @@ object_state_t* the_objects[5];
 // This represents my car.
 object_state_t my_car;		
 
-unsigned time_steps;            // The number of elapsed time steps
-unsigned max_time_steps = 5000; // The max time steps to simulate (default to 5000)
+extern unsigned time_step;      // The number of elapsed time steps
+extern unsigned max_time_steps; // The max time steps to simulate (default to 5000)
 
 // This controls whether we can have multiple obstacles in a lane at a time
 bool_t   one_obstacle_per_lane = false; // false = unlimited
@@ -304,8 +304,6 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
     the_objects[i] = NULL;
   }
 
-  time_steps = 0;
-
   srand(rand_seed);
   printf("Using rand seed: %u\n", rand_seed);
 
@@ -332,8 +330,8 @@ init_sim_environs(char* wdesc_fn, vehicle_state_t* vehicle_state)
 bool_t
 iterate_sim_environs(vehicle_state_t vehicle_state) 
 {
-  DEBUG(printf("In iterate_sim_environments with %u time_steps vs %u max\n", time_steps, max_time_steps));
-  if (time_steps == max_time_steps) {
+  DEBUG(printf("In iterate_sim_environments on time_step %u of %u max\n", time_step, max_time_steps));
+  if (time_step == max_time_steps) {
     return false;
   }
   // Clear the global object-in-lane information state
@@ -462,9 +460,9 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   // Now set up the global objects-in-lane, etc. indications.
   if (output_viz_trace) {
     if (!vehicle_state.active) {
-      printf("  VizTrace: %d,", -vehicle_state.lane);
+      printf(" %4u VizTrace: %d,", time_step, -vehicle_state.lane);
     } else {
-      printf("  VizTrace: %d,", vehicle_state.lane);
+      printf(" %4u VizTrace: %d,", time_step, vehicle_state.lane);
     }      
   }
   for (int in_lane = min_obst_lane; in_lane < max_obst_lane; in_lane++) {
@@ -497,7 +495,6 @@ iterate_sim_environs(vehicle_state_t vehicle_state)
   }
   if (output_viz_trace) { printf("\n"); }
   DEBUG(visualize_world());
-  time_steps++; // Iterate the count of time_steps so far
   return true;
 }
 

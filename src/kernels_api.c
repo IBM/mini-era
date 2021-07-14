@@ -20,21 +20,21 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <math.h>
 
 static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 {
         return (sizeof(void *) / _st);
 }
-#if defined(HW_VIT) || defined(HW_FFT)
- // These are includes from ESP Viterbi Butterfly2 Accelerator
+#if defined(HW_VIT) || defined(HW_FFT) || defined(HW_CV)
+ // These are includes from ESP to support the accelerators
  #include <fcntl.h>
  #include <pthread.h>
  #include <sys/types.h>
  #include <sys/mman.h>
  #include <sys/stat.h>
  #include <string.h>
- #include <sys/time.h>
  #include <unistd.h>
 
  #include "contig.h"
@@ -99,23 +99,27 @@ char *python_func = "predict";
 char *python_func_load = "loadmodel";	  
 #endif
 
+#ifdef INT_TIME
+struct timeval cv_call_stop, cv_call_start;
+uint64_t cv_call_sec  = 0LL;
+uint64_t cv_call_usec = 0LL;
+
+struct timeval nvdla_stop, nvdla_start;
+uint64_t nvdla_sec  = 0LL;
+uint64_t nvdla_usec = 0LL;
+
+struct timeval parse_stop, parse_start;
+uint64_t parse_sec  = 0LL;
+uint64_t parse_usec = 0LL;
+#endif
+
 
 /* These are some top-level defines needed for CV kernel */
-/* #define IMAGE_SIZE  32  // What size are these? */
-/* typedef struct { */
-/*   unsigned int image_id; */
-/*   label_t  object; */
-/*   unsigned image_data[IMAGE_SIZE]; */
-/* } cv_dict_entry_t; */
-
-/** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
-unsigned int     num_cv_dictionary_items = 0;
-cv_dict_entry_t* the_cv_object_dict;
-**/
 unsigned label_match[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0};  // Times CNN matched dictionary
 unsigned label_lookup[NUM_OBJECTS+1] = {0, 0, 0, 0, 0, 0}; // Times we used CNN for object classification
 unsigned label_mismatch[NUM_OBJECTS][NUM_OBJECTS] = {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}};
   
+cv_dictionary_t the_cv_image_dict;
 
 /* These are some top-level defines needed for RADAR */
 /* typedef struct { */
@@ -561,42 +565,30 @@ status_t init_vit_kernel(char* dict_fn)
   return success;
 }
 
-status_t init_cv_kernel(char* py_file, char* dict_fn)
+
+#ifdef HW_CV
+ extern void initNVDLA();
+ extern void runImageonNVDLAWrapper(char *Image);
+#endif
+
+status_t init_cv_kernel(char* py_file, char* dict_cv)
 {
   DEBUG(printf("In the init_cv_kernel routine\n"));
-  /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed
-  // Read in the object images dictionary file
-  FILE *dictF = fopen(dict_fn,"r");
-  if (!dictF)
-  {
-    printf("Error: unable to open dictionary file %s\n", dict_fn);
-    return error;
-  }
-  // Read the number of definitions
-  fscanf(dictF, "%u\n", &num_cv_dictionary_items);
-  DEBUG(printf("  There are %u dictionary entries\n", num_cv_dictionary_items));
-  the_cv_object_dict = (cv_dict_entry_t*)calloc(num_cv_dictionary_items, sizeof(cv_dict_entry_t));
-  if (the_cv_object_dict == NULL) 
-  {
-    printf("ERROR : Cannot allocate Cv Trace Dictionary memory space");
-    return error;
-  }
+  // Generate the object image paths from the cnn_dict path
 
-  for (int di = 0; di < num_cv_dictionary_items; di++) {
-    unsigned entry_id;
-    unsigned object_id;
-    fscanf(dictF, "%u %u", &entry_id, &object_id);
-    DEBUG(printf("  Reading cv dictionary entry %u : %u %u\n", di, entry_id, object_id));
-    the_cv_object_dict[di].image_id = entry_id;
-    the_cv_object_dict[di].object   = object_id;
-    for (int i = 0; i < IMAGE_SIZE; i++) {
-      unsigned fin;
-      fscanf(dictF, "%u", &fin);
-      the_cv_object_dict[di].image_data[i] = fin;
+  for (unsigned i = 0; i < IMAGES_PER_OBJECT_TYPE; i++) {
+    snprintf(the_cv_image_dict[no_label][i], 128, "%s/empty_%02u.jpg", dict_cv, i);
+    snprintf(the_cv_image_dict[bicycle][i], 128, "%s/bike_%02u.jpg", dict_cv, i);
+    snprintf(the_cv_image_dict[car][i], 128, "%s/car_%02u.jpg", dict_cv, i);
+    snprintf(the_cv_image_dict[pedestrian][i], 128, "%s/person_%02u.jpg", dict_cv, i);
+    snprintf(the_cv_image_dict[truck][i], 128, "%s/truck_%02u.jpg", dict_cv, i);
+  }
+  for (int i = 0; i < num_label_t; i++) {
+    for (int j = 0; j < 2; j++) {
+      printf("the_cv_image_dict[%2u][%2u] = %s\n", i, j, the_cv_image_dict[i][j]);
     }
   }
-  fclose(dictF);
-  **/
+
   // Initialization to run Keras CNN code 
 #ifndef BYPASS_KERAS_CV_CODE
   Py_Initialize();
@@ -622,7 +614,14 @@ status_t init_cv_kernel(char* py_file, char* dict_fn)
     Py_XDECREF(pFunc_load);
   }
   DEBUG(printf("CV Kernel Init done\n"));
-#endif  
+#endif
+  
+#ifdef HW_CV
+  // Initialize NVDLA
+  printf("  Calling the initNVDLA routine\n");
+  initNVDLA();
+  printf("  Back from the initNVDLA routine\n");
+#endif
   return success;
 }
 
@@ -729,14 +728,89 @@ label_t iterate_cv_kernel(vehicle_state_t vs)
 }
 
 
+unsigned image_index = 0;
+
+static inline label_t parse_output_dimg() {
+  FILE *file_p = fopen("./output.dimg", "r");
+  const size_t n_classes = 5;
+  float probs[n_classes];
+  for (size_t i = 0; i < n_classes; i++) {
+    if (fscanf(file_p, "%f", &probs[i]) != 1) {
+      printf("Didn't parse the probs[%ld] from output.dimg\n", i);
+    }
+  }
+  float max_val = 0.0f;
+  size_t max_idx = -1;
+  for (size_t i = 0; i < n_classes; i++) {
+    if (probs[i] > max_val) {
+      max_val = probs[i], max_idx = i;
+    }
+  }
+  fclose(file_p);
+  return (label_t)max_idx;
+}
+
+
 label_t execute_cv_kernel(label_t in_tr_val)
 {
   /* 2) Conduct object detection on the image frame */
+  
   DEBUG(printf("  Calling run_object_detection with in_tr_val tr_val %u %s\n", in_tr_val, object_names[in_tr_val]));
+ #ifdef HW_CV
+  // Add the call to the NVDLA stuff here.
+ #ifdef INT_TIME
+  gettimeofday(&(cv_call_start), NULL);
+ #endif
+  label_t tr_label = in_tr_val;
+  char image_name[32];
+  switch (tr_label) {
+  case no_label:
+    sprintf(image_name, "cnn_data/empty_%02u.jpg", cv_dict, (image_index & 0x1f));
+    break;
+  case bicycle:
+    sprintf(image_name, "cnn_data/bike_%02u.jpg", cv_dict, (image_index & 0x1f));
+    break;
+  case car:
+    sprintf(image_name, "cnn_data/car_%02u.jpg", cv_dict, (image_index & 0x1f));
+    break;
+  case pedestrian:
+    sprintf(image_name, "cnn_data/person_%02u.jpg", cv_dict, (image_index & 0x1f));
+    break;
+  case truck:
+    sprintf(image_name, "cnn_data/truck_%02u.jpg", cv_dict, (image_index & 0x1f));
+    break;
+  default:
+    printf("ERROR : unknown input object type %u\n", tr_label);
+  }
+  DEBUG(printf("Calling NVDLA for idx %u image %s\n", image_index, image_name));
+ #ifdef INT_TIME
+  gettimeofday(&(nvdla_start), NULL);
+  cv_call_sec  += nvdla_start.tv_sec  - cv_call_start.tv_sec;
+  cv_call_usec += nvdla_start.tv_usec - cv_call_start.tv_usec;
+ #endif
+  runImageonNVDLAWrapper(image_name);
+  DEBUG(printf("   DONE with NVDLA call...\n"));
+  image_index++;
+ #ifdef INT_TIME
+  gettimeofday(&(parse_start), NULL);
+  nvdla_sec  += parse_start.tv_sec  - nvdla_start.tv_sec;
+  nvdla_usec += parse_start.tv_usec - nvdla_start.tv_usec;
+  DEBUG(printf("REAL_HW_CV: Set Call_Sec[%u] to %llu %llu\n", cv_call_sec, cv_call_usec));
+ #endif
+  DEBUG(printf("Setting object from parse_output_dimg call...\n"));
+  label_t object = parse_output_dimg();
+ #ifdef INT_TIME
+  struct timeval stop;
+  gettimeofday(&(stop), NULL);
+  parse_sec  += stop.tv_sec  - parse_start.tv_sec;
+  parse_usec += stop.tv_usec - parse_start.tv_usec;
+ #endif
+  DEBUG(printf("---> Predicted label = %d\n", object));
+#else
   // Call Keras Code
   label_t object = run_object_classification((unsigned)in_tr_val); 
   //label_t object = the_cv_object_dict[tr_val].object;
-
+#endif
   DEBUG(printf("  Returning object %u %s : tr_val %u %s\n", object, object_names[object], in_tr_val, object_names[in_tr_val]));
   return object;
 }
@@ -1152,6 +1226,7 @@ void closeout_vit_kernel()
     }
   }
   printf("\n");
+
 
 #ifdef HW_VIT
   contig_free(vitHW_mem);

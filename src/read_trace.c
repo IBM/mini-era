@@ -32,6 +32,8 @@ int last_i = 0;
 int in_tok = 0;
 int in_lane = 0;
 
+extern unsigned time_step;         // The number of elapsed time steps
+extern unsigned max_time_steps;    // The max time steps to simulate (default to 5000)
 
 status_t init_trace_reader(char* trace_filename)
 {
@@ -94,8 +96,12 @@ bool_t read_next_trace_record(vehicle_state_t vs)
 {
   DEBUG(printf("In read_next_trace_record\n"));
   if (feof(input_trace)) { 
-    printf("ERROR : invocation of read_next_trace_record indicates feof\n");
-    exit(-1);
+    //printf("ERROR : invocation of read_next_trace_record indicates feof\n");
+    //exit(-1);
+    return false;
+  }
+  if (time_step == max_time_steps) {
+    return false;
   }
 
   total_obj = 0;
@@ -119,9 +125,9 @@ bool_t read_next_trace_record(vehicle_state_t vs)
   DEBUG(printf("IN_LINE : %s\n", in_line_buf));
   if (output_viz_trace) {
     if (!vs.active) {
-      printf("  VizTrace: %d,%s\n", -vs.lane, in_line_buf);
+      printf(" %4u VizTrace: %d,%s\n", time_step, -vs.lane, in_line_buf);
     } else {
-      printf("  VizTrace: %d,%s\n", vs.lane, in_line_buf);
+      printf(" %4u VizTrace: %d,%s\n", time_step, vs.lane, in_line_buf);
     }      
   }
 

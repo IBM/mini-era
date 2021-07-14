@@ -56,8 +56,6 @@ typedef struct obj_struct {
 extern float MAX_OBJECT_SIZE; // Max size of an object
 extern float MIN_OBJECT_DIST;
 
-extern unsigned max_time_steps; // The max stime steps to simulate
-
 extern bool_t all_obstacle_lanes_mode;
 
 extern float car_goal_speed;  // The speed My Car wants to maintain (if possible)

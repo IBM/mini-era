@@ -49,7 +49,6 @@ typedef struct {
   uint8_t      in_bits[MAX_ENCODED_BITS];
 } vit_dict_entry_t;
 
-
 #define VITERBI_MSG_LENGTHS     4
 #define VITERBI_MSGS_PER_STEP   3
 
@@ -79,12 +78,16 @@ typedef struct {
 typedef enum {
   myself = -1,
   no_label = 0,
+  bicycle,
   car,
-  truck,
   pedestrian,
-  bicycle
+  truck,
+  num_label_t
 } label_t;
 
+#define IMAGES_PER_OBJECT_TYPE  32
+//typedef char[num_label_t][IMAGES_PER_OBJECT_TYPE][128] cv_dictionary_t;
+typedef char cv_dictionary_t[num_label_t][IMAGES_PER_OBJECT_TYPE][128];
 
 /* The potential (horizontal) positions of any object (i.e. lane indications) */
 typedef enum {

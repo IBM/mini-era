@@ -65,7 +65,9 @@ char vit_dict[256];
 //char * vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
-unsigned time_step;
+
+unsigned time_step = 0;         // The number of elapsed time steps
+unsigned max_time_steps = 5000; // The max time steps to simulate (default to 5000)
 
 void print_usage(char * pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
@@ -119,6 +121,7 @@ int main(int argc, char *argv[])
   // string so that program can
   // distinguish between '?' and ':'
   while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:f:")) != -1) {
+	  printf("Got option '%c'\n", opt);
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -139,10 +142,8 @@ int main(int argc, char *argv[])
       snprintf(vit_dict, 255, "%s", optarg);
       break;
     case 's':
-#ifdef USE_SIM_ENVIRON
       max_time_steps = atoi(optarg);
       printf("Using %u maximum time steps (simulation)\n", max_time_steps);
-#endif
       break;
     case 'f':
       crit_fft_samples_set = atoi(optarg);
@@ -206,7 +207,7 @@ int main(int argc, char *argv[])
     sprintf(vit_dict, "traces/vit_dictionary.dfn");
   }
   if (cv_dict[0] == '\0') {
-    sprintf(cv_dict, "traces/objects_dictionary.dfn");
+    sprintf(cv_dict, "traces/cnn_dictionary");
   }
 
   printf("\nDictionaries:\n");
@@ -327,8 +328,9 @@ int main(int argc, char *argv[])
   DEBUG(printf("\n\nTime Step %d\n", time_step));
   while (iterate_sim_environs(vehicle_state))
  #else //TRACE DRIVEN MODE
-  read_next_trace_record(vehicle_state);
-  while (!eof_trace_reader())
+  //read_next_trace_record(vehicle_state);
+  //while (!eof_trace_reader())
+  while ( read_next_trace_record(vehicle_state) )
  #endif
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
