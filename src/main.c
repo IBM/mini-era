@@ -441,9 +441,9 @@ int main(int argc, char *argv[])
     time_step++;
    #endif
 
-    #ifndef USE_SIM_ENVIRON
+    /**#ifndef USE_SIM_ENVIRON
     read_next_trace_record(vehicle_state);
-    #endif
+    #endif**/
   }
 
  #ifdef TIME

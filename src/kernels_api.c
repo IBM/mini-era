@@ -280,7 +280,7 @@ status_t init_rad_kernel(char* dict_fn)
     printf("ERROR reading the number of Radar Dictionary sets and items per set\n");
     exit(-2);
   }
-  DEBUG(printf("  There are %u dictionary sets of %u entries each\n", num_radar_samples_sets, radar_dict_items_per_set));
+  printf("  There are %u dictionary sets of %u entries each\n", num_radar_samples_sets, radar_dict_items_per_set);
   the_radar_return_dict = (radar_dict_entry_t**)calloc(num_radar_samples_sets, sizeof(radar_dict_entry_t*));
   if (the_radar_return_dict == NULL) {
     printf("ERROR : Cannot allocate Radar Trace Dictionary memory space\n");
@@ -317,7 +317,7 @@ status_t init_rad_kernel(char* dict_fn)
 	exit(-2);
       }
 	
-      DEBUG(printf("  Reading rad dictionary set %u entry %u : %u %u %f\n", si, di, entry_id, entry_log_nsamples, entry_dist));
+      printf("  Reading rad dictionary set %u entry %u : %u %u %f\n", si, di, entry_id, entry_log_nsamples, entry_dist);
       the_radar_return_dict[si][di].index = tot_index++;  // Set, and increment total index
       the_radar_return_dict[si][di].set = si;
       the_radar_return_dict[si][di].index_in_set = di;
@@ -450,7 +450,7 @@ status_t init_vit_kernel(char* dict_fn)
     printf("ERROR reading the number of Viterbi Dictionary items\n");
     exit(-2);
   }    
-  DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
+  printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items);
   the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) 
   {
@@ -462,7 +462,7 @@ status_t init_vit_kernel(char* dict_fn)
   // Read in each dictionary item
   for (int i = 0; i < num_viterbi_dictionary_items; i++) 
   {
-    DEBUG(printf("  Reading vit dictionary entry %u\n", i)); //the_viterbi_trace_dict[i].msg_id));
+    printf("  Reading vit dictionary entry %u\n", i);
 
     int mnum, mid;
     if (fscanf(dictF, "%d %d\n", &mnum, &mid) != 2) {
@@ -584,9 +584,11 @@ status_t init_cv_kernel(char* py_file, char* dict_cv)
     snprintf(the_cv_image_dict[truck][i], 128, "%s/truck_%02u.jpg", dict_cv, i);
   }
   for (int i = 0; i < num_label_t; i++) {
-    for (int j = 0; j < 2; j++) {
+    int j = 0;
+    printf("the_cv_image_dict[%2u][%2u] = %s\n", i, j, the_cv_image_dict[i][j]);
+    DEBUG(for (j = 1; j < IMAGES_PER_OBJECT_TYPE; j++) {
       printf("the_cv_image_dict[%2u][%2u] = %s\n", i, j, the_cv_image_dict[i][j]);
-    }
+    });
   }
 
   // Initialization to run Keras CNN code 
@@ -762,33 +764,36 @@ label_t execute_cv_kernel(label_t in_tr_val)
   gettimeofday(&(cv_call_start), NULL);
  #endif
   label_t tr_label = in_tr_val;
-  char image_name[32];
+  /*char image_name[32];
   switch (tr_label) {
   case no_label:
-    sprintf(image_name, "cnn_data/empty_%02u.jpg", cv_dict, (image_index & 0x1f));
+    sprintf(image_name, "cnn_data/empty_%02u.jpg", dict_cv, (image_index & 0x1f));
     break;
   case bicycle:
-    sprintf(image_name, "cnn_data/bike_%02u.jpg", cv_dict, (image_index & 0x1f));
+    sprintf(image_name, "cnn_data/bike_%02u.jpg", dict_cv, (image_index & 0x1f));
     break;
   case car:
-    sprintf(image_name, "cnn_data/car_%02u.jpg", cv_dict, (image_index & 0x1f));
+    sprintf(image_name, "cnn_data/car_%02u.jpg", dict_cv, (image_index & 0x1f));
     break;
   case pedestrian:
-    sprintf(image_name, "cnn_data/person_%02u.jpg", cv_dict, (image_index & 0x1f));
+    sprintf(image_name, "cnn_data/person_%02u.jpg", dict_cv, (image_index & 0x1f));
     break;
   case truck:
-    sprintf(image_name, "cnn_data/truck_%02u.jpg", cv_dict, (image_index & 0x1f));
+    sprintf(image_name, "cnn_data/truck_%02u.jpg", dict_cv, (image_index & 0x1f));
     break;
   default:
     printf("ERROR : unknown input object type %u\n", tr_label);
   }
   DEBUG(printf("Calling NVDLA for idx %u image %s\n", image_index, image_name));
+  */
+  DEBUG(printf("Calling NVDLA for idx %u image %s\n", image_index, the_cv_image_dict[in_tr_val][image_index % IMAGES_PER_OBJECT_TYPE]));
  #ifdef INT_TIME
   gettimeofday(&(nvdla_start), NULL);
   cv_call_sec  += nvdla_start.tv_sec  - cv_call_start.tv_sec;
   cv_call_usec += nvdla_start.tv_usec - cv_call_start.tv_usec;
  #endif
-  runImageonNVDLAWrapper(image_name);
+  //runImageonNVDLAWrapper(image_name);
+  runImageonNVDLAWrapper(the_cv_image_dict[in_tr_val][image_index % IMAGES_PER_OBJECT_TYPE]);
   DEBUG(printf("   DONE with NVDLA call...\n"));
   image_index++;
  #ifdef INT_TIME
