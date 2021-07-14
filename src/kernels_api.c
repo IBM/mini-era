@@ -764,35 +764,12 @@ label_t execute_cv_kernel(label_t in_tr_val)
   gettimeofday(&(cv_call_start), NULL);
  #endif
   label_t tr_label = in_tr_val;
-  /*char image_name[32];
-  switch (tr_label) {
-  case no_label:
-    sprintf(image_name, "cnn_data/empty_%02u.jpg", dict_cv, (image_index & 0x1f));
-    break;
-  case bicycle:
-    sprintf(image_name, "cnn_data/bike_%02u.jpg", dict_cv, (image_index & 0x1f));
-    break;
-  case car:
-    sprintf(image_name, "cnn_data/car_%02u.jpg", dict_cv, (image_index & 0x1f));
-    break;
-  case pedestrian:
-    sprintf(image_name, "cnn_data/person_%02u.jpg", dict_cv, (image_index & 0x1f));
-    break;
-  case truck:
-    sprintf(image_name, "cnn_data/truck_%02u.jpg", dict_cv, (image_index & 0x1f));
-    break;
-  default:
-    printf("ERROR : unknown input object type %u\n", tr_label);
-  }
-  DEBUG(printf("Calling NVDLA for idx %u image %s\n", image_index, image_name));
-  */
   DEBUG(printf("Calling NVDLA for idx %u image %s\n", image_index, the_cv_image_dict[in_tr_val][image_index % IMAGES_PER_OBJECT_TYPE]));
  #ifdef INT_TIME
   gettimeofday(&(nvdla_start), NULL);
   cv_call_sec  += nvdla_start.tv_sec  - cv_call_start.tv_sec;
   cv_call_usec += nvdla_start.tv_usec - cv_call_start.tv_usec;
  #endif
-  //runImageonNVDLAWrapper(image_name);
   runImageonNVDLAWrapper(the_cv_image_dict[in_tr_val][image_index % IMAGES_PER_OBJECT_TYPE]);
   DEBUG(printf("   DONE with NVDLA call...\n"));
   image_index++;
