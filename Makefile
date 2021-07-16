@@ -10,7 +10,10 @@ ifdef DO_CROSS_COMPILATION
 endif
 
 ifdef COMPILE_TO_ESP
- ESP_ROOT ?= $(realpath ../../esp)
+ $(info $$ESP_ROOT is [${ESP_ROOT}])
+ #ESP_ROOT ?= $(realpath ../../esp)
+ ESP_ROOT ?= 
+ $(info $$ESP_ROOT is [${ESP_ROOT}])
  ESP_DRIVERS ?= $(ESP_ROOT)/soft/common/drivers
  ESP_DRV_LINUX  = $(ESP_DRIVERS)/linux
 endif

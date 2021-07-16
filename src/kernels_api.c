@@ -212,7 +212,13 @@ static void init_vit_parameters()
 
 #ifdef HW_FFT
 // These are FFT Harware Accelerator Variables, etc.
-#define FFT_DEVNAME  "/dev/fft_stratus.0"
+#if (USE_FFT_ACCEL_TYPE == 1)
+ #define FFT_DEVNAME  "/dev/fft_stratus.0"
+#elif (USE_FFT_ACCEL_TYPE == 2)
+ #define FFT_DEVNAME  "/dev/fft2_stratus.0"
+#else
+ #define FFT_DEVNAME  "/dev/no-dev.0"
+#endif
 
 /* int32_t fftHW_log_len = FFTHW_LOG_LEN; */
 /* int32_t fftHW_len     = FFTHW_LEN; */
@@ -409,13 +415,22 @@ status_t init_rad_kernel(char* dict_fn)
   //fftHW_desc.esp.p2p_srcs = {"", "", "", ""};
   fftHW_desc.esp.contig = contig_to_khandle(fftHW_mem);
 
-#ifdef HW_FFT_BITREV
+ #if (USE_FFT_ACCEL_TYPE == 1) // fft_stratus
+  #ifdef HW_FFT_BITREV
   fftHW_desc.do_bitrev  = FFTHW_DO_BITREV;
-#else
+  #else
   fftHW_desc.do_bitrev  = FFTHW_NO_BITREV;
-#endif
+  #endif
   //fftHW_desc.len      = fftHW_len;
   fftHW_desc.log_len    = fft_logn_samples; // fftHW_log_len;
+ #elif (USE_FFT_ACCEL_TYPE == 2) // fft2_stratus
+  fftHW_desc.scale_factor = 0;
+  fftHW_desc.logn_samples = fft_logn_samples;
+  fftHW_desc.num_ffts     = 1;
+  fftHW_desc.do_inverse   = 0;
+  fftHW_desc.do_shift     = 0;
+  fftHW_desc.do_inverse   = 0;
+ #endif
   fftHW_desc.src_offset = 0;
   fftHW_desc.dst_offset = 0;
 #endif
