@@ -170,7 +170,7 @@ unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the f
 
 #ifdef HW_VIT
 // These are Viterbi Harware Accelerator Variales, etc.
-#define VIT_DEVNAME	"/dev/vitdodec_stratus.0"
+char VIT_DEVNAME[128];
 
 int vitHW_fd;
 contig_handle_t vitHW_mem;
@@ -210,14 +210,8 @@ static void init_vit_parameters()
 
 
 #ifdef HW_FFT
-// These are FFT Harware Accelerator Variables, etc.
-#if (USE_FFT_ACCEL_TYPE == 1)
- #define FFT_DEVNAME  "/dev/fft_stratus.0"
-#elif (USE_FFT_ACCEL_TYPE == 2)
- #define FFT_DEVNAME  "/dev/fft2_stratus.0"
-#else
- #define FFT_DEVNAME  "/dev/no-dev.0"
-#endif
+
+char FFT_DEVNAME[128];
 
 int fftHW_fd;
 contig_handle_t fftHW_mem;
@@ -374,6 +368,11 @@ status_t init_rad_kernel(char* dict_fn)
 
  #ifdef HW_FFT
   init_fft_parameters();
+ #if (USE_FFT_ACCEL_TYPE == 1)
+  snprintf(FFT_DEVNAME, 128, "/dev/fft_stratus.%u", FFT_DEVICE_NUM);
+ #elif (USE_FFT_ACCEL_TYPE == 2)
+  snprintf(FFT_DEVNAME, 128, "/dev/fft2_stratus.%u", FFT_DEVICE_NUM);
+ #endif
   printf("Open device %s\n", FFT_DEVNAME);
   #if (USE_FFT_FX == 64)
    printf(" typedef unsigned long long token_t\n");
@@ -553,6 +552,7 @@ status_t init_vit_kernel(char* dict_fn)
 
 #ifdef HW_VIT
   init_vit_parameters();
+  snprintf(VIT_DEVNAME, 128, "/dev/vitdodec_stratus.%u", VIT_DEVICE_NUM);
   printf("Open Vit-Do-Decode device %s\n", VIT_DEVNAME);
   vitHW_fd = open(VIT_DEVNAME, O_RDWR, 0);
   if(vitHW_fd < 0) {
