@@ -41,13 +41,15 @@ CFLAGS += -DUSE_ESP_INTERFACE
 SW_STR = -SW
 FA_STR =
 VA_STR =
+
+CONFIG_WHICH_FFT_TYPE ?= 2
 ifdef CONFIG_FFT_EN
  SW_STR = -HW
  FA_STR = -F$(CONFIG_FFT_ACCEL_VER)
- CFLAGS += -DHW_FFT
+ TGT_FFT=_F$(CONFIG_WHICH_FFT_TYPE)
+ CFLAGS += -DHW_FFT -DUSE_FFT_ACCEL_TYPE=$(CONFIG_WHICH_FFT_TYPE)
  CFLAGS += -DUSE_FFT_FX=$(CONFIG_FFT_FX)
- CFLAGS += -DUSE_FFT_ACCEL_VERSION=$(CONFIG_FFT_ACCEL_VER)
- CFLAGS += -DFFT_DEV_BASE='"$(FFT_DEVICE_BASE)"'
+ CFLAGS += -DFFT_DEVNUM=0
 endif
 ifdef CONFIG_FFT_BITREV
  CFLAGS += -DHW_FFT_BITREV
@@ -57,10 +59,12 @@ ifdef CONFIG_VITERBI_EN
  SW_STR = -HW
  VA_STR = -V
  CFLAGS += -DHW_VIT
+ CFLAGS += -DVIT_DEVNUM=0
 endif
 
 ifdef CONFIG_KERAS_CV_BYPASS
- CFLAGS += -DBYPASS_KERAS_CV_CODE
+ CA_STR = -Cbp
+CFLAGS += -DBYPASS_KERAS_CV_CODE
 endif
 
 ifdef CONFIG_CV_CNN_EN
@@ -91,23 +95,37 @@ LDFLAGS += -lm
 LDFLAGS += -lpthread
 ifdef COMPILE_TO_ESP
  LDFLAGS += -lrt
- LDFLAGS += -lesp
- LDFLAGS += -ltest
- LDFLAGS += -lcontig
+LDFLAGS += -lesp
+LDFLAGS += -ltest
+LDFLAGS += -lcontig
 endif
 
-SRC_T = $(foreach f, $(wildcard src/*.c), $(shell basename $(f)))
-SRC_D = $(wildcard src/*.c)
-HDR_T = $(wildcard include/*.h)
-OBJ_T = $(SRC_T:%.c=obj_t/%.o)
-OBJ_S = $(SRC_T:%.c=obj_s/%.o)
+SRC = 	src/calculate_dist_from_fmcw.c \
+	src/descrambler_function.c \
+	src/fft.c \
+	src/getopt.c \
+	src/kernels_api.c \
+	src/main.c \
+	src/octave.c \
+	src/timer.c \
+	src/viterbi_flat.c \
+	src/viterbi_parms.c
+
+SRC_T = $(SRC) src/read_trace.c
+SRC_S = $(SRC) src/sim_environs.c
+
+HDR = $(wildcard include/*.h)
+OBJ_T = $(SRC_T:src/%.c=obj_t/%.o)
+OBJ_S = $(SRC_S:src/%.c=obj_s/%.o)
 
 VPATH = ./src
 
-TARGET=mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR).exe
-STARGET=sim-mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR).exe
+TARGET_T=mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR).exe
+TARGET_S=sim-$(TARGET_T)
 
-all: esp-libs obj_t obj_s $(TARGET) $(STARGET)
+ALL_OBJ_DIR=obj_t obj_s
+
+all: esp-libs $(ALL_OBJ_DIR) $(TARGET_T) $(TARGET_S)
 
 ESP_BUILD_DRIVERS     = esp-build/drivers
 
@@ -139,7 +157,7 @@ esp-libs: esp-build
 	  cd $(ESP_BUILD_DRIVERS)/libesp; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/libesp
 	  cd $(ESP_BUILD_DRIVERS)/utils; CROSS_COMPILE=$(CROSS_COMPILE) BUILD_PATH=$$PWD $(MAKE) -C $(ESP_DRV_LINUX)/utils
 else
-esp-libs: 
+esp-libs:
 
 endif
 .PHONY: esp-build-clean esp-build-distclean esp-libs
@@ -203,16 +221,14 @@ obj_t/%.o: %.c
 obj_s/%.o: %.c
 	$(CROSS_COMPILE)$(CC) $(CFLAGS) -DUSE_SIM_ENVIRON -c $< -o $@
 
-$(OBJ_T): $(HDR_T)
-
-$(TARGET): $(OBJ_T) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
+$(TARGET_T): $(OBJ_T) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
 	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
 	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_T) -o wnvdla_test.o
 	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
 	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 	rm wnvdla_test.o
 
-$(STARGET): $(OBJ_S) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
+$(TARGET_S): $(OBJ_S) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
 	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
 	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_S) -o wnvdla_test.o
 	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
@@ -236,7 +252,9 @@ obj_t:
 obj_s:
 	mkdir $@
 
+
 .PHONY: all clean
+
 
 #depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(SRC_D)
 # DO NOT DELETE THIS LINE -- make depend depends on it.

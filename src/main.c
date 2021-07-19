@@ -21,10 +21,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include <getopt.h>
-
 #include "kernels_api.h"
 #include "sim_environs.h"
+#include "getopt.h"
 
 #define TIME
 
@@ -60,9 +59,6 @@ extern uint64_t depunc_usec;
 char cv_dict[256]; 
 char rad_dict[256];
 char vit_dict[256];
-//char * cv_dict  = "traces/objects_dictionary.dfn";
-//char * rad_dict = "traces/radar_dictionary.dfn";
-//char * vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
 
@@ -115,13 +111,12 @@ int main(int argc, char *argv[])
 
   rad_dict[0] = '\0';
   vit_dict[0] = '\0';
-  cv_dict[0] = '\0';
+  cv_dict[0]  = '\0';
 
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
   while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:f:")) != -1) {
-	  printf("Got option '%c'\n", opt);
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
@@ -319,6 +314,7 @@ int main(int argc, char *argv[])
  #endif // TIME
 
   printf("Starting the main loop...\n");
+  fflush(stdout);
   /* The input trace contains the per-epoch (time-step) input data */
  #ifdef TIME
   gettimeofday(&start_prog, NULL);
@@ -334,7 +330,6 @@ int main(int argc, char *argv[])
  #endif
   {
     DEBUG(printf("Vehicle_State: Lane %u %s Speed %.1f\n", vehicle_state.lane, lane_names[vehicle_state.lane], vehicle_state.speed));
-
     /* The computer vision kernel performs object recognition on the
      * next image, and returns the corresponding label. 
      * This process takes place locally (i.e. within this car).
@@ -434,6 +429,7 @@ int main(int argc, char *argv[])
      * based on the currently perceived information. It returns the new
      * vehicle state.
      */
+    DEBUG(printf("Time Step %3u : Calling Plan and Control with message %u and distance %.1f\n", time_step, message, distance));
     vehicle_state = plan_and_control(label, distance, message, vehicle_state);
     DEBUG(printf("New vehicle state: lane %u speed %.1f\n\n", vehicle_state.lane, vehicle_state.speed));
 
@@ -504,6 +500,7 @@ int main(int argc, char *argv[])
   printf("  do-decoding run time    %lu usec\n", dodec);
  #endif // INT_TIME
 
+  sleep(1);
   printf("\nDone.\n");
   return 0;
 }

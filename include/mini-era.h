@@ -47,6 +47,7 @@ typedef float fftHW_native_t;
 #define FX_IL 14
 #endif /* FFT_FX_WIDTH */
 
+#if (USE_FFT_ACCEL_TYPE == 1)  // fft_stratus
 /* <<--params-def-->> */
 /* #define FFTHW_LOG_LEN     14 */
 /* #define FFTHW_LEN         (1 << FFTHW_LOG_LEN) */
@@ -67,7 +68,29 @@ struct fftHW_access {
 	unsigned dst_offset;
 };
 
-#define FFTHW_IOC_ACCESS	_IOW ('S', 0, struct fftHW_access)
+#elif (USE_FFT_ACCEL_TYPE == 2) // fft2_stratus
 
+#define LOGN_SAMPLES 6
+#define NUM_FFTS     1
+#define DO_INVERSE   0
+#define DO_SHIFT     1
+#define SCALE_FACTOR 0
+
+#define NACC 1
+
+struct fftHW_access {
+	struct esp_access esp;
+	/* <<--regs-->> */
+	unsigned scale_factor;
+	unsigned do_inverse;
+	unsigned logn_samples;
+	unsigned do_shift;
+	unsigned num_ffts;
+	unsigned src_offset;
+	unsigned dst_offset;
+};
+#endif
+
+#define FFTHW_IOC_ACCESS	_IOW ('S', 0, struct fftHW_access)
 
 #endif /* _MINI_ERA_H_ */

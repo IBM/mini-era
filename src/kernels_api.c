@@ -206,7 +206,6 @@ static void init_vit_parameters()
 	vitHW_size = (vitHW_out_offset * sizeof(vitHW_token_t)) + vitHW_out_size;
 }
 
-
 #endif
 
 
@@ -219,9 +218,6 @@ static void init_vit_parameters()
 #else
  #define FFT_DEVNAME  "/dev/no-dev.0"
 #endif
-
-/* int32_t fftHW_log_len = FFTHW_LOG_LEN; */
-/* int32_t fftHW_len     = FFTHW_LEN; */
 
 int fftHW_fd;
 contig_handle_t fftHW_mem;
@@ -368,14 +364,15 @@ status_t init_rad_kernel(char* dict_fn)
       }
     }
   }
-    //Clear the inputs (injected) histogram
+
+  //Clear the inputs (injected) histogram
   for (int i = 0; i < MAX_RDICT_SAMPLE_SETS; i++) {
     for (int j = 0; j < MAX_RDICT_ENTRIES; j++) {
       radar_inputs_histogram[i][j] = 0;
     }
   }
 
-#ifdef HW_FFT
+ #ifdef HW_FFT
   init_fft_parameters();
   printf("Open device %s\n", FFT_DEVNAME);
   #if (USE_FFT_FX == 64)
@@ -451,7 +448,11 @@ status_t init_rad_kernel(char* dict_fn)
 status_t init_vit_kernel(char* dict_fn)
 {
   DEBUG(printf("In init_vit_kernel...\n"));
-  // Read in the object images dictionary file
+  if (vit_msgs_size >= VITERBI_MSG_LENGTHS) {
+    printf("ERROR: Specified too large a vit_msgs_size (-v option): %u but max is %u\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
+    exit(-1);
+  }
+  // Read in the viterbi messages dictionary file
   FILE *dictF = fopen(dict_fn,"r");
   if (!dictF)
   {
@@ -1008,7 +1009,6 @@ message_t execute_vit_kernel(vit_dict_entry_t* trace_msg, int num_msgs)
     } // if (mi == 0)
   }
   DEBUG(printf("The execute_vit_kernel is returning msg %u\n", msg));
-    
   return msg;
 }
 
@@ -1216,14 +1216,16 @@ void closeout_vit_kernel()
   printf("There were %u bad decodes of the %u messages\n", bad_decode_msgs, total_msgs);
 
   printf("\nHistogram of Viterbi Messages:\n");
+  fflush(stdout);
   printf("    %3s | %3s | %9s \n", "Len", "Msg", "NumOccurs");
+  fflush(stdout);
   for (int li = 0; li < VITERBI_MSG_LENGTHS; li++) {
     for (int mi = 0; mi < NUM_MESSAGES; mi++) {
       printf("    %3u | %3u | %9u \n", li, mi, viterbi_messages_histogram[li][mi]);
+      fflush(stdout);
     }
   }
   printf("\n");
-
 
 #ifdef HW_VIT
   contig_free(vitHW_mem);
