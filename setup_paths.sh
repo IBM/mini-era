@@ -14,4 +14,4 @@ else
   CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 fi
 
-export PATH=$PATH:/RISCV_BIN_DIR
+export PATH=$PATH:$RISCV_BIN_DIR
