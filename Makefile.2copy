@@ -69,7 +69,7 @@ endif
 ifdef CONFIG_CV_CNN_EN
  SW_STR = -HW
  CA_STR = -C
- CFLAGS += -DHW_CV -DENABLE_NVDLA
+ CFLAGS0 += -DHW_CV -DENABLE_NVDLA
  NVDLA_MODULE = hpvm-mod.nvdla
 endif
 
@@ -114,17 +114,20 @@ SRC_T = $(SRC) src/read_trace.c
 SRC_S = $(SRC) src/sim_environs.c
 
 HDR = $(wildcard include/*.h)
-OBJ_T = $(SRC_T:src/%.c=obj_t/%.o)
-OBJ_S = $(SRC_S:src/%.c=obj_s/%.o)
+OBJ_T0 = $(SRC_T:src/%.c=obj_t0/%.o)
+OBJ_S0 = $(SRC_S:src/%.c=obj_s0/%.o)
+OBJ_T1 = $(SRC_T:src/%.c=obj_t1/%.o)
+OBJ_S1 = $(SRC_S:src/%.c=obj_s1/%.o)
 
 VPATH = ./src
 
-TARGET_T=mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR).exe
-TARGET_S=sim-$(TARGET_T)
+TARGET_X=mini-era$(EXE_EXTENSION)$(SW_STR)$(FA_STR)$(VA_STR)$(CA_STR)
+TARGET_T0=$(TARGET_X).0
+TARGET_T1=$(TARGET_X).1
+TARGET_S0=sim-$(TARGET_T0)
+TARGET_S1=sim-$(TARGET_T1)
 
-ALL_OBJ_DIR=obj_t obj_s
-
-all: esp-libs $(ALL_OBJ_DIR) $(TARGET_T) $(TARGET_S)
+all: esp-libs obj_t0 obj_s0 $(TARGET_T0) $(TARGET_S0) obj_t1 obj_s1 $(TARGET_T1) $(TARGET_S1)
 
 ESP_BUILD_DRIVERS     = esp-build/drivers
 
@@ -214,46 +217,74 @@ $(NVDLA_MODULE): $(NVDLA_RUNTIME)
 
 #-----------------------------------------------------------------------------------------------
 
-obj_t/%.o: %.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) -c $< -o $@
+obj_t0/%.o: %.c
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CFLAGS0) -c $< -o $@
 
-obj_s/%.o: %.c
-	$(CROSS_COMPILE)$(CC) $(CFLAGS) -DUSE_SIM_ENVIRON -c $< -o $@
+obj_s0/%.o: %.c
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CFLAGS0) -DUSE_SIM_ENVIRON -c $< -o $@
 
-$(TARGET_T): $(OBJ_T) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
+obj_t1/%.o: %.c
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CFLAGS1) -c $< -o $@
+
+obj_s1/%.o: %.c
+	$(CROSS_COMPILE)$(CC) $(CFLAGS) $(CFLAGS1) -DUSE_SIM_ENVIRON -c $< -o $@
+
+
+$(TARGET_T0): $(OBJ_T0) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
 	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
-	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_T) -o wnvdla_test.o
+	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_T0) -o wnvdla_test.o
 	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
 	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 	rm wnvdla_test.o
 
-$(TARGET_S): $(OBJ_S) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
+$(TARGET_S0): $(OBJ_S0) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
 	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
-	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_S) -o wnvdla_test.o
+	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_S0) -o wnvdla_test.o
+	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
+	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
+	rm wnvdla_test.o
+
+$(TARGET_T1): $(OBJ_T1) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
+	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
+	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_T1) -o wnvdla_test.o
+	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
+	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
+	rm wnvdla_test.o
+
+$(TARGET_S1): $(OBJ_S1) $(NVDLA_MODULE) $(ALLMODULE_OBJS)
+	#$(CROSS_COMPILE)$(CC) -fPIC $< -c -o me_test.o
+	$(CROSS_COMPILE)$(LD) -r $(ALLMODULE_OBJS) $(OBJ_S1) -o wnvdla_test.o
 	$(CROSS_COMPILE)$(CXX) $(LDLIBS) wnvdla_test.o -o $@ $(LDFLAGS) $(NVDLA_FLAGS)
 	#$(CROSS_COMPILE)$(CC) $(LDLIBS) $^ -o $@ $(LDFLAGS)
 	rm wnvdla_test.o
 
 clean:
-	$(RM) $(OBJ_T) $(OBJ_S)
-	$(RM) -r obj_t obj_s
+	$(RM) $(OBJ_T0) $(OBJ_S0)
+	$(RM) $(OBJ_T1) $(OBJ_S1)
+	$(RM) -r obj_t0 obj_s0
+	$(RM) -r obj_t1 obj_s1
 	if [ -f "$(NVDLA_MODULE)" ]; then rm $(NVDLA_MODULE); fi
 	if [ -d "$(NVDLA_RUNTIME)" ]; then rm -rf $(NVDLA_RUNTIME); fi
 
 clobber: clean
 	$(RM) -rf esp-build
-	$(RM) $(TARGET) $(STARGET)
+	$(RM) $(TARGET_T0) $(TARGET_S0)
+	$(RM) $(TARGET_T1) $(TARGET_S1)
 
 
-obj_t:
+obj_t0:
 	mkdir $@
 
-obj_s:
+obj_s0:
 	mkdir $@
 
+obj_t1:
+	mkdir $@
+
+obj_s1:
+	mkdir $@
 
 .PHONY: all clean
-
 
 #depend:;	makedepend -fMakefile -- $(CFLAGS) -- $(SRC_D)
 # DO NOT DELETE THIS LINE -- make depend depends on it.
