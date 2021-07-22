@@ -54,11 +54,22 @@ extern uint64_t dodec_usec;
 
 extern uint64_t depunc_sec;
 extern uint64_t depunc_usec;
+
+extern uint64_t cv_call_sec;
+extern uint64_t cv_call_usec;
+
+extern uint64_t nvdla_sec;
+extern uint64_t nvdla_usec;
+
+extern uint64_t parse_sec;
+extern uint64_t parse_usec;
 #endif
 
 char cv_dict[256]; 
 char rad_dict[256];
 char vit_dict[256];
+
+extern unsigned use_device_number;
 
 bool_t all_obstacle_lanes_mode = false;
 
@@ -116,13 +127,17 @@ int main(int argc, char *argv[])
   // put ':' in the starting of the
   // string so that program can
   // distinguish between '?' and ':'
-  while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:f:")) != -1) {
+  while((opt = getopt(argc, argv, ":hAot:v:n:s:r:W:R:V:C:D:f:")) != -1) {
     switch(opt) {
     case 'h':
       print_usage(argv[0]);
       exit(0);
     case 'A':
       all_obstacle_lanes_mode = true;
+      break;
+    case 'D':
+      use_device_number = atoi(optarg);
+      DEBUG(printf("Setting to use device number %d\n", use_device_number));
       break;
     case 'o':
       output_viz_trace = true;
@@ -138,11 +153,11 @@ int main(int argc, char *argv[])
       break;
     case 's':
       max_time_steps = atoi(optarg);
-      printf("Using %u maximum time steps (simulation)\n", max_time_steps);
+      DEBUG(printf("Using %u maximum time steps (simulation)\n", max_time_steps));
       break;
     case 'f':
       crit_fft_samples_set = atoi(optarg);
-      printf("Using Radar Dictionary samples set %u for the critical FFT tasks\n", crit_fft_samples_set);
+      DEBUG(printf("Using Radar Dictionary samples set %u for the critical FFT tasks\n", crit_fft_samples_set));
       break;
     case 'r':
 #ifdef USE_SIM_ENVIRON
@@ -152,7 +167,7 @@ int main(int argc, char *argv[])
     case 't':
 #ifndef USE_SIM_ENVIRON
       trace_file = optarg;
-      printf("Using trace file: %s\n", trace_file);
+      DEBUG(printf("Using trace file: %s\n", trace_file));
 #endif
       break;
     case 'v':
@@ -161,7 +176,7 @@ int main(int argc, char *argv[])
 	printf("ERROR: Specified viterbi message size (%u) is larger than max (%u) : from the -v option\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
 	exit(-1);
       } else {
-	printf("Using viterbi message size %u = %s\n", vit_msgs_size, vit_msgs_size_str[vit_msgs_size]);
+	DEBUG(printf("Using viterbi message size %u = %s\n", vit_msgs_size, vit_msgs_size_str[vit_msgs_size]));
       }
       break;
     case 'n':
@@ -170,13 +185,13 @@ int main(int argc, char *argv[])
 	printf("ERROR: Specified viterbi messages per time step behavior (%u) is larger than max (%u) : from the -n option\n", vit_msgs_size, VITERBI_MSG_LENGTHS);
 	exit(-1);
       } else {
-	printf("Using viterbi messages per step behavior %u = %s\n", vit_msgs_per_step, vit_msgs_per_step_str[vit_msgs_per_step]);
+	DEBUG(printf("Using viterbi messages per step behavior %u = %s\n", vit_msgs_per_step, vit_msgs_per_step_str[vit_msgs_per_step]));
       }
       break;
     case 'W':
 #ifdef USE_SIM_ENVIRON
       world_desc_file_name = optarg;
-      printf("Using world description file: %s\n", world_desc_file_name);
+      DEBUG(printf("Using world description file: %s\n", world_desc_file_name));
 #endif
       break;
     case ':':
@@ -209,6 +224,17 @@ int main(int argc, char *argv[])
   printf("   CV/CNN : %s\n", cv_dict);
   printf("   Radar  : %s\n", rad_dict);
   printf("   Viterbi: %s\n", vit_dict);
+
+  #ifdef USE_SIM_ENVIRON
+  printf("Using world description file: %s\n", world_desc_file_name);
+ #else
+  printf("Using trace file: %s\n", trace_file);
+ #endif
+  printf("Using %u maximum time steps (simulation)\n", max_time_steps);
+  printf("Using viterbi messages per step behavior %u = %s\n", vit_msgs_per_step, vit_msgs_per_step_str[vit_msgs_per_step]);
+  printf("Using device number %d\n", use_device_number);
+  printf("Using Radar Dictionary samples set %u for the critical FFT tasks\n", crit_fft_samples_set);
+  printf("\n");
 
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
@@ -498,7 +524,15 @@ int main(int argc, char *argv[])
   printf("  depuncture  run time    %lu usec\n", depunc);
   uint64_t dodec    = (uint64_t) (dodec_sec)  * 1000000 + (uint64_t) (dodec_usec);
   printf("  do-decoding run time    %lu usec\n", dodec);
- #endif // INT_TIME
+
+  printf("\n");
+  uint64_t cv_call   = (uint64_t) (cv_call_sec)  * 1000000 + (uint64_t) (cv_call_usec);
+  printf("  cv_call     run time    %lu usec\n", cv_call);
+  uint64_t nvdla     = (uint64_t) (nvdla_sec)  * 1000000 + (uint64_t) (nvdla_usec);
+  printf("  nvdla       run time    %lu usec\n", nvdla);
+  uint64_t parse     = (uint64_t) (parse_sec)  * 1000000 + (uint64_t) (parse_usec);
+  printf("  parse       run time    %lu usec\n", parse);
+#endif // INT_TIME
 
   sleep(1);
   printf("\nDone.\n");
