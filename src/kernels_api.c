@@ -57,6 +57,8 @@ static unsigned DMA_WORD_PER_BEAT(unsigned _st)
 
 extern unsigned time_step;
 
+unsigned use_device_number = 0; // Default to /dev/*_stratus.0
+
 char* lane_names[NUM_LANES] = {"LHazard", "Left", "Center", "Right", "RHazard" };
 char* message_names[NUM_MESSAGES] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R" };
 char* object_names[NUM_OBJECTS] = {"Nothing", "Car", "Truck", "Person", "Bike" };
@@ -157,7 +159,7 @@ uint8_t actual_msg[1600];
 unsigned int      num_viterbi_dictionary_items = 0;
 vit_dict_entry_t* the_viterbi_trace_dict;
 
-unsigned vit_msgs_size;
+unsigned vit_msgs_size = 0;
 unsigned vit_msgs_per_step;
 const char* vit_msgs_size_str[VITERBI_MSG_LENGTHS] = {"SHORT", "MEDIUM", "LONG", "MAXIMUM"};
 const char* vit_msgs_per_step_str[VITERBI_MSGS_PER_STEP] = {"One message per time step",
@@ -369,9 +371,9 @@ status_t init_rad_kernel(char* dict_fn)
  #ifdef HW_FFT
   init_fft_parameters();
  #if (USE_FFT_ACCEL_TYPE == 1)
-  snprintf(FFT_DEVNAME, 128, "/dev/fft_stratus.%u", FFT_DEVICE_NUM);
+  snprintf(FFT_DEVNAME, 128, "/dev/fft_stratus.%u", use_device_number);
  #elif (USE_FFT_ACCEL_TYPE == 2)
-  snprintf(FFT_DEVNAME, 128, "/dev/fft2_stratus.%u", FFT_DEVICE_NUM);
+  snprintf(FFT_DEVNAME, 128, "/dev/fft2_stratus.%u", use_device_number);
  #endif
   printf("Open device %s\n", FFT_DEVNAME);
   #if (USE_FFT_FX == 64)
@@ -552,7 +554,7 @@ status_t init_vit_kernel(char* dict_fn)
 
 #ifdef HW_VIT
   init_vit_parameters();
-  snprintf(VIT_DEVNAME, 128, "/dev/vitdodec_stratus.%u", VIT_DEVICE_NUM);
+  snprintf(VIT_DEVNAME, 128, "/dev/vitdodec_stratus.%u", use_device_number);
   printf("Open Vit-Do-Decode device %s\n", VIT_DEVNAME);
   vitHW_fd = open(VIT_DEVNAME, O_RDWR, 0);
   if(vitHW_fd < 0) {
@@ -783,8 +785,6 @@ label_t execute_cv_kernel(label_t in_tr_val)
   DEBUG(printf("Calling NVDLA for idx %u image %s\n", image_index, the_cv_image_dict[in_tr_val][image_index % IMAGES_PER_OBJECT_TYPE]));
  #ifdef INT_TIME
   gettimeofday(&(nvdla_start), NULL);
-  cv_call_sec  += nvdla_start.tv_sec  - cv_call_start.tv_sec;
-  cv_call_usec += nvdla_start.tv_usec - cv_call_start.tv_usec;
  #endif
   runImageonNVDLAWrapper(the_cv_image_dict[in_tr_val][image_index % IMAGES_PER_OBJECT_TYPE]);
   DEBUG(printf("   DONE with NVDLA call...\n"));
@@ -798,10 +798,11 @@ label_t execute_cv_kernel(label_t in_tr_val)
   DEBUG(printf("Setting object from parse_output_dimg call...\n"));
   label_t object = parse_output_dimg();
  #ifdef INT_TIME
-  struct timeval stop;
-  gettimeofday(&(stop), NULL);
-  parse_sec  += stop.tv_sec  - parse_start.tv_sec;
-  parse_usec += stop.tv_usec - parse_start.tv_usec;
+  gettimeofday(&(parse_stop), NULL);
+  parse_sec  += parse_stop.tv_sec  - parse_start.tv_sec;
+  parse_usec += parse_stop.tv_usec - parse_start.tv_usec;
+  cv_call_sec  += parse_stop.tv_sec  - cv_call_start.tv_sec;
+  cv_call_usec += parse_stop.tv_usec - cv_call_start.tv_usec;
  #endif
   DEBUG(printf("---> Predicted label = %d\n", object));
 #else
