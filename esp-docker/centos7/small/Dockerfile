@@ -40,7 +40,7 @@ RUN wget http://mirrors.concertpass.com/gcc/releases/gcc-5.1.0/gcc-5.1.0.tar.gz 
 
 
 # install Pmw module
-RUN pip3 install Pmw
+RUN pip3 install Pmw torch torchvision
 
 # create non-root user
 RUN useradd -ms /bin/bash espuser
@@ -81,7 +81,7 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
   #    -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
 RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
 RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git && \
-      cd scheduler-library && \
+      cd scheduler-library && conda init bash && . ~/.bashrc && conda activate hpvm && \
       #ln -sf /home/espuser/scheduler-library/sched_library/build_riscv_nvdla.config /home/espuser/scheduler-library/sched_library/hardware_config && \
       sed -i 's/HPVM_DIR=/HPVM_DIR=\/home\/espuser\/hpvm-release\/hpvm/g' setup_paths.sh && \
       sed -i 's/RISCV_BIN_DIR=/RISCV_BIN_DIR=\/home\/espuser\/riscv\/bin/g' setup_paths.sh &&\
