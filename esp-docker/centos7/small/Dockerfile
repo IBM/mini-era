@@ -6,7 +6,7 @@ WORKDIR /home
 RUN yum install -y epel-release && \
     rpm -ivh http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-3.el7.noarch.rpm?
 # install python, perl,  CAD tools and software toolchain dependencies, miscellaneous
-RUN yum install -y python python-pip python3 python3-pip python3-tkinter \
+RUN yum install -y python python-pip python-devel python3 python3-pip python3-devel python3-tkinter \
     perl perl-Env perl-YAML perl-XML-Simple perl-ExtUtils-MakeMaker \
     perl-Thread-Queue perl-Capture-Tiny \
     xterm csh ksh zsh tcl glibc-devel glibc-devel.i686 \
@@ -38,9 +38,8 @@ RUN wget http://mirrors.concertpass.com/gcc/releases/gcc-5.1.0/gcc-5.1.0.tar.gz 
     git checkout tags/z3-4.7.1 && python scripts/mk_make.py && cd build \
     && make -j4 && make install 
 
-
-# install Pmw module
-RUN pip3 install Pmw torch torchvision
+#Need jpeg for pillow which is needed for torchvision
+RUN yum install -y libjpeg-devel
 
 # create non-root user
 RUN useradd -ms /bin/bash espuser
@@ -79,14 +78,14 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
   #    mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
   #   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
   #    -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
-RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
+RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && conda install pip libgcc && pip install Pmw torch lightnet && conda update numpy && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
 RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git && \
       cd scheduler-library && conda init bash && . ~/.bashrc && conda activate hpvm && \
       #ln -sf /home/espuser/scheduler-library/sched_library/build_riscv_nvdla.config /home/espuser/scheduler-library/sched_library/hardware_config && \
       sed -i 's/HPVM_DIR=/HPVM_DIR=\/home\/espuser\/hpvm-release\/hpvm/g' setup_paths.sh && \
       sed -i 's/RISCV_BIN_DIR=/RISCV_BIN_DIR=\/home\/espuser\/riscv\/bin/g' setup_paths.sh &&\
       sed -i 's/ESP_ROOT=/ESP_ROOT=\/home\/espuser\/esp/g' setup_paths.sh &&\
-      . ./setup_paths.sh && make clean && make hpvm-epochs && cd examples/mini-era && \
+      . ./setup_paths.sh && ln -sf /home/espuser/scheduler-library/hw_config_files/build_riscv_nvdla.config /home/espuser/scheduler-library/hardware_config && make clean && make hpvm-epochs && cd examples/mini-era && \
       make CONFIG_VERBOSE=y hpvm-epochs
 #      bash -c "source setup_paths.sh; make clean; make hpvm-epochs;"
 # && make clean && make hpvm-epochs 
