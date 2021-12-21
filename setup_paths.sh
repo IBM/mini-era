@@ -1,7 +1,7 @@
 #!/bin/bash
 ####### THESE VARIABLES NEED TO BE SET! #########
-export HPVM_DIR=/home/espuser/HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm
-export APPROXHPVM_DIR=/home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla
+export HPVM_DIR=/home/espuser/hpvm-release/hpvm
+export APPROXHPVM_DIR=/home/espuser/hpvm-release/approxhpvm-nvdla
 export RISCV_BIN_DIR=/home/espuser/riscv/bin
 export PYTHONPATH=/home/espuser/mini-era/cv/yolo
 
