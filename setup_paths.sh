@@ -3,6 +3,7 @@
 export HPVM_DIR=/home/espuser/HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm
 export APPROXHPVM_DIR=/home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla
 export RISCV_BIN_DIR=/home/espuser/riscv/bin
+export PYTHONPATH=/home/espuser/mini-era/cv/yolo
 
 ####### THESE VARIABLES SHOULD NOT NEED ANY MODIFICATION! #########
 SCRIPT=$(readlink -f "$BASH_SOURCE")
@@ -17,3 +18,4 @@ export LD_LIBRARY_PATH=$LLVM_SRC_ROOT/lib/Transforms/HPVM2NVDLA/nvdla:$LD_LIBRAR
 #export LD_LIBRARY_PATH=$LLVM_SRC_ROOT/lib/Transforms/HPVM2NVDLA/nvdla:/software/cuda-9.1/lib64/:$LD_LIBRARY_PATH
 export PATH=$HPVM_DIR/build/bin:$PATH
 export TOP=$MINIERA_DIR/sw/umd
+export LD_LIBRARY_PATH=/home/espuser/anaconda3/lib:$LD_LIBRARY_PATH
