@@ -37,14 +37,14 @@ CUR_DIR = $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
 
 # Compiler Flags
 
-LFLAGS += -lm -lrt
+LFLAGS += -lm -lrt -lpython3.7m
 
 # Build dirs
 SRC_DIR = src/
 ESP_NVDLA_DIR = esp_hardware/nvdla
 BUILD_DIR = build/$(TARGET)
 
-INCLUDES +=  -I$(SRC_DIR) -I$(ESP_NVDLA_DIR) -I$(TOP)/core/include
+INCLUDES +=  -I$(SRC_DIR) -I$(ESP_NVDLA_DIR) -I$(TOP)/core/include -I/home/espuser/anaconda3/include/python3.7m
 
 EXE = miniera-hpvm-seq
 RISCVEXE = miniera-hpvm-riscv
@@ -180,7 +180,7 @@ $(RISCVEXE) : $(HOST_LINKED)
 	@echo -e ${YEL}1\) Use Clang to generate object file${NC}
 	$(CXX) --target=riscv64 -march=rv64g -mabi=lp64d $< -c -o test.o
 	@echo -e ${YEL}Then gcc cross-compiler is used to link the binary${NC}
-	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -lm -lrt -lpthread -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
+	$(RISCV_BIN_DIR)/riscv64-unknown-linux-gnu-g++ test.o -o $@ -I/home/espuser/anaconda3/include/python3.7m -lm -lrt -lpthread -lpython3.7m -Wl,--eh-frame-hdr -mabi=lp64d -march=rv64g	
 	rm test.o
 
 $(EXE) : $(HOST_LINKED)

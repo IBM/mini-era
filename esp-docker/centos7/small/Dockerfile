@@ -72,13 +72,13 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
 # HPVM Mini-era
 #COPY --chown=espuser:espuser hpvm-miniera.tar.gz . 
 #RUN tar xvf hpvm-miniera.tar.gz && rm hpvm-miniera.tar.gz && \
-  #    cd HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm && \
-  #  printf 'y\n4\nX86;RISCV\n' | bash install.sh
+#     cd HPVM-EPOCHS-MINIERA/hpvm-epochs/hpvm && \
+#   printf 'y\n4\nX86;RISCV\n' | bash install.sh
 #RUN cd /home/espuser/HPVM-EPOCHS-MINIERA/approxhpvm-nvdla/ && \
-  #    mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
-  #   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
-  #    -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
-RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && conda install pip libgcc && pip install Pmw torch lightnet && conda update numpy && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
+#    mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
+#   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
+#   -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
+RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && conda install pip libgcc && pip install Pmw torch torchvision lightnet && conda update numpy && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
 RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git && \
       cd scheduler-library && conda init bash && . ~/.bashrc && conda activate hpvm && \
       #ln -sf /home/espuser/scheduler-library/sched_library/build_riscv_nvdla.config /home/espuser/scheduler-library/sched_library/hardware_config && \
@@ -88,11 +88,14 @@ RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git &
       . ./setup_paths.sh && ln -sf /home/espuser/scheduler-library/hw_config_files/build_riscv_nvdla.config /home/espuser/scheduler-library/hardware_config && make clean && make hpvm-epochs && cd examples/mini-era && \
       make CONFIG_VERBOSE=y hpvm-epochs
 #      bash -c "source setup_paths.sh; make clean; make hpvm-epochs;"
-# && make clean && make hpvm-epochs 
-#RUN git clone -b hpvm https://github.com/IBM/mini-era.git && cd mini-era && \
-  #    source ./setup_paths.sh && make epochs && cd && \
-  #    git clone https://github.com/AkashIwnK/nvdla_inputs_repo.git  
+#      && make clean && make hpvm-epochs 
+#RUN git clone -b docker-hpvm https://github.com/IBM/mini-era.git && cd mini-era && \
+#      source ./setup_paths.sh && make epochs && cd && \
+#      git clone https://github.com/AkashIwnK/nvdla_inputs_repo.git  
 
+#COPY mini-era folder
+COPY --chown=espuser:espuser mini-era.tar.gz /home/espuser
+RUN tar xvf mini-era.tar.gz && rm mini-era.tar.gz
 USER root
 
 # enable X11 forwarding
@@ -107,3 +110,17 @@ COPY small/bashrc /root/.bashrc
 COPY small/tmux.conf /root/.tmux.conf
 # copy over emacs script
 COPY small/emacs /root/.emacs
+
+# tiny yolo package requirements
+RUN conda install pip libgcc && conda install --channel pytorch pytorch torchvision && \
+    conda install --channel conda-forge opencv pytorch-lightning onnx numexpr && \
+    /home/espuser/anaconda3/bin/pip install lightnet && conda update numpy
+
+# link necexssary python and libstdc++6 libraries
+RUN cd /usr/lib && ln -s /home/espuser/anaconda3/lib/libpython3.7m.so libpython3.7m.so && \
+    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1 libpython3.7m.so.1 && \
+    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1.0 libpython3.7m.so.1.0 && \
+    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6 libstdc++.so.6 && \
+    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6.0.28 libstdc++.so.28 && \
+    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6 libstdc++.so.6 && \
+    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6.0.28 libstdc++.so.28

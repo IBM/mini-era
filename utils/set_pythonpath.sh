@@ -1,1 +1,1 @@
-export PYTHONPATH=/home/nandhini/mini-era/cv/CNN_MIO_KERAS
+export PYTHONPATH=/home/espuser/mini-era/cv/yolo

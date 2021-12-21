@@ -21,7 +21,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-//#include <Python.h>
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
 //#include "fft-1d.h"
 #include <stdint.h>
 #include <math.h>
@@ -46,12 +47,12 @@ extern void initNVDLA();
 extern void runImageonNVDLAWrapper(char *Image);
 #endif
 
-#define BYPASS_KERAS_CV_CODE  // INITIAL  BRING-UP
+// #define BYPASS_KERAS_CV_CODE  // INITIAL  BRING-UP
 
 #define TIME
-char * cv_dict  = "traces/objects_dictionary.dfn";
-char * rad_dict = "traces/radar_dictionary.dfn";
-char * vit_dict = "traces/vit_dictionary.dfn";
+char *cv_dict = "traces/objects_dictionary.dfn";
+char *rad_dict = "traces/radar_dictionary.dfn";
+char *vit_dict = "traces/vit_dictionary.dfn";
 
 bool_t all_obstacle_lanes_mode = false;
 
@@ -60,7 +61,7 @@ bool output_viz_trace = false;
 
 d_branchtab27_t d_branchtab27_generic[2];
 
-void print_usage(char * pname) {
+void print_usage(char *pname) {
   printf("Usage: %s <OPTIONS>\n", pname);
   printf(" OPTIONS:\n");
   printf("    -h         : print this help information\n");
@@ -84,25 +85,22 @@ void print_usage(char * pname) {
 
 
 
-char* lane_names[NUM_LANES + 1] = {"LHazard", "Left", "Center", "Right", "RHazard", "Unknown" };
-char* message_names[NUM_MESSAGES + 1] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R", "Unknowwn" };
-char* object_names[NUM_OBJECTS + 1] = {"Nothing", "Bike", "Car", "Person", "Truck", "Unknown" };
+char *lane_names[NUM_LANES + 1] = {"LHazard", "Left", "Center", "Right", "RHazard", "Unknown"};
+char *message_names[NUM_MESSAGES + 1] = {"Safe_L_or_R", "Safe_R_only", "Safe_L_only", "Unsafe_L_or_R", "Unknowwn"};
+char *object_names[NUM_OBJECTS + 1] = {"Nothing", "Bike", "Car", "Person", "Truck", "Unknown"};
 
 /* These are globals for the trace read parsing routines */
-#define MAX_TR_LINE_SZ   256
+#define MAX_TR_LINE_SZ 256
 
-unsigned total_obj; // Total non-'N' obstacle objects across all lanes this time step
-unsigned obj_in_lane[NUM_LANES]; // Number of obstacle objects in each lane this time step (at least one, 'n')
+unsigned total_obj;                             // Total non-'N' obstacle objects across all lanes this time step
+unsigned obj_in_lane[NUM_LANES];                // Number of obstacle objects in each lane this time step (at least one, 'n')
 unsigned lane_dist[NUM_LANES][MAX_OBJ_IN_LANE]; // The distance to each obstacle object in each lane
-char     lane_obj[NUM_LANES][MAX_OBJ_IN_LANE]; // The type of each obstacle object in each lane
+char lane_obj[NUM_LANES][MAX_OBJ_IN_LANE];      // The type of each obstacle object in each lane
 
-char     nearest_obj[NUM_LANES]  = { 'N', 'N', 'N', 'N', 'N' };
-float    nearest_dist[NUM_LANES] = { INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE };
+char nearest_obj[NUM_LANES] = {'N', 'N', 'N', 'N', 'N'};
+float nearest_dist[NUM_LANES] = {INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE, INF_DISTANCE};
 
 unsigned hist_total_objs[NUM_LANES * MAX_OBJ_IN_LANE];
-
-
-
 
 /* These are types, functions, etc. required for VITERBI */
 
@@ -111,11 +109,10 @@ PyObject *pName, *pModule, *pFunc, *pFunc_load;
 PyObject *pArgs, *pValue, *pretValue;
 #define PY_SSIZE_T_CLEAN
 
-char *python_module = "mio";
+char *python_module = "yolo";
 char *python_func = "predict";
 char *python_func_load = "loadmodel";
 #endif
-
 
 /* These are some top-level defines needed for CV kernel */
 //#define IMAGE_SIZE  32  // What size are these?
@@ -129,16 +126,16 @@ char *python_func_load = "loadmodel";
 unsigned int     num_cv_dictionary_items = 0;
 cv_dict_entry_t* the_cv_object_dict;
 **/
-unsigned label_match[NUM_OBJECTS + 1] = {0, 0, 0, 0, 0, 0}; // Times CNN matched dictionary
+unsigned label_match[NUM_OBJECTS + 1] = {0, 0, 0, 0, 0, 0};  // Times CNN matched dictionary
 unsigned label_lookup[NUM_OBJECTS + 1] = {0, 0, 0, 0, 0, 0}; // Times we used CNN for object classification
 unsigned label_mismatch[NUM_OBJECTS][NUM_OBJECTS] = {{0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}, {0, 0, 0, 0, 0}};
 
 #define INPUTS_PER_LABEL 20
-char cv_inputs[num_object_labels][INPUTS_PER_LABEL][32];  // the names of input files by object type
+char cv_inputs[num_object_labels][INPUTS_PER_LABEL][32]; // the names of input files by object type
 
 /* These are some top-level defines needed for RADAR */
-unsigned int        num_radar_dictionary_items = 0;
-radar_dict_entry_t* the_radar_return_dict;
+unsigned int num_radar_dictionary_items = 0;
+radar_dict_entry_t *the_radar_return_dict;
 
 unsigned radar_inf_errs = 0;
 unsigned radar_inf_noerr = 0;
@@ -146,25 +143,22 @@ unsigned radar_zero_errs = 0;
 unsigned radar_zero_noerr = 0;
 unsigned radar_total_calc = 0;
 unsigned hist_pct_errs[5] = {0, 0, 0, 0, 0};
-char*    hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
+char *hist_pct_err_label[5] = {"   0%", "<  1%", "< 10%", "<100%", ">100%"};
 
 /* These are some top-level defines needed for VITERBI */
 
-unsigned int      num_viterbi_dictionary_items = 0;
-vit_dict_entry_t* the_viterbi_trace_dict;
+unsigned int num_viterbi_dictionary_items = 0;
+vit_dict_entry_t *the_viterbi_trace_dict;
 
 unsigned vit_msgs_behavior = 0; // 0 = default
-unsigned total_msgs = 0; // Total messages decoded during the full run
-unsigned bad_decode_msgs = 0; // Total messages decoded incorrectly during the full run
-
-
-
+unsigned total_msgs = 0;        // Total messages decoded during the full run
+unsigned bad_decode_msgs = 0;   // Total messages decoded incorrectly during the full run
 
 /*********************************************************************************
  * The following is code to support the initialization of the simulation run
  *********************************************************************************/
 
-status_t init_rad_kernel(char* dict_fn) {
+status_t init_rad_kernel(char *dict_fn) {
   DEBUG(printf("In init_rad_kernel...\n"));
   // Read in the radar distances dictionary file
   FILE *dictF = fopen(dict_fn, "r");
@@ -176,7 +170,7 @@ status_t init_rad_kernel(char* dict_fn) {
   if (fscanf(dictF, "%u\n", &num_radar_dictionary_items))
     ;
   DEBUG(printf("  There are %u dictionary entries\n", num_radar_dictionary_items));
-  the_radar_return_dict = (radar_dict_entry_t*)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
+  the_radar_return_dict = (radar_dict_entry_t *)calloc(num_radar_dictionary_items, sizeof(radar_dict_entry_t));
   if (the_radar_return_dict == NULL) {
     printf("ERROR : Cannot allocate Radar Trace Dictionary memory space");
     return error;
@@ -191,7 +185,7 @@ status_t init_rad_kernel(char* dict_fn) {
       ;
     DEBUG(printf("  Reading rad dictionary entry %u : %u %f\n", di, entry_id, entry_dist));
     the_radar_return_dict[di].return_id = entry_id;
-    the_radar_return_dict[di].distance =  entry_dist;
+    the_radar_return_dict[di].distance = entry_dist;
     for (int i = 0; i < 2 * RADAR_N; i++) {
       float fin;
       if (fscanf(dictF, "%f", &fin))
@@ -211,7 +205,6 @@ status_t init_rad_kernel(char* dict_fn) {
   return success;
 }
 
-
 /* This is the initialization of the Viterbi trace-stream
  * The trace format is:
  *  <n> = number of dictionary entries (message types)
@@ -224,7 +217,7 @@ status_t init_rad_kernel(char* dict_fn) {
  *  t1_1 t2_1 t3_1 : Message per-lane (t1 = left, t2 = middle, t3 = right) for time step 1
  */
 
-status_t init_vit_kernel(char* dict_fn) {
+status_t init_vit_kernel(char *dict_fn) {
   DEBUG(printf("In init_vit_kernel...\n"));
   // Read in the object images dictionary file
   FILE *dictF = fopen(dict_fn, "r");
@@ -238,7 +231,7 @@ status_t init_vit_kernel(char* dict_fn) {
   if (fscanf(dictF, "%u\n", &num_viterbi_dictionary_items))
     ;
   DEBUG(printf("  There are %u dictionary entries\n", num_viterbi_dictionary_items));
-  the_viterbi_trace_dict = (vit_dict_entry_t*)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
+  the_viterbi_trace_dict = (vit_dict_entry_t *)calloc(num_viterbi_dictionary_items, sizeof(vit_dict_entry_t));
   if (the_viterbi_trace_dict == NULL) {
     printf("ERROR : Cannot allocate Viterbi Trace Dictionary memory space");
     return error;
@@ -263,21 +256,21 @@ status_t init_vit_kernel(char* dict_fn) {
     if (fscanf(dictF, "%d %d %d %d %d\n", &in_bpsc, &in_cbps, &in_dbps, &in_encoding, &in_rate))
       ;
     DEBUG(printf("  OFDM: %d %d %d %d %d\n", in_bpsc, in_cbps, in_dbps, in_encoding, in_rate));
-    the_viterbi_trace_dict[i].ofdm_p.encoding   = in_encoding;
-    the_viterbi_trace_dict[i].ofdm_p.n_bpsc     = in_bpsc;
-    the_viterbi_trace_dict[i].ofdm_p.n_cbps     = in_cbps;
-    the_viterbi_trace_dict[i].ofdm_p.n_dbps     = in_dbps;
+    the_viterbi_trace_dict[i].ofdm_p.encoding = in_encoding;
+    the_viterbi_trace_dict[i].ofdm_p.n_bpsc = in_bpsc;
+    the_viterbi_trace_dict[i].ofdm_p.n_cbps = in_cbps;
+    the_viterbi_trace_dict[i].ofdm_p.n_dbps = in_dbps;
     the_viterbi_trace_dict[i].ofdm_p.rate_field = in_rate;
 
     int in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits;
     if (fscanf(dictF, "%d %d %d %d %d\n", &in_pdsu_size, &in_sym, &in_pad, &in_encoded_bits, &in_data_bits))
       ;
     DEBUG(printf("  FRAME: %d %d %d %d %d\n", in_pdsu_size, in_sym, in_pad, in_encoded_bits, in_data_bits));
-    the_viterbi_trace_dict[i].frame_p.psdu_size      = in_pdsu_size;
-    the_viterbi_trace_dict[i].frame_p.n_sym          = in_sym;
-    the_viterbi_trace_dict[i].frame_p.n_pad          = in_pad;
+    the_viterbi_trace_dict[i].frame_p.psdu_size = in_pdsu_size;
+    the_viterbi_trace_dict[i].frame_p.n_sym = in_sym;
+    the_viterbi_trace_dict[i].frame_p.n_pad = in_pad;
     the_viterbi_trace_dict[i].frame_p.n_encoded_bits = in_encoded_bits;
-    the_viterbi_trace_dict[i].frame_p.n_data_bits    = in_data_bits;
+    the_viterbi_trace_dict[i].frame_p.n_data_bits = in_data_bits;
 
     int num_in_bits = in_encoded_bits + 10; // strlen(str3)+10; //additional 10 values
     DEBUG(printf("  Reading %u in_bits\n", num_in_bits));
@@ -300,7 +293,7 @@ status_t init_vit_kernel(char* dict_fn) {
   return success;
 }
 
-status_t init_cv_kernel(char* dict_fn) {
+status_t init_cv_kernel(char *dict_fn) {
   DEBUG(printf("In the init_cv_kernel routine\n"));
   /** The CV kernel uses a different method to select appropriate inputs; dictionary not needed**/
   // Set up the CV/CNN input data file names (by object type label)
@@ -344,24 +337,34 @@ status_t init_cv_kernel(char* dict_fn) {
   return success;
 }
 
-
 // This prepares the input for the execute_cv_kernel call
 label_t iterate_cv_kernel(vehicle_state_t vs) {
   DEBUG(printf("In iterate_cv_kernel\n"));
 
   unsigned tr_val = 0; // Default nothing
   switch (nearest_obj[vs.lane]) {
-  case 'N' : tr_val = no_label; break;
-  case 'B' : tr_val = bicycle; break;
-  case 'C' : tr_val = car; break;
-  case 'P' : tr_val = pedestrian; break;
-  case 'T' : tr_val = truck; break;
-  default: printf("ERROR : Unknown object type in cv trace: '%c'\n", nearest_obj[vs.lane]); exit(-2);
+  case 'N':
+    tr_val = no_label;
+    break;
+  case 'B':
+    tr_val = bicycle;
+    break;
+  case 'C':
+    tr_val = car;
+    break;
+  case 'P':
+    tr_val = pedestrian;
+    break;
+  case 'T':
+    tr_val = truck;
+    break;
+  default:
+    printf("ERROR : Unknown object type in cv trace: '%c'\n", nearest_obj[vs.lane]);
+    exit(-2);
   }
   label_t d_object = (label_t)tr_val;
   return d_object;
 }
-
 
 label_t run_object_classification_syscall(unsigned tr_val) {
   DEBUG(printf("Entered run_object_classification...\n"));
@@ -383,7 +386,7 @@ label_t run_object_classification_syscall(unsigned tr_val) {
   }
   DEBUG(printf("Label Prediction done \n"));
   DEBUG(printf("pbuffer : %s\n", pbuffer));
-  int val = atoi(pbuffer);   //the last thing printed by the Keras code is the predicted label
+  int val = atoi(pbuffer); //the last thing printed by the Keras code is the predicted label
   object = (label_t)val;
   pclose(testing);
   DEBUG(printf("run_object_classification returning %u = %u\n", val, object));
@@ -400,6 +403,7 @@ label_t run_object_classification(unsigned tr_val) {
 
     if (pFunc && PyCallable_Check(pFunc)) {
       pArgs = PyTuple_New(1);
+      // int rand_obj = rand() % 5;
       pValue = PyLong_FromLong(tr_val);
       if (!pValue) {
         Py_DECREF(pArgs);
@@ -433,11 +437,9 @@ label_t run_object_classification(unsigned tr_val) {
     //Py_DECREF(pModule);
   }
 
-
 #endif
   return object;
 }
-
 
 static inline label_t parse_output_dimg() {
   FILE *file_p = fopen("./output.dimg", "r");
@@ -453,8 +455,8 @@ static inline label_t parse_output_dimg() {
   return max_idx;
 }
 
-void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
-                               /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */) {
+void execute_cv_kernel(/* 0 */ label_t *in_tr_val, size_t in_tr_val_size, /* 1 */
+                               /* 2 */ label_t *out_label, size_t out_label_size /* 3 */) {
 
   __hpvm__hint(DEVICE);
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
@@ -470,7 +472,7 @@ void execute_cv_kernel(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 *
   *out_label = parse_output_dimg();
   printf("    NVDLA Prediction: %d vs %d\n", *out_label, obj_id);
 #endif
-  *out_label = *in_tr_val;
+  *out_label = run_object_classification((unsigned)in_tr_val);
 
   __hpvm__return(1, out_label_size);
 }
@@ -488,20 +490,17 @@ void post_execute_cv_kernel(label_t d_object, label_t object) {
   label_lookup[d_object]++;
 }
 
-
-
 /*********************************************************************************
  * The following is code to support the RADAR kernel
  *********************************************************************************/
-radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs) {
+radar_dict_entry_t *iterate_rad_kernel(vehicle_state_t vs) {
   DEBUG(printf("In iterate_rad_kernel\n"));
 
-  unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE;  // The effective "radar bucket" distance
+  unsigned tr_val = nearest_dist[vs.lane] / RADAR_BUCKET_DISTANCE; // The effective "radar bucket" distance
 
   /* DEBUG(printf("  Using dist tr_val %u : in meters %f\n", tr_val, ddist)); */
   return &(the_radar_return_dict[tr_val]);
 }
-
 
 /* -*-Mode: C;-*- */
 
@@ -573,7 +572,7 @@ radar_dict_entry_t* iterate_rad_kernel(vehicle_state_t vs) {
  **EndCopyright*************************************************************/
 
 static unsigned int
-_rev (unsigned int v) {
+_rev(unsigned int v) {
   unsigned int r = v;
   int s = sizeof(v) * CHAR_BIT - 1;
 
@@ -587,9 +586,8 @@ _rev (unsigned int v) {
   return r;
 }
 
-
 static float *
-bit_reverse (float * w, unsigned int N, unsigned int bits) {
+bit_reverse(float *w, unsigned int N, unsigned int bits) {
   unsigned int i, s, shift;
   s = sizeof(i) * CHAR_BIT - 1;
   shift = s - bits + 1;
@@ -597,7 +595,7 @@ bit_reverse (float * w, unsigned int N, unsigned int bits) {
   for (i = 0; i < N; i++) {
     unsigned int r;
     float t_real, t_imag;
-    r = _rev (i);
+    r = _rev(i);
     r >>= shift;
 
     if (i < r) {
@@ -613,8 +611,7 @@ bit_reverse (float * w, unsigned int N, unsigned int bits) {
   return w;
 }
 
-
-void fft(/* 0 */ float * data,
+void fft(/* 0 */ float *data,
                  /* 2 */ unsigned int N,
                  /* 3 */ unsigned int logn,
                  /* 4 */ int sign) {
@@ -625,17 +622,17 @@ void fft(/* 0 */ float * data,
   transform_length = 1;
 
   /* bit reversal */
-  bit_reverse (data, N, logn);
+  bit_reverse(data, N, logn);
 
   /* calculation */
   for (bit = 0; bit < logn; bit++) {
     w_real = 1.0;
     w_imag = 0.0;
 
-    theta = 1.0 * sign * M_PI / (float) transform_length;
+    theta = 1.0 * sign * M_PI / (float)transform_length;
 
-    s = sin (theta);
-    t = sin (0.5 * theta);
+    s = sin(theta);
+    t = sin(0.5 * theta);
     s2 = 2.0 * t * t;
 
     for (a = 0; a < transform_length; a++) {
@@ -643,16 +640,16 @@ void fft(/* 0 */ float * data,
         i = b + a;
         j = b + a + transform_length;
 
-        z_real = data[2 * j  ];
+        z_real = data[2 * j];
         z_imag = data[2 * j + 1];
 
         t_real = w_real * z_real - w_imag * z_imag;
         t_imag = w_real * z_imag + w_imag * z_real;
 
         /* write the result */
-        data[2 * j  ]  = data[2 * i  ] - t_real;
-        data[2 * j + 1]  = data[2 * i + 1] - t_imag;
-        data[2 * i  ] += t_real;
+        data[2 * j] = data[2 * i] - t_real;
+        data[2 * j + 1] = data[2 * i + 1] - t_imag;
+        data[2 * i] += t_real;
         data[2 * i + 1] += t_imag;
       }
 
@@ -661,18 +658,16 @@ void fft(/* 0 */ float * data,
       t_imag = w_imag + (s * w_real - s2 * w_imag);
       w_real = t_real;
       w_imag = t_imag;
-
     }
 
     transform_length *= 2;
   }
 }
 
-
-void get_dist_from_fft(/* 0 */ float * distance, size_t dist_size, /* 1 */
+void get_dist_from_fft(/* 0 */ float *distance, size_t dist_size, /* 1 */
                                /* 2 */ unsigned int input_N,
-                               /* 3 */ float* data, size_t data_size_bytes /* 4 */ ) {
-  float max_psd   = 0.0;
+                               /* 3 */ float *data, size_t data_size_bytes /* 4 */) {
+  float max_psd = 0.0;
   unsigned int max_index = data_size_bytes; /* A too large value */
 
   float temp;
@@ -692,16 +687,15 @@ void get_dist_from_fft(/* 0 */ float * distance, size_t dist_size, /* 1 */
   *distance = dist;
 }
 
-
-void execute_rad_kernel(float * inputs, size_t input_size_bytes,
+void execute_rad_kernel(float *inputs, size_t input_size_bytes,
                         unsigned int input_N, unsigned int in_logn, int in_sign,
-                        distance_t * distance, size_t dist_size) {
+                        distance_t *distance, size_t dist_size) {
   __hpvm__hint(DEVICE);
   __hpvm__attributes(2, inputs, distance, 1, distance);
 
   /* 2) Conduct distance estimation on the waveform */
   // The fft routine reads from inputs and writes results in the same memory
-  fft (inputs, input_N, in_logn, in_sign);
+  fft(inputs, input_N, in_logn, in_sign);
 
   // get_dist_from_fft takes fft output and puts a distance into distance
   get_dist_from_fft(distance, dist_size, input_N, inputs, input_size_bytes);
@@ -709,7 +703,6 @@ void execute_rad_kernel(float * inputs, size_t input_size_bytes,
   // Return the SIZE -- the pointer is transferred by a __hpvm__bind
   __hpvm__return(1, dist_size);
 }
-
 
 void post_execute_rad_kernel(distance_t tr_dist, distance_t dist) {
   // Get an error estimate (Root-Squared?)
@@ -747,7 +740,6 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist) {
   }
 }
 
-
 /*********************************************************************************
  * The following is code to support the RADAR kernel
  *********************************************************************************/
@@ -757,7 +749,7 @@ void post_execute_rad_kernel(distance_t tr_dist, distance_t dist) {
  * (i.e. which message if the autonomous car is in the
  *  left, middle or right lane).
  */
-vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs) {
+vit_dict_entry_t *iterate_vit_kernel(vehicle_state_t vs) {
   hist_total_objs[total_obj]++;
   unsigned tr_val = 0; // set a default to avoid compiler messages
   switch (vs.lane) {
@@ -780,7 +772,7 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs) {
     DEBUG(printf("  Lane %u : obj in %u is %c at %u : obj in %u is %c at %u\n", vs.lane,
                  vs.lane - 1, nearest_obj[vs.lane - 1], ndm1,
                  vs.lane + 1, nearest_obj[vs.lane + 1], ndp1));
-    if ((nearest_obj[vs.lane - 1] != 'N') && (ndm1  < VIT_CLEAR_THRESHOLD)) {
+    if ((nearest_obj[vs.lane - 1] != 'N') && (ndm1 < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the Left lane at distance 0 or 1
       DEBUG(printf("    Marking unsafe to move left\n"));
       tr_val += 1; // Unsafe to move from this lane to the left.
@@ -794,7 +786,7 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs) {
   break;
   case rhazard: {
     unsigned nd_3 = RADAR_BUCKET_DISTANCE * (unsigned)(nearest_dist[3] / RADAR_BUCKET_DISTANCE); // floor by bucket...
-    if ((nearest_obj[3] != 'N') && (nd_3  < VIT_CLEAR_THRESHOLD)) {
+    if ((nearest_obj[3] != 'N') && (nd_3 < VIT_CLEAR_THRESHOLD)) {
       // Some object is in the right lane within threshold distance
       tr_val = 3; // Unsafe to move from center lane to the right.
     } else {
@@ -806,17 +798,26 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs) {
 
   DEBUG(printf("Viterbi final message for lane %u %s = %u\n", vs.lane, lane_names[vs.lane], tr_val));
 
-  vit_dict_entry_t* trace_msg; // Will hold msg input data for decode, based on trace input
+  vit_dict_entry_t *trace_msg; // Will hold msg input data for decode, based on trace input
 
   // Here we determine short or long messages, based on global vit_msgs_behavior
   int msg_offset = 0; // 0 = short messages, 4 = long messages
   switch (vit_msgs_behavior) {
-  case 0: break;
-  case 1: msg_offset = 4; break;
-  case 2: break;
-  case 3: msg_offset = 4; break;
-  case 4: break;
-  case 5: msg_offset = 4; break;
+  case 0:
+    break;
+  case 1:
+    msg_offset = 4;
+    break;
+  case 2:
+    break;
+  case 3:
+    msg_offset = 4;
+    break;
+  case 4:
+    break;
+  case 5:
+    msg_offset = 4;
+    break;
   }
 
   switch (tr_val) {
@@ -836,7 +837,6 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs) {
   DEBUG(printf(" VIT: Using msg %u Id %u : %s \n", trace_msg->msg_num, trace_msg->msg_id, message_names[trace_msg->msg_id]));
   return trace_msg;
 }
-
 
 // #include "viterbi_decoder_generic.c"
 /*
@@ -878,14 +878,12 @@ vit_dict_entry_t* iterate_vit_kernel(vehicle_state_t vs) {
 // Paths for each state
 //static unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16)));
 
-
-
-uint8_t* depuncture(ofdm_param *ofdm,   size_t ofdm_size,
+uint8_t *depuncture(ofdm_param *ofdm, size_t ofdm_size,
                     frame_param *frame, size_t frame_size,
                     int ntraceback,
                     int k_val,
-                    unsigned char *d_depuncture_pattern,  size_t depunc_ptn_size,
-                    uint8_t *in,        size_t in_size) {
+                    unsigned char *d_depuncture_pattern, size_t depunc_ptn_size,
+                    uint8_t *in, size_t in_size) {
   int count;
   int n_cbps = ofdm->n_cbps;
   uint8_t *depunctured;
@@ -930,13 +928,13 @@ uint8_t* depuncture(ofdm_param *ofdm,   size_t ofdm_size,
 //    d_mmresult  : GLOBAL OUTPUT : Array [ 64 bytes ]
 //    d_ppresult  : GLOBAL OUTPUT : Array [ntraceback][ 64 bytes ]
 
-void viterbi_get_output_generic(unsigned char *mm0,                                    size_t mm0_size,
-                                unsigned char *pp0,                                    size_t pp0_size,
+void viterbi_get_output_generic(unsigned char *mm0, size_t mm0_size,
+                                unsigned char *pp0, size_t pp0_size,
                                 int ntraceback,
-                                int* store_pos,                                      size_t size_store_pos,
-                                unsigned char*  mmresult __attribute__((aligned(16))), size_t mmres_size,
+                                int *store_pos, size_t size_store_pos,
+                                unsigned char *mmresult __attribute__((aligned(16))), size_t mmres_size,
                                 unsigned char ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))), size_t ppres_size,
-                                unsigned char *outbuf,                                 size_t outbuf_size) {
+                                unsigned char *outbuf, size_t outbuf_size) {
   int i;
   int bestmetric, minmetric;
   int beststate = 0;
@@ -989,18 +987,16 @@ void viterbi_get_output_generic(unsigned char *mm0,                             
   //return bestmetric;
 }
 
-
-void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
-                   unsigned char*  d_metric0_generic __attribute__ ((aligned(16))), size_t d_m0_size,
-                   unsigned char*  d_metric1_generic __attribute__ ((aligned(16))), size_t d_m1_size,
-                   unsigned char*  d_path0_generic __attribute__ ((aligned(16))),   size_t d_p0_size,
-                   unsigned char*  d_path1_generic __attribute__ ((aligned(16))),   size_t d_p1_size,
-                   unsigned char*  d_mmresult __attribute__((aligned(16))),         size_t mmres_size,
-                   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))),         size_t ppres_size,
-                   int* d_ntraceback,                    size_t ntrbk_size,
-                   int* d_k,                             size_t d_k_size,
-                   unsigned char *d_depuncture_pattern,  size_t depunc_ptn_size
-                  ) {
+void viterbi_reset(ofdm_param *ofdm, size_t ofdm_size,
+                   unsigned char *d_metric0_generic __attribute__((aligned(16))), size_t d_m0_size,
+                   unsigned char *d_metric1_generic __attribute__((aligned(16))), size_t d_m1_size,
+                   unsigned char *d_path0_generic __attribute__((aligned(16))), size_t d_p0_size,
+                   unsigned char *d_path1_generic __attribute__((aligned(16))), size_t d_p1_size,
+                   unsigned char *d_mmresult __attribute__((aligned(16))), size_t mmres_size,
+                   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16))), size_t ppres_size,
+                   int *d_ntraceback, size_t ntrbk_size,
+                   int *d_k, size_t d_k_size,
+                   unsigned char *d_depuncture_pattern, size_t depunc_ptn_size) {
   int i, j;
 
   for (i = 0; i < 4; i++) {
@@ -1008,7 +1004,7 @@ void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
     d_path0_generic[i] = 0;
   }
 
-  int polys[2] = { 0x6d, 0x4f };
+  int polys[2] = {0x6d, 0x4f};
   for (i = 0; i < 32; i++) {
     d_branchtab27_generic[0].c[i] = (polys[0] < 0) ^ PARTAB[(2 * i) & abs(polys[0])] ? 1 : 0;
     d_branchtab27_generic[1].c[i] = (polys[1] < 0) ^ PARTAB[(2 * i) & abs(polys[1])] ? 1 : 0;
@@ -1045,7 +1041,6 @@ void viterbi_reset(ofdm_param *ofdm,   size_t ofdm_size,
   }
 }
 
-
 void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned char *inMemory, unsigned char *outMemory) {
   int in_count = 0;
   int out_count = 0;
@@ -1056,20 +1051,20 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
   /* int  in_cbps        = inWords[  0]; // inMemory[    0] */
   /* int  in_ntraceback  = inWords[  1]; // inMemory[    4] */
   /* int  in_n_data_bits = inWords[  2]; // inMemory[    8] */
-  unsigned char* d_brtab27[2] = {      &(inMemory[    0]),
-                                       &(inMemory[   32])
+  unsigned char *d_brtab27[2] = {&(inMemory[0]),
+                                 &(inMemory[32])
                                 };
-  unsigned char*  in_depuncture_pattern     = &(inMemory[   64]);
-  uint8_t* depd_data                 = &(inMemory[   72]);
-  uint8_t* l_decoded                 = &(outMemory[   0]);
+  unsigned char *in_depuncture_pattern = &(inMemory[64]);
+  uint8_t *depd_data = &(inMemory[72]);
+  uint8_t *l_decoded = &(outMemory[0]);
 
-  uint8_t  l_metric0_generic[64];
-  uint8_t  l_metric1_generic[64];
-  uint8_t  l_path0_generic[64];
-  uint8_t  l_path1_generic[64];
-  uint8_t  l_mmresult[64];
-  uint8_t  l_ppresult[TRACEBACK_MAX][64];
-  int      l_store_pos = 0;
+  uint8_t l_metric0_generic[64];
+  uint8_t l_metric1_generic[64];
+  uint8_t l_path0_generic[64];
+  uint8_t l_path1_generic[64];
+  uint8_t l_mmresult[64];
+  uint8_t l_ppresult[TRACEBACK_MAX][64];
+  int l_store_pos = 0;
 
   // This is the "reset" portion:
   //  Do this before the real operation so local memories are "cleared to zero"
@@ -1087,13 +1082,14 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
 
   int viterbi_butterfly_calls = 0;
   while (n_decoded < in_n_data_bits) {
-    if ((in_count % 4) == 0) { //0 or 3
+    if ((in_count % 4) == 0) {
+      //0 or 3
       {
-        unsigned char *mm0       = l_metric0_generic;
-        unsigned char *mm1       = l_metric1_generic;
-        unsigned char *pp0       = l_path0_generic;
-        unsigned char *pp1       = l_path1_generic;
-        unsigned char *symbols   = &depd_data[in_count & 0xfffffffc];
+        unsigned char *mm0 = l_metric0_generic;
+        unsigned char *mm1 = l_metric1_generic;
+        unsigned char *pp0 = l_path0_generic;
+        unsigned char *pp1 = l_path1_generic;
+        unsigned char *symbols = &depd_data[in_count & 0xfffffffc];
 
         // These are used to "virtually" rename the uses below (for symmetry; reduces code size)
         //  Really these are functionally "offset pointers" into the above arrays....
@@ -1108,8 +1104,8 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
         unsigned char tmp0[16], tmp1[16];
         unsigned char sym0v[16], sym1v[16];
         unsigned short simd_epi16;
-        unsigned int   first_symbol;
-        unsigned int   second_symbol;
+        unsigned int first_symbol;
+        unsigned int second_symbol;
 
         // Set up for the first two symbols (0 and 1)
         metric0 = mm0;
@@ -1123,7 +1119,8 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
           sym1v[j] = symbols[second_symbol];
         }
 
-        for (int s = 0; s < 2; s++) { // iterate across the 2 symbol groups
+        for (int s = 0; s < 2; s++) {
+          // iterate across the 2 symbol groups
           // This is the basic viterbi butterfly for 2 symbols (we need therefore 2 passes for 4 total symbols)
           for (int i = 0; i < 2; i++) {
             if (symbols[first_symbol] == 2) {
@@ -1212,14 +1209,15 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
             sym1v[j] = symbols[second_symbol];
           }
         }
-      } // END of call to viterbi_butterfly2_generic
+      }                          // END of call to viterbi_butterfly2_generic
       viterbi_butterfly_calls++; // Do not increment until after the comparison code.
 
-      if ((in_count > 0) && (in_count % 16) == 8) { // 8 or 11
+      if ((in_count > 0) && (in_count % 16) == 8) {
+        // 8 or 11
         unsigned char c;
         {
-          unsigned char *mm0       = l_metric0_generic;
-          unsigned char *pp0       = l_path0_generic;
+          unsigned char *mm0 = l_metric0_generic;
+          unsigned char *pp0 = l_path0_generic;
           int ntraceback = in_ntraceback;
           unsigned char *outbuf = &c;
 
@@ -1271,7 +1269,6 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
               mm0[(i * 16) + j] = mm0[(i * 16) + j] - minmetric;
             }
           }
-
         }
 
         if (out_count >= in_ntraceback) {
@@ -1286,7 +1283,6 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
     }
     in_count++;
   }
-
 }
 
 /* This is the main "decode" function; it prepares data and repeatedly
@@ -1297,15 +1293,15 @@ void do_decoding(int in_n_data_bits, int in_cbps, int in_ntraceback, unsigned ch
 //    frame  : INPUT/OUTPUT : Struct (see utils.h) [int, int, int, int]
 //    in     : INPUT/OUTPUT : Array [ MAX_ENCODED_BITS == 24780 ]
 
-void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
+void viterbi_decode(ofdm_param *ofdm, size_t ofdm_size,
                     frame_param *frame, size_t frame_size,
-                    uint8_t *in,        size_t in_size,
-                    uint8_t* l_decoded, size_t decd_size) {
+                    uint8_t *in, size_t in_size,
+                    uint8_t *l_decoded, size_t decd_size) {
   // Local memories
-  unsigned char d_metric0_generic[64] __attribute__ ((aligned(16)));
-  unsigned char d_metric1_generic[64] __attribute__ ((aligned(16)));
-  unsigned char d_path0_generic[64] __attribute__ ((aligned(16)));
-  unsigned char d_path1_generic[64] __attribute__ ((aligned(16)));
+  unsigned char d_metric0_generic[64] __attribute__((aligned(16)));
+  unsigned char d_metric1_generic[64] __attribute__((aligned(16)));
+  unsigned char d_path0_generic[64] __attribute__((aligned(16)));
+  unsigned char d_path1_generic[64] __attribute__((aligned(16)));
   // These are initialized to zero once...
   for (int i = 0; i < 64; i++) {
     d_metric0_generic[i] = 0;
@@ -1319,71 +1315,73 @@ void viterbi_decode(ofdm_param *ofdm,   size_t ofdm_size,
   // Paths for each state
   unsigned char d_ppresult[TRACEBACK_MAX][64] __attribute__((aligned(16)));
 
-
   int d_store_pos = 0;
   int d_ntraceback;
   int d_k;
   unsigned char *d_depuncture_pattern;
 
-  viterbi_reset( ofdm,                  ofdm_size,
-                 d_metric0_generic,     64,
-                 d_metric1_generic,     64,
-                 d_path0_generic,       64,
-                 d_path1_generic,       64,
-                 d_mmresult,            64,
-                 d_ppresult,            TRACEBACK_MAX * 64,
-                 &d_ntraceback,         sizeof(int),
-                 &d_k,                  sizeof(int),
-                 d_depuncture_pattern,  6);
+  viterbi_reset(ofdm, ofdm_size,
+                d_metric0_generic, 64,
+                d_metric1_generic, 64,
+                d_path0_generic, 64,
+                d_path1_generic, 64,
+                d_mmresult, 64,
+                d_ppresult, TRACEBACK_MAX * 64,
+                &d_ntraceback, sizeof(int),
+                &d_k, sizeof(int),
+                d_depuncture_pattern, 6);
 
-  uint8_t *depunctured = depuncture(ofdm,      ofdm_size,
-                                    frame,     frame_size,
+  uint8_t *depunctured = depuncture(ofdm, ofdm_size,
+                                    frame, frame_size,
                                     d_ntraceback, d_k,
-                                    d_depuncture_pattern,  6,
-                                    in,        in_size);
+                                    d_depuncture_pattern, 6,
+                                    in, in_size);
 
   uint8_t inMemory[24852];  // This is "minimally sized for max entries"
   uint8_t outMemory[18585]; // This is "minimally sized for max entries"
 
   int imi = 0;
-  for (int ti = 0; ti < 2; ti ++) {
+  for (int ti = 0; ti < 2; ti++) {
     for (int tj = 0; tj < 32; tj++) {
       inMemory[imi++] = d_branchtab27_generic[ti].c[tj];
     }
   }
-  if (imi != 64) { printf("ERROR : imi = %u and should be 64\n", imi); }
+  if (imi != 64) {
+    printf("ERROR : imi = %u and should be 64\n", imi);
+  }
   // imi = 64;
-  for (int ti = 0; ti < 6; ti ++) {
+  for (int ti = 0; ti < 6; ti++) {
     inMemory[imi++] = d_depuncture_pattern[ti];
   }
-  if (imi != 70) { printf("ERROR : imi = %u and should be 70\n", imi); }
+  if (imi != 70) {
+    printf("ERROR : imi = %u and should be 70\n", imi);
+  }
   // imi = 70
   imi += 2; // Padding
-  for (int ti = 0; ti < MAX_ENCODED_BITS; ti ++) {
+  for (int ti = 0; ti < MAX_ENCODED_BITS; ti++) {
     inMemory[imi++] = depunctured[ti];
   }
 
-  if (imi != 24852) { printf("ERROR : imi = %u and should be 24852\n", imi); }
+  if (imi != 24852) {
+    printf("ERROR : imi = %u and should be 24852\n", imi);
+  }
   // imi = 24862 : OUTPUT ONLY -- DON'T NEED TO SEND INPUTS
   // Reset the output space (for cleaner testing results)
-  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) {
     outMemory[ti] = 0;
   }
 
   do_decoding(frame->n_data_bits, ofdm->n_cbps, d_ntraceback, inMemory, outMemory);
 
   imi = 0; // start of the outputs
-  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti ++) {
+  for (int ti = 0; ti < (MAX_ENCODED_BITS * 3 / 4); ti++) {
     l_decoded[ti] = outMemory[imi++];
   }
 }
 
-
-
-
-void viterbi_descrambler(uint8_t* in,   size_t in_size,
+void viterbi_descrambler(uint8_t *in, size_t in_size,
                          int psdusize,
-                         char* out_msg, size_t out_msg_size) {
+                         char *out_msg, size_t out_msg_size) {
   uint32_t output_length = (psdusize) + 2; //output is 2 more bytes than psdu_size
   uint32_t msg_length = (psdusize) - 28;
   uint8_t out[output_length];
@@ -1395,7 +1393,7 @@ void viterbi_descrambler(uint8_t* in,   size_t in_size,
     }
   }
   //init o/p array to zeros
-  for (int i = 0; i < output_length; i++ ) {
+  for (int i = 0; i < output_length; i++) {
     out[i] = 0;
   }
 
@@ -1404,16 +1402,17 @@ void viterbi_descrambler(uint8_t* in,   size_t in_size,
   int bit;
   int index = 0;
   int mod = 0;
-  for (int i = 7; i < (psdusize * 8) + 16; i++) { // 2 bytes more than psdu_size -> convert to bits
+  for (int i = 7; i < (psdusize * 8) + 16; i++) {
+    // 2 bytes more than psdu_size -> convert to bits
     feedback = ((!!(state & 64))) ^ (!!(state & 8));
     bit = feedback ^ (*(in + i) & 0x1);
     index = i / 8;
-    mod =  i % 8;
+    mod = i % 8;
     int comp1, comp2, val, comp3;
     comp1 = (bit << mod);
     val = out[index];
     comp2 = val | comp1;
-    out[index] =  comp2;
+    out[index] = comp2;
     comp3 = out[index];
     state = ((state << 1) & 0x7e) | feedback;
   }
@@ -1424,52 +1423,57 @@ void viterbi_descrambler(uint8_t* in,   size_t in_size,
   out_msg[msg_length] = '\0';
 }
 
-
-void viterbi_analyze_msg_text(char* msg_txt,       size_t msg_txt_size,
-                              message_t* out_message,  size_t out_message_size) {
+void viterbi_analyze_msg_text(char *msg_txt, size_t msg_txt_size,
+                              message_t *out_message, size_t out_message_size) {
   // Check contents of "msg_txt" to determine which message_t;
   switch (msg_txt[3]) {
-  case '0' : *out_message = safe_to_move_right_or_left; break;
-  case '1' : *out_message = safe_to_move_right_only; break;
-  case '2' : *out_message = safe_to_move_left_only; break;
-  case '3' : *out_message = unsafe_to_move_left_or_right; break;
-  default  : *out_message = num_messages; break;
+  case '0':
+    *out_message = safe_to_move_right_or_left;
+    break;
+  case '1':
+    *out_message = safe_to_move_right_only;
+    break;
+  case '2':
+    *out_message = safe_to_move_left_only;
+    break;
+  case '3':
+    *out_message = unsafe_to_move_left_or_right;
+    break;
+  default:
+    *out_message = num_messages;
+    break;
   }
 }
 
-
-
-void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr,    size_t ofdm_size,
-                                 frame_param *frame_ptr,  size_t frame_size,
-                                 uint8_t *input_bits,     size_t in_bits_size,
-                                 uint8_t* l_decoded,      size_t decd_size,
-                                 char* out_msg_txt,       size_t out_msg_txt_size,
-                                 message_t* out_message,  size_t out_message_size) {
+void viterbi_decode_to_message_t(ofdm_param *ofdm_ptr, size_t ofdm_size,
+                                 frame_param *frame_ptr, size_t frame_size,
+                                 uint8_t *input_bits, size_t in_bits_size,
+                                 uint8_t *l_decoded, size_t decd_size,
+                                 char *out_msg_txt, size_t out_msg_txt_size,
+                                 message_t *out_message, size_t out_message_size) {
   /* First we do the base viterbi decode ; resulting decoded bits are put into l_decoded */
-  viterbi_decode(ofdm_ptr,   sizeof(ofdm_param),
-                 frame_ptr,  sizeof(frame_param),
+  viterbi_decode(ofdm_ptr, sizeof(ofdm_param),
+                 frame_ptr, sizeof(frame_param),
                  input_bits, MAX_ENCODED_BITS,
-                 l_decoded,  MAX_ENCODED_BITS * 3 / 4);
+                 l_decoded, MAX_ENCODED_BITS * 3 / 4);
 
   /* Now descramble the output from the decoder to get to plain-text message */
   int psdusize = frame_ptr->psdu_size;
   DEBUG(printf("  Calling the viterbi_descrambler routine\n"));
-  viterbi_descrambler(l_decoded,   MAX_ENCODED_BITS * 3 / 4,
+  viterbi_descrambler(l_decoded, MAX_ENCODED_BITS * 3 / 4,
                       psdusize,
                       out_msg_txt, 1600);
 
   /* This analyzes the message text and sets the out_message message_t indicator */
   viterbi_analyze_msg_text(out_msg_txt, out_msg_txt_size,
-                           out_message,  out_message_size);
-
+                           out_message, out_message_size);
 }
 
-
-void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,   /*  1 */
-                                 /*  2 */ frame_param* frame_ptr,  size_t frame_parm_size,  /*  3 */
-                                 /*  4 */ uint8_t* input_bits,     size_t input_bits_size,  /*  5 */
-                                 /*  6 */ char* out_msg_txt,       size_t out_msg_txt_size, /*  7 */
-                                 /*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
+void execute_vit_kernel(/*  0 */ ofdm_param *ofdm_ptr, size_t ofdm_parm_size,     /*  1 */
+                                 /*  2 */ frame_param *frame_ptr, size_t frame_parm_size,  /*  3 */
+                                 /*  4 */ uint8_t *input_bits, size_t input_bits_size,     /*  5 */
+                                 /*  6 */ char *out_msg_txt, size_t out_msg_txt_size,      /*  7 */
+                                 /*  8 */ message_t *out_message, size_t out_message_size, /*  9 */
                                  /* 10 */ int num_msgs_to_decode) {
   __hpvm__hint(DEVICE);
   __hpvm__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
@@ -1479,10 +1483,10 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
   // We will decode num_msgs_to_decode of the same message (for now) and return the last one.
   DEBUG(printf("Decoding %u messages\n", num_msgs_to_decode));
   for (int mi = 0; mi < num_msgs_to_decode; mi++) {
-    viterbi_decode_to_message_t(ofdm_ptr,    sizeof(ofdm_param),
-                                frame_ptr,   sizeof(frame_param),
-                                input_bits,  MAX_ENCODED_BITS,
-                                l_decoded,   MAX_ENCODED_BITS * 3 / 4,
+    viterbi_decode_to_message_t(ofdm_ptr, sizeof(ofdm_param),
+                                frame_ptr, sizeof(frame_param),
+                                input_bits, MAX_ENCODED_BITS,
+                                l_decoded, MAX_ENCODED_BITS * 3 / 4,
                                 out_msg_txt, 1600,
                                 out_message, sizeof(message_t));
   }
@@ -1491,7 +1495,6 @@ void execute_vit_kernel(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,
   __hpvm__return(2, out_message_size, out_msg_txt_size);
 }
 
-
 void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg) {
   total_msgs++;
   if (dec_msg != tr_msg) {
@@ -1499,14 +1502,13 @@ void post_execute_vit_kernel(message_t tr_msg, message_t dec_msg) {
   }
 }
 
-
 /*********************************************************************************
  * The following is code to support the PLAN-AND-CONTROL kernel
  *********************************************************************************/
-void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,    /* 1 */
-                              /* 2 */ distance_t* distance,           size_t size_distance, /* 3 */
-                              /* 4 */ message_t* message,             size_t size_message,  /* 5 */
-                              /* 6 */ vehicle_state_t* vehicle_state, size_t size_vehicle_state /* 7 */ ) {
+void plan_and_control(/* 0 */ label_t *label, size_t size_label,          /* 1 */
+                              /* 2 */ distance_t *distance, size_t size_distance, /* 3 */
+                              /* 4 */ message_t *message, size_t size_message,    /* 5 */
+                              /* 6 */ vehicle_state_t *vehicle_state, size_t size_vehicle_state /* 7 */) {
   __hpvm__hint(CPU_TARGET);
   __hpvm__attributes(4, label, distance, message, vehicle_state,
                      1, vehicle_state);
@@ -1518,7 +1520,7 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
   if ((*label != no_label) && // For safety, assume every return is from SOMETHING we should not hit!
       (*distance <= THRESHOLD_1)) {
     switch (*message) {
-    case safe_to_move_right_or_left   :
+    case safe_to_move_right_or_left:
       /* Bias is move right, UNLESS we are in the Right lane and would then head into the RHazard Lane */
       if (vehicle_state->lane < right) {
         DEBUG(printf("   In %s with Safe_L_or_R : Moving Right\n", lane_names[vehicle_state->lane]));
@@ -1528,15 +1530,15 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
         new_vehicle_state.lane -= 1;
       }
       break; // prefer right lane
-    case safe_to_move_right_only      :
+    case safe_to_move_right_only:
       DEBUG(printf("   In %s with Safe_R_only : Moving Right\n", lane_names[vehicle_state->lane]));
       new_vehicle_state.lane += 1;
       break;
-    case safe_to_move_left_only       :
+    case safe_to_move_left_only:
       DEBUG(printf("   In %s with Safe_L_Only : Moving Left\n", lane_names[vehicle_state->lane]));
       new_vehicle_state.lane -= 1;
       break;
-    case unsafe_to_move_left_or_right :
+    case unsafe_to_move_left_or_right:
 #ifdef USE_SIM_ENVIRON
       if (vehicle_state->speed > 15.0) {
         new_vehicle_state.speed = vehicle_state->speed / 2.0;
@@ -1592,7 +1594,6 @@ void plan_and_control(/* 0 */ label_t* label,                 size_t size_label,
   __hpvm__return(1, size_vehicle_state);
   //return new_vehicle_state;
 }
-
 
 /*********************************************************************************
  * The following is code that runs to close-out the full simulation run
@@ -1652,8 +1653,6 @@ void closeout_vit_kernel() {
   printf("There were %.3lf messages per time step (average)\n", avg_msgs);
 }
 
-
-
 /********************************************************************/
 /*** HPVM Internal node Functions - Determine the graph structure ***/
 /********************************************************************/
@@ -1662,66 +1661,65 @@ void closeout_vit_kernel() {
 // requirement for the FPGA backend . The CPU backend also supports this,
 // so it does not cause a portability issue.
 
-void execute_cv_wrapper(/* 0 */ label_t* in_tr_val, size_t in_tr_val_size, /* 1 */
-                                /* 2 */ label_t* out_label, size_t out_label_size  /* 3 */) {
+void execute_cv_wrapper(/* 0 */ label_t *in_tr_val, size_t in_tr_val_size, /* 1 */
+                                /* 2 */ label_t *out_label, size_t out_label_size /* 3 */) {
   __hpvm__hint(CPU_TARGET);
   __hpvm__attributes(2, in_tr_val, out_label, 1, out_label);
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node
   // associated with node function execute_cv_kernel
-  //void* EXEC_CV_node = __hpvm__createNodeND(1, execute_cv_kernel, (size_t)1); // 1-D with 1 instance
-  void* EXEC_CV_node = __hpvm__createNodeND(0, execute_cv_kernel);
+  // void* EXEC_CV_node = __hpvm__createNodeND(1, execute_cv_kernel, (size_t)1); // 1-D with 1 instance
+  void *EXEC_CV_node = __hpvm__createNodeND(0, execute_cv_kernel);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __hpvm__bindIn(EXEC_CV_node,  0,  0, 0); // in_tr_val -> EXEC_CV_node:in_tr_val
-  __hpvm__bindIn(EXEC_CV_node,  1,  1, 0); // in_tr_val_size -> EXEC_CV_node:in_tr_val_size
-  __hpvm__bindIn(EXEC_CV_node,  2,  2, 0); // out_label -> EXEC_CV_node:out_label
-  __hpvm__bindIn(EXEC_CV_node,  3,  3, 0); // out_label_size -> EXEC_CV_node:out_label_size
+  __hpvm__bindIn(EXEC_CV_node, 0, 0, 0); // in_tr_val -> EXEC_CV_node:in_tr_val
+  __hpvm__bindIn(EXEC_CV_node, 1, 1, 0); // in_tr_val_size -> EXEC_CV_node:in_tr_val_size
+  __hpvm__bindIn(EXEC_CV_node, 2, 2, 0); // out_label -> EXEC_CV_node:out_label
+  __hpvm__bindIn(EXEC_CV_node, 3, 3, 0); // out_label_size -> EXEC_CV_node:out_label_size
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
   __hpvm__bindOut(EXEC_CV_node, 0, 0, 0);
 }
 
-
-void execute_rad_wrapper(float * inputs, size_t input_size_bytes,
+void execute_rad_wrapper(float *inputs, size_t input_size_bytes,
                          unsigned int input_N, unsigned int in_logn, int in_sign,
-                         distance_t * distance, size_t dist_size) {
+                         distance_t *distance, size_t dist_size) {
   __hpvm__hint(CPU_TARGET);
   __hpvm__attributes(2, inputs, distance, 1, distance);
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node
   // associated with node function execute_rad_kernel
   //void* EXEC_RAD_node = __hpvm__createNodeND(1, execute_rad_kernel, (size_t)1); // 1-D with 1 instance
-  void* EXEC_RAD_node = __hpvm__createNodeND(0, execute_rad_kernel);
+  void *EXEC_RAD_node = __hpvm__createNodeND(0, execute_rad_kernel);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __hpvm__bindIn(EXEC_RAD_node,  0,  0, 0); // inputs -> EXEC_RAD_node:inputs
-  __hpvm__bindIn(EXEC_RAD_node,  1,  1, 0); // input_size_bytes -> EXEC_RAD_node:input_size_bytes
-  __hpvm__bindIn(EXEC_RAD_node,  2,  2, 0); // input_N -> EXEC_RAD_node:input_N
-  __hpvm__bindIn(EXEC_RAD_node,  3,  3, 0); // in_logn -> EXEC_RAD_node:in_logn
-  __hpvm__bindIn(EXEC_RAD_node,  4,  4, 0); // in_sign -> EXEC_RAD_node:in_sign
-  __hpvm__bindIn(EXEC_RAD_node,  5,  5, 0); // distance -> EXEC_RAD_node:distance
-  __hpvm__bindIn(EXEC_RAD_node,  6,  6, 0); // dist_size -> EXEC_RAD_node:dist_size
+  __hpvm__bindIn(EXEC_RAD_node, 0, 0, 0); // inputs -> EXEC_RAD_node:inputs
+  __hpvm__bindIn(EXEC_RAD_node, 1, 1, 0); // input_size_bytes -> EXEC_RAD_node:input_size_bytes
+  __hpvm__bindIn(EXEC_RAD_node, 2, 2, 0); // input_N -> EXEC_RAD_node:input_N
+  __hpvm__bindIn(EXEC_RAD_node, 3, 3, 0); // in_logn -> EXEC_RAD_node:in_logn
+  __hpvm__bindIn(EXEC_RAD_node, 4, 4, 0); // in_sign -> EXEC_RAD_node:in_sign
+  __hpvm__bindIn(EXEC_RAD_node, 5, 5, 0); // distance -> EXEC_RAD_node:distance
+  __hpvm__bindIn(EXEC_RAD_node, 6, 6, 0); // dist_size -> EXEC_RAD_node:dist_size
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
   __hpvm__bindOut(EXEC_RAD_node, 0, 0, 0);
 }
 
-void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size,   /*  1 */
-                                  /*  2 */ frame_param* frame_ptr,  size_t frame_parm_size,  /*  3 */
-                                  /*  4 */ uint8_t* input_bits,     size_t input_bits_size,  /*  5 */
-                                  /*  6 */ char* out_msg_txt,       size_t out_msg_txt_size, /*  7 */
-                                  /*  8 */ message_t* out_message,  size_t out_message_size, /*  9 */
+void execute_vit_wrapper(/*  0 */ ofdm_param *ofdm_ptr, size_t ofdm_parm_size,     /*  1 */
+                                  /*  2 */ frame_param *frame_ptr, size_t frame_parm_size,  /*  3 */
+                                  /*  4 */ uint8_t *input_bits, size_t input_bits_size,     /*  5 */
+                                  /*  6 */ char *out_msg_txt, size_t out_msg_txt_size,      /*  7 */
+                                  /*  8 */ message_t *out_message, size_t out_message_size, /*  9 */
                                   /* 10 */ int num_msgs_to_decode) {
   __hpvm__hint(CPU_TARGET);
   __hpvm__attributes(5, ofdm_ptr, frame_ptr, input_bits, out_msg_txt, out_message,
@@ -1730,23 +1728,23 @@ void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node
   // associated with node function execute_rad_kernel
-  void* EXEC_VIT_node = __hpvm__createNodeND(0, execute_vit_kernel);
+  void *EXEC_VIT_node = __hpvm__createNodeND(0, execute_vit_kernel);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __hpvm__bindIn(EXEC_VIT_node,  0,  0, 0); // ofdm_ptr -> EXEC_VIT_node::ofdm_ptr
-  __hpvm__bindIn(EXEC_VIT_node,  1,  1, 0); // ofdm_parm_size -> EXEC_VIT_node::ofdm_parm_size
-  __hpvm__bindIn(EXEC_VIT_node,  2,  2, 0); // frame_ptr -> EXEC_VIT_node::frame_ptr
-  __hpvm__bindIn(EXEC_VIT_node,  3,  3, 0); // frame_parm_size  -> EXEC_VIT_node::frame_parm_size
-  __hpvm__bindIn(EXEC_VIT_node,  4,  4, 0); // input_bits -> EXEC_VIT_node::input_bits
-  __hpvm__bindIn(EXEC_VIT_node,  5,  5, 0); // input_bits_size -> EXEC_VIT_node::input_bits_size
-  __hpvm__bindIn(EXEC_VIT_node,  6,  6, 0); // out_msg_txt -> EXEC_VIT_node::out_msg_txt
-  __hpvm__bindIn(EXEC_VIT_node,  7,  7, 0); // out_msg_txt_size -> EXEC_VIT_node::out_msg_txt_size
-  __hpvm__bindIn(EXEC_VIT_node,  8,  8, 0); // out_message -> EXEC_VIT_node::out_message
-  __hpvm__bindIn(EXEC_VIT_node,  9,  9, 0); // out_message_size -> EXEC_VIT_node::out_message_size
+  __hpvm__bindIn(EXEC_VIT_node, 0, 0, 0);   // ofdm_ptr -> EXEC_VIT_node::ofdm_ptr
+  __hpvm__bindIn(EXEC_VIT_node, 1, 1, 0);   // ofdm_parm_size -> EXEC_VIT_node::ofdm_parm_size
+  __hpvm__bindIn(EXEC_VIT_node, 2, 2, 0);   // frame_ptr -> EXEC_VIT_node::frame_ptr
+  __hpvm__bindIn(EXEC_VIT_node, 3, 3, 0);   // frame_parm_size  -> EXEC_VIT_node::frame_parm_size
+  __hpvm__bindIn(EXEC_VIT_node, 4, 4, 0);   // input_bits -> EXEC_VIT_node::input_bits
+  __hpvm__bindIn(EXEC_VIT_node, 5, 5, 0);   // input_bits_size -> EXEC_VIT_node::input_bits_size
+  __hpvm__bindIn(EXEC_VIT_node, 6, 6, 0);   // out_msg_txt -> EXEC_VIT_node::out_msg_txt
+  __hpvm__bindIn(EXEC_VIT_node, 7, 7, 0);   // out_msg_txt_size -> EXEC_VIT_node::out_msg_txt_size
+  __hpvm__bindIn(EXEC_VIT_node, 8, 8, 0);   // out_message -> EXEC_VIT_node::out_message
+  __hpvm__bindIn(EXEC_VIT_node, 9, 9, 0);   // out_message_size -> EXEC_VIT_node::out_message_size
   __hpvm__bindIn(EXEC_VIT_node, 10, 10, 0); // num_msgs_to_decode -> EXEC_VIT_node::num_msgs_to_decode
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
@@ -1754,10 +1752,10 @@ void execute_vit_wrapper(/*  0 */ ofdm_param* ofdm_ptr,    size_t ofdm_parm_size
   __hpvm__bindOut(EXEC_VIT_node, 0, 0, 0);
 }
 
-void plan_and_control_wrapper(/* 0 */ label_t* label,                 size_t size_label,    /* 1 */
-                                      /* 2 */ distance_t* distance,           size_t size_distance, /* 3 */
-                                      /* 4 */ message_t* message,             size_t size_message,  /* 5 */
-                                      /* 6 */ vehicle_state_t* vehicle_state, size_t size_vehicle_state /* 7 */ ) {
+void plan_and_control_wrapper(/* 0 */ label_t *label, size_t size_label,          /* 1 */
+                                      /* 2 */ distance_t *distance, size_t size_distance, /* 3 */
+                                      /* 4 */ message_t *message, size_t size_message,    /* 5 */
+                                      /* 6 */ vehicle_state_t *vehicle_state, size_t size_vehicle_state /* 7 */) {
   __hpvm__hint(CPU_TARGET);
   __hpvm__attributes(4, label, distance, message, vehicle_state,
                      1, vehicle_state);
@@ -1766,68 +1764,73 @@ void plan_and_control_wrapper(/* 0 */ label_t* label,                 size_t siz
                *label, object_names[*label], *distance, *message, vehicle_state->lane, vehicle_state->speed));
 
   // Create a 0-D (specified by 1st argument) HPVM node -- a single node
-  void* PLAN_CTL_node = __hpvm__createNodeND(0, plan_and_control);
+  void *PLAN_CTL_node = __hpvm__createNodeND(0, plan_and_control);
 
   // Binds inputs of current node with specified node
   // - destination node
   // - argument position in argument list of function of source node
   // - argument position in argument list of function of destination node
   // - streaming (1) or non-streaming (0)
-  __hpvm__bindIn(PLAN_CTL_node,  0,  0, 0); // label -> PLAN_CTL_node::label
-  __hpvm__bindIn(PLAN_CTL_node,  1,  1, 0); // size_label -> PLAN_CTL_node::size_label
-  __hpvm__bindIn(PLAN_CTL_node,  2,  2, 0); // distance -> PLAN_CTL_node::distance
-  __hpvm__bindIn(PLAN_CTL_node,  3,  3, 0); // size_distance  -> PLAN_CTL_node::size_distance
-  __hpvm__bindIn(PLAN_CTL_node,  4,  4, 0); // message -> PLAN_CTL_node::message
-  __hpvm__bindIn(PLAN_CTL_node,  5,  5, 0); // size_message -> PLAN_CTL_node::size_message
-  __hpvm__bindIn(PLAN_CTL_node,  6,  6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
-  __hpvm__bindIn(PLAN_CTL_node,  7,  7, 0); // vehicle_state_size -> PLAN_CTL_node::vehicle_state_size
+  __hpvm__bindIn(PLAN_CTL_node, 0, 0, 0); // label -> PLAN_CTL_node::label
+  __hpvm__bindIn(PLAN_CTL_node, 1, 1, 0); // size_label -> PLAN_CTL_node::size_label
+  __hpvm__bindIn(PLAN_CTL_node, 2, 2, 0); // distance -> PLAN_CTL_node::distance
+  __hpvm__bindIn(PLAN_CTL_node, 3, 3, 0); // size_distance  -> PLAN_CTL_node::size_distance
+  __hpvm__bindIn(PLAN_CTL_node, 4, 4, 0); // message -> PLAN_CTL_node::message
+  __hpvm__bindIn(PLAN_CTL_node, 5, 5, 0); // size_message -> PLAN_CTL_node::size_message
+  __hpvm__bindIn(PLAN_CTL_node, 6, 6, 0); // vehicle_state -> PLAN_CTL_node::vehicle_state
+  __hpvm__bindIn(PLAN_CTL_node, 7, 7, 0); // vehicle_state_size -> PLAN_CTL_node::vehicle_state_size
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
   __hpvm__bindOut(PLAN_CTL_node, 0, 0, 0);
 }
 
-
-
-
 // Type definition for struct used to pass arguments to the HPVM dataflow graph
 // using the hpvm launch operation
 
 typedef struct __attribute__((__packed__)) {
-  float * radar_data;       size_t bytes_radar_data;          /*  0,  1 */
-  unsigned int radar_N;                     /*  2 */
-  unsigned int radar_logn;                    /*  3 */
-  int radar_sign;                     /*  4 */
-  float * radar_distance;   size_t bytes_radar_distance;      /*  5,  6 */
+  float *radar_data;
+  size_t bytes_radar_data; /*  0,  1 */
+  unsigned int radar_N;    /*  2 */
+  unsigned int radar_logn; /*  3 */
+  int radar_sign;          /*  4 */
+  float *radar_distance;
+  size_t bytes_radar_distance; /*  5,  6 */
 
-  ofdm_param* ofdm_ptr;     size_t bytes_ofdm_parm;           /*  7,  8 */
-  frame_param* frame_ptr;   size_t bytes_frame_parm;          /*  9, 10 */
-  uint8_t* vit_in_bits;     size_t bytes_vit_in_bits;       /* 11, 12 */
-  char* vit_out_msg_txt;    size_t bytes_vit_out_msg_txt;     /* 13, 14 */
-  message_t* vit_out_msg;   size_t bytes_vit_out_msg;       /* 15, 16 */
-  int   num_msgs_to_decode;             /* 17 */
+  ofdm_param *ofdm_ptr;
+  size_t bytes_ofdm_parm; /*  7,  8 */
+  frame_param *frame_ptr;
+  size_t bytes_frame_parm; /*  9, 10 */
+  uint8_t *vit_in_bits;
+  size_t bytes_vit_in_bits; /* 11, 12 */
+  char *vit_out_msg_txt;
+  size_t bytes_vit_out_msg_txt; /* 13, 14 */
+  message_t *vit_out_msg;
+  size_t bytes_vit_out_msg; /* 15, 16 */
+  int num_msgs_to_decode;   /* 17 */
 
-  label_t* label;                 size_t bytes_label;         /* 18, 19 */
-  vehicle_state_t* vehicle_state; size_t bytes_vehicle_state; /* 20, 21 */
+  label_t *label;
+  size_t bytes_label; /* 18, 19 */
+  vehicle_state_t *vehicle_state;
+  size_t bytes_vehicle_state; /* 20, 21 */
 
 } RootIn;
 
-
 /*** ROOT Node - Top Level of the Graph Hierarchy ***/
-void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */    // RADAR
+void miniERARoot(/*  0 */ float *radar_data, size_t bytes_radar_data, /* 1 */ // RADAR
                           /*  2 */ unsigned int radar_N,
                           /*  3 */ unsigned int radar_logn,
                           /*  4 */ int radar_sign,
-                          /*  5 */ float * radar_distance,  size_t bytes_radar_distance     /*  6 */, // Viterbi
-                          /*  7 */ ofdm_param* ofdm_ptr,    size_t bytes_ofdm_parm,         /*  8 */
-                          /*  9 */ frame_param* frame_ptr,  size_t bytes_frame_parm,        /* 10 */
-                          /* 11 */ uint8_t* vit_in_bits,    size_t bytes_vit_in_bits,       /* 12 */
-                          /* 13 */ char* vit_out_msg_txt,   size_t bytes_vit_out_msg_txt,   /* 14 */
-                          /* 15 */ message_t* vit_out_msg,  size_t bytes_vit_out_msg,       /* 16 */
+                          /*  5 */ float *radar_distance, size_t bytes_radar_distance /*  6 */, // Viterbi
+                          /*  7 */ ofdm_param *ofdm_ptr, size_t bytes_ofdm_parm,                /*  8 */
+                          /*  9 */ frame_param *frame_ptr, size_t bytes_frame_parm,             /* 10 */
+                          /* 11 */ uint8_t *vit_in_bits, size_t bytes_vit_in_bits,              /* 12 */
+                          /* 13 */ char *vit_out_msg_txt, size_t bytes_vit_out_msg_txt,         /* 14 */
+                          /* 15 */ message_t *vit_out_msg, size_t bytes_vit_out_msg,            /* 16 */
                           /* 17 */ int num_msgs_to_decode,
 
-                          /* 18 */ label_t* label,                 size_t bytes_label,        /* 19 */ // Plan-and-Control
-                          /* 20 */ vehicle_state_t* vehicle_state, size_t bytes_vehicle_state /* 21 */
+                          /* 18 */ label_t *label, size_t bytes_label, /* 19 */               // Plan-and-Control
+                          /* 20 */ vehicle_state_t *vehicle_state, size_t bytes_vehicle_state /* 21 */
                 ) {
   //Specifies compilation target for current node
   __hpvm__hint(CPU_TARGET);
@@ -1838,21 +1841,21 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __hpvm__attributes(11, radar_data, radar_N, radar_logn, radar_sign, radar_distance, // - count of "in" arguments, list of "in" arguments
                      ofdm_ptr, frame_ptr, vit_in_bits, vit_out_msg_txt, vit_out_msg,
                      vehicle_state,
-                     1, vehicle_state);          // - count of "out" arguments, list of "out" arguments
+                     1, vehicle_state); // - count of "out" arguments, list of "out" arguments
   //                 3, radar_distance, vit_out_msg_txt, vit_out_msg);          // - count of "out" arguments, list of "out" arguments
 
   // FFT Node
   //void* EXEC_RAD_node = __hpvm__createNodeND(0, execute_rad_kernel);
-  void* RAD_wrap_node = __hpvm__createNodeND(0, execute_rad_wrapper);
+  void *RAD_wrap_node = __hpvm__createNodeND(0, execute_rad_wrapper);
 
   // Viterbi Node
-  void* VIT_wrap_node = __hpvm__createNodeND(0, execute_vit_wrapper);
+  void *VIT_wrap_node = __hpvm__createNodeND(0, execute_vit_wrapper);
 
   // CV Nodes
-  void* CV_wrap_node = __hpvm__createNodeND(0, execute_cv_wrapper);
+  void *CV_wrap_node = __hpvm__createNodeND(0, execute_cv_wrapper);
 
   // Plan and Control Node
-  void* PLAN_CTL_wrap = __hpvm__createNodeND(0, plan_and_control_wrapper);
+  void *PLAN_CTL_wrap = __hpvm__createNodeND(0, plan_and_control_wrapper);
 
   // BindIn binds inputs of current node with specified node
   // - destination node
@@ -1868,24 +1871,24 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   // - streaming (1) or non-streaming (0)
 
   // scale_fxp inputs
-  __hpvm__bindIn(RAD_wrap_node,  0,  0, 0); // radar_data -> RAD_wrap_node:radar_data
-  __hpvm__bindIn(RAD_wrap_node,  1,  1, 0); // bytes_radar_data -> RAD_wrap_node:bytes_radar_data
-  __hpvm__bindIn(RAD_wrap_node,  2,  2, 0); // radar_N -> RAD_wrap_node:radar_N
-  __hpvm__bindIn(RAD_wrap_node,  3,  3, 0); // radar_logn -> RAD_wrap_node:radar_logn
-  __hpvm__bindIn(RAD_wrap_node,  4,  4, 0); // radar_sign -> RAD_wrap_node:radar_sign
-  __hpvm__bindIn(RAD_wrap_node,  5,  5, 0); // radar_distance -> RAD_wrap_node:radar_distance
-  __hpvm__bindIn(RAD_wrap_node,  6,  6, 0); // bytes_radar_dist -> RAD_wrap_node:bytes_radar_dist
+  __hpvm__bindIn(RAD_wrap_node, 0, 0, 0); // radar_data -> RAD_wrap_node:radar_data
+  __hpvm__bindIn(RAD_wrap_node, 1, 1, 0); // bytes_radar_data -> RAD_wrap_node:bytes_radar_data
+  __hpvm__bindIn(RAD_wrap_node, 2, 2, 0); // radar_N -> RAD_wrap_node:radar_N
+  __hpvm__bindIn(RAD_wrap_node, 3, 3, 0); // radar_logn -> RAD_wrap_node:radar_logn
+  __hpvm__bindIn(RAD_wrap_node, 4, 4, 0); // radar_sign -> RAD_wrap_node:radar_sign
+  __hpvm__bindIn(RAD_wrap_node, 5, 5, 0); // radar_distance -> RAD_wrap_node:radar_distance
+  __hpvm__bindIn(RAD_wrap_node, 6, 6, 0); // bytes_radar_dist -> RAD_wrap_node:bytes_radar_dist
 
-  __hpvm__bindIn(VIT_wrap_node,  7,  0, 0); // ofdm_ptr -> VIT_wrap_node:ofdm_ptr
-  __hpvm__bindIn(VIT_wrap_node,  8,  1, 0); // bytes_ofdm_parm -> VIT_wrap_node:bytes_ofdm_parm
-  __hpvm__bindIn(VIT_wrap_node,  9,  2, 0); // frame_ptr -> VIT_wrap_node:frame_ptr
-  __hpvm__bindIn(VIT_wrap_node, 10,  3, 0); // bytes_frame_parm -> VIT_wrap_node:bytes_frame_parm
-  __hpvm__bindIn(VIT_wrap_node, 11,  4, 0); // vit_in_bits -> VIT_wrap_node:vit_in_bits
-  __hpvm__bindIn(VIT_wrap_node, 12,  5, 0); // bytes_vit_in_bits -> VIT_wrap_node:bytes_vit_in_bits
-  __hpvm__bindIn(VIT_wrap_node, 13,  6, 0); // vit_out_msg_txt -> VIT_wrap_node:vit_out_msg_txt
-  __hpvm__bindIn(VIT_wrap_node, 14,  7, 0); // bytes_vit_out_msg_txt -> VIT_wrap_node:bytes_vit_out_msg_txt
-  __hpvm__bindIn(VIT_wrap_node, 15,  8, 0); // vit_out_msg -> VIT_wrap_node:vit_out_msg
-  __hpvm__bindIn(VIT_wrap_node, 16,  9, 0); // bytes_vit_out_msg -> VIT_wrap_node:bytes_vit_out_msg
+  __hpvm__bindIn(VIT_wrap_node, 7, 0, 0);   // ofdm_ptr -> VIT_wrap_node:ofdm_ptr
+  __hpvm__bindIn(VIT_wrap_node, 8, 1, 0);   // bytes_ofdm_parm -> VIT_wrap_node:bytes_ofdm_parm
+  __hpvm__bindIn(VIT_wrap_node, 9, 2, 0);   // frame_ptr -> VIT_wrap_node:frame_ptr
+  __hpvm__bindIn(VIT_wrap_node, 10, 3, 0);  // bytes_frame_parm -> VIT_wrap_node:bytes_frame_parm
+  __hpvm__bindIn(VIT_wrap_node, 11, 4, 0);  // vit_in_bits -> VIT_wrap_node:vit_in_bits
+  __hpvm__bindIn(VIT_wrap_node, 12, 5, 0);  // bytes_vit_in_bits -> VIT_wrap_node:bytes_vit_in_bits
+  __hpvm__bindIn(VIT_wrap_node, 13, 6, 0);  // vit_out_msg_txt -> VIT_wrap_node:vit_out_msg_txt
+  __hpvm__bindIn(VIT_wrap_node, 14, 7, 0);  // bytes_vit_out_msg_txt -> VIT_wrap_node:bytes_vit_out_msg_txt
+  __hpvm__bindIn(VIT_wrap_node, 15, 8, 0);  // vit_out_msg -> VIT_wrap_node:vit_out_msg
+  __hpvm__bindIn(VIT_wrap_node, 16, 9, 0);  // bytes_vit_out_msg -> VIT_wrap_node:bytes_vit_out_msg
   __hpvm__bindIn(VIT_wrap_node, 17, 10, 0); // num_msgs_to_decode -> VIT_wrap_node:num_msgs_to_decode
 
   __hpvm__bindIn(CV_wrap_node, 18, 0, 0); // label -> CV_wrap_node:in_tr_val
@@ -1894,32 +1897,31 @@ void miniERARoot(/*  0 */ float * radar_data, size_t bytes_radar_data, /* 1 */  
   __hpvm__bindIn(CV_wrap_node, 19, 3, 0); // label_size -> CV_wrap_node:out_label_size
 
   // Use bindIn for the label (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __hpvm__bindIn(PLAN_CTL_wrap, 18,  0, 0); // out_label -> PLAN_CTL_node::label
+  __hpvm__bindIn(PLAN_CTL_wrap, 18, 0, 0);               // out_label -> PLAN_CTL_node::label
   __hpvm__edge(CV_wrap_node, PLAN_CTL_wrap, 1, 0, 1, 0); // RAD_wrap_node::out_label_size output -> PLAN_CTL_wrap::size_label
 
   // Use bindIn for the distance (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __hpvm__bindIn(PLAN_CTL_wrap,  5,  2, 0); // radar_distance -> PLAN_CTL_wrap:radar_distance
+  __hpvm__bindIn(PLAN_CTL_wrap, 5, 2, 0);                 // radar_distance -> PLAN_CTL_wrap:radar_distance
   __hpvm__edge(RAD_wrap_node, PLAN_CTL_wrap, 1, 0, 3, 0); // RAD_wrap_node::dist_size ouput -> PLAN_CTL_wrap::distance input
 
   // Use bindIn for the vit_out_msg (pointer) and edge for the size_t (which also creates node->node flow dependence)
-  __hpvm__bindIn(PLAN_CTL_wrap, 15,  4, 0); // vit_out_msg -> PLAN_CTL_wrap::message input
+  __hpvm__bindIn(PLAN_CTL_wrap, 15, 4, 0);                // vit_out_msg -> PLAN_CTL_wrap::message input
   __hpvm__edge(VIT_wrap_node, PLAN_CTL_wrap, 1, 0, 5, 0); // VIT_wrap_node::out_message -> PLAN_CTL_wrap::message input
 
-  __hpvm__bindIn(PLAN_CTL_wrap, 20,  6, 0); // vehicle_state -> PLAN_CTL_wrap::vehicle_state
-  __hpvm__bindIn(PLAN_CTL_wrap, 21,  7, 0); // bytes_vehicle_state -> PLAN_CTL_wrap::size_vehicle_state
+  __hpvm__bindIn(PLAN_CTL_wrap, 20, 6, 0); // vehicle_state -> PLAN_CTL_wrap::vehicle_state
+  __hpvm__bindIn(PLAN_CTL_wrap, 21, 7, 0); // bytes_vehicle_state -> PLAN_CTL_wrap::size_vehicle_state
   //__hpvm__edge(PLAN_CTL_wrap, PLAN_CTL_wrap, 1, 0, 7, 0); // PLAN_CTL_wrap::size_vehicle_stat -> PLAN_CTL_wrap::size_vehicle_state
 
   // Similar to bindIn, but for the output. Output of a node is a struct, and
   // we consider the fields in increasing ordering.
-  __hpvm__bindOut(PLAN_CTL_wrap, 0, 0, 0);  // Output is just the new vehicle_state
+  __hpvm__bindOut(PLAN_CTL_wrap, 0, 0, 0); // Output is just the new vehicle_state
 }
-
 
 int main(int argc, char *argv[]) {
   vehicle_state_t vehicle_state;
 
 #ifndef USE_SIM_ENVIRON
-  char* trace_file;
+  char *trace_file;
 #endif
   int opt;
 
@@ -1974,7 +1976,6 @@ int main(int argc, char *argv[]) {
     printf("extra arguments: %s\n", argv[optind]);
   }
 
-
   /* We plan to use three separate trace files to drive the three different kernels
    * that are part of mini-ERA (CV, radar, Viterbi). All these three trace files
    * are required to have the same base name, using the file extension to indicate
@@ -1990,7 +1991,6 @@ int main(int argc, char *argv[]) {
 
   /*   return 1; */
   /* } */
-
 
 #ifndef USE_SIM_ENVIRON
   /* Trace filename construction */
@@ -2026,7 +2026,7 @@ int main(int argc, char *argv[]) {
    *  - Lane: center
    *  - Speed: 50 mph
    */
-  vehicle_state.lane  = center;
+  vehicle_state.lane = center;
   vehicle_state.speed = 50;
   DEBUG(printf("Vehicle starts with the following state: lane %u speed %.1f\n", vehicle_state.lane, vehicle_state.speed));
   /*** MAIN LOOP -- iterates until all the traces are fully consumed ***/
@@ -2035,9 +2035,8 @@ int main(int argc, char *argv[]) {
   struct timeval stop, start;
 #endif
 
-
   // Allocate struct to pass DFG inputs
-  RootIn* rootArgs = (RootIn*) malloc(sizeof(RootIn));
+  RootIn *rootArgs = (RootIn *)malloc(sizeof(RootIn));
 
   /* Initialize the HPVM environment, etc. (Only done once) */
   __hpvm__init();
@@ -2052,11 +2051,11 @@ int main(int argc, char *argv[]) {
   llvm_hpvm_track_mem(radar_input, 8 * RADAR_N);
   llvm_hpvm_track_mem(&radar_distance, sizeof(float));
 
-  ofdm_param  xfer_ofdm;
+  ofdm_param xfer_ofdm;
   frame_param xfer_frame;
-  uint8_t     xfer_vit_inputs[MAX_ENCODED_BITS];
-  char        vit_msg_txt[1600];
-  message_t   vit_message;
+  uint8_t xfer_vit_inputs[MAX_ENCODED_BITS];
+  char vit_msg_txt[1600];
+  message_t vit_message;
 
   llvm_hpvm_track_mem(&xfer_ofdm, sizeof(ofdm_param));
   llvm_hpvm_track_mem(&xfer_frame, sizeof(frame_param));
@@ -2069,7 +2068,7 @@ int main(int argc, char *argv[]) {
   llvm_hpvm_track_mem(&cv_infer_label, sizeof(label_t));
   llvm_hpvm_track_mem(&vehicle_state, sizeof(vehicle_state_t));
 
-  int num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
+  int num_vit_msgs = 1; // the number of messages to send this time step (1 is default)
 
   /* The input trace contains the per-epoch (time-step) input data */
   //DEBUG(printf("\n\nTime Step %d\n", time_step));
@@ -2089,13 +2088,12 @@ int main(int argc, char *argv[]) {
      */
     label_t cv_tr_label = iterate_cv_kernel(vehicle_state);
 
-
     /* The radar kernel performs distance estimation on the next radar
      * data, and returns the estimated distance to the object.
      */
-    radar_dict_entry_t* rdentry_p = iterate_rad_kernel(vehicle_state);
+    radar_dict_entry_t *rdentry_p = iterate_rad_kernel(vehicle_state);
     distance_t rd_dist = rdentry_p->distance;
-    float * ref_in = rdentry_p->return_data;
+    float *ref_in = rdentry_p->return_data;
     for (int ii = 0; ii < 2 * RADAR_N; ii++) {
       radar_input[ii] = ref_in[ii];
     }
@@ -2107,64 +2105,70 @@ int main(int argc, char *argv[]) {
      * road construction warnings). For simplicity, we define a fix set
      * of message classes (e.g. car on the right, car on the left, etc.)
      */
-    vit_dict_entry_t* vdentry_p = iterate_vit_kernel(vehicle_state);
+    vit_dict_entry_t *vdentry_p = iterate_vit_kernel(vehicle_state);
 
     // Here we will simulate multiple cases, based on global vit_msgs_behavior
-    num_vit_msgs = 1;   // the number of messages to send this time step (1 is default)
+    num_vit_msgs = 1; // the number of messages to send this time step (1 is default)
     switch (vit_msgs_behavior) {
-    case 2: num_vit_msgs = total_obj; break;
-    case 3: num_vit_msgs = total_obj; break;
-    case 4: num_vit_msgs = total_obj + 1; break;
-    case 5: num_vit_msgs = total_obj + 1; break;
+    case 2:
+      num_vit_msgs = total_obj;
+      break;
+    case 3:
+      num_vit_msgs = total_obj;
+      break;
+    case 4:
+      num_vit_msgs = total_obj + 1;
+      break;
+    case 5:
+      num_vit_msgs = total_obj + 1;
+      break;
     }
-
 
     // EXECUTE the kernels using the now known inputs
     cv_infer_label = cv_tr_label; // Set default output to match the input (in case we bypass CNN call)
 
     // Set up HPVM DFG inputs in the rootArgs struct.
-    rootArgs->radar_data       = radar_input;
+    rootArgs->radar_data = radar_input;
     rootArgs->bytes_radar_data = 8 * RADAR_N;
 
     rootArgs->radar_N = RADAR_N;
     rootArgs->radar_logn = RADAR_LOGN;
     rootArgs->radar_sign = -1;
 
-    rootArgs->radar_distance       = &radar_distance;
+    rootArgs->radar_distance = &radar_distance;
     rootArgs->bytes_radar_distance = sizeof(float);
 
     /* Viterbi part 0 copy over required inputs */
-    xfer_ofdm.encoding   = vdentry_p->ofdm_p.encoding;
+    xfer_ofdm.encoding = vdentry_p->ofdm_p.encoding;
     xfer_ofdm.rate_field = vdentry_p->ofdm_p.rate_field;
-    xfer_ofdm.n_bpsc     = vdentry_p->ofdm_p.n_bpsc;
-    xfer_ofdm.n_cbps     = vdentry_p->ofdm_p.n_cbps;
-    xfer_ofdm.n_dbps     = vdentry_p->ofdm_p.n_dbps;
+    xfer_ofdm.n_bpsc = vdentry_p->ofdm_p.n_bpsc;
+    xfer_ofdm.n_cbps = vdentry_p->ofdm_p.n_cbps;
+    xfer_ofdm.n_dbps = vdentry_p->ofdm_p.n_dbps;
 
-    xfer_frame.psdu_size      = vdentry_p->frame_p.psdu_size;
-    xfer_frame.n_sym          = vdentry_p->frame_p.n_sym;
+    xfer_frame.psdu_size = vdentry_p->frame_p.psdu_size;
+    xfer_frame.n_sym = vdentry_p->frame_p.n_sym;
     xfer_frame.n_encoded_bits = vdentry_p->frame_p.n_encoded_bits;
-    xfer_frame.n_data_bits    = vdentry_p->frame_p.n_data_bits;
+    xfer_frame.n_data_bits = vdentry_p->frame_p.n_data_bits;
 
-    for (int bi = 0; bi <  MAX_ENCODED_BITS; bi++) {
+    for (int bi = 0; bi < MAX_ENCODED_BITS; bi++) {
       xfer_vit_inputs[bi] = vdentry_p->in_bits[bi];
     }
 
-    rootArgs->ofdm_ptr           = &xfer_ofdm;
-    rootArgs->bytes_ofdm_parm    = sizeof(ofdm_param);
-    rootArgs->frame_ptr          = &xfer_frame;
-    rootArgs->bytes_frame_parm   = sizeof(frame_param);
-    rootArgs->vit_in_bits        = xfer_vit_inputs;
-    rootArgs->bytes_vit_in_bits  = MAX_ENCODED_BITS;
-    rootArgs->vit_out_msg_txt       = vit_msg_txt;
+    rootArgs->ofdm_ptr = &xfer_ofdm;
+    rootArgs->bytes_ofdm_parm = sizeof(ofdm_param);
+    rootArgs->frame_ptr = &xfer_frame;
+    rootArgs->bytes_frame_parm = sizeof(frame_param);
+    rootArgs->vit_in_bits = xfer_vit_inputs;
+    rootArgs->bytes_vit_in_bits = MAX_ENCODED_BITS;
+    rootArgs->vit_out_msg_txt = vit_msg_txt;
     rootArgs->bytes_vit_out_msg_txt = 1600;
-    rootArgs->vit_out_msg        = &vit_message;
-    rootArgs->bytes_vit_out_msg  = sizeof(message_t);
+    rootArgs->vit_out_msg = &vit_message;
+    rootArgs->bytes_vit_out_msg = sizeof(message_t);
     rootArgs->num_msgs_to_decode = num_vit_msgs;
 
-
-    rootArgs->label               = &cv_infer_label;
-    rootArgs->bytes_label         = sizeof(label_t);
-    rootArgs->vehicle_state       = &vehicle_state;
+    rootArgs->label = &cv_infer_label;
+    rootArgs->bytes_label = sizeof(label_t);
+    rootArgs->vehicle_state = &vehicle_state;
     rootArgs->bytes_vehicle_state = sizeof(vehicle_state_t);
 
     // Launch the DFG to do:
@@ -2173,7 +2177,7 @@ int main(int argc, char *argv[]) {
     //        AND the Viterbi computation...
     //        AND the Plan-and-Control function
 
-    void* doExecPlanControlDFG = __hpvm__launch(0, miniERARoot, (void*) rootArgs);
+    void *doExecPlanControlDFG = __hpvm__launch(0, miniERARoot, (void *)rootArgs);
     __hpvm__wait(doExecPlanControlDFG);
 
     // Request data from graph.
@@ -2190,7 +2194,6 @@ int main(int argc, char *argv[]) {
     for (int mi = 0; mi < num_vit_msgs; mi++) {
       post_execute_vit_kernel(vdentry_p->msg_id, vit_message);
     }
-
 
 #ifdef TIME
     loop++;
@@ -2214,7 +2217,7 @@ int main(int argc, char *argv[]) {
   closeout_vit_kernel();
 
 #ifdef TIME
-  printf("Program run time in milliseconds %f\n", (double) (stop.tv_sec - start.tv_sec) * 1000 + (double) (stop.tv_usec - start.tv_usec) / 1000);
+  printf("Program run time in milliseconds %f\n", (double)(stop.tv_sec - start.tv_sec) * 1000 + (double)(stop.tv_usec - start.tv_usec) / 1000);
 #endif
 
   // Remove tracked pointers.
