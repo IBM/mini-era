@@ -78,8 +78,17 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
 #    mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
 #   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
 #   -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
-RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && conda install pip libgcc && pip install Pmw torch torchvision lightnet && conda update numpy && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
-RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git && \
+RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git 
+RUN cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml
+RUN conda init bash && . ~/.bashrc && conda activate hpvm && conda install pip libgcc && pip install Pmw torch torchvision lightnet && conda update numpy 
+RUN conda init bash && . ~/.bashrc && conda activate hpvm && cd hpvm-release/hpvm && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
+
+# tiny yolo package requirements
+RUN conda install pip libgcc && conda install --channel pytorch pytorch torchvision 
+RUN conda install --channel conda-forge opencv pytorch-lightning onnx numexpr
+RUN /home/espuser/anaconda3/bin/pip install lightnet && conda update numpy
+
+RUN git clone -b hpvm-yolo-integration https://github.com/IBM/scheduler-library.git && \
       cd scheduler-library && conda init bash && . ~/.bashrc && conda activate hpvm && \
       #ln -sf /home/espuser/scheduler-library/sched_library/build_riscv_nvdla.config /home/espuser/scheduler-library/sched_library/hardware_config && \
       sed -i 's/HPVM_DIR=/HPVM_DIR=\/home\/espuser\/hpvm-release\/hpvm/g' setup_paths.sh && \
@@ -94,10 +103,24 @@ RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git &
 #      git clone https://github.com/AkashIwnK/nvdla_inputs_repo.git  
 
 #COPY mini-era folder
-COPY --chown=espuser:espuser mini-era.tar.gz /home/espuser
-RUN tar xvf mini-era.tar.gz && rm mini-era.tar.gz
+RUN git clone -b docker-hpvm-yolo https://github.com/IBM/mini-era.git && cd mini-era && \
+      source ./setup_paths.sh 
+COPY --chown=espuser:espuser weights.ckpt /home/espuser/mini-era/cv/yolo/
+COPY --chown=espuser:espuser yolo-data.tar.gz /home/espuser/mini-era/
+RUN tar xvf /home/espuser/mini-era/yolo-data.tar.gz -C /home/espuser/mini-era && rm /home/espuser/mini-era/yolo-data.tar.gz
+
 USER root
 
+# link necexssary python and libstdc++6 libraries
+RUN cd /usr/lib && ln -s /home/espuser/anaconda3/lib/libpython3.7m.so libpython3.7m.so && \
+    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1 libpython3.7m.so.1 && \
+    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1.0 libpython3.7m.so.1.0 && \
+    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6 libstdc++.so.6 && \
+    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6.0.28 libstdc++.so.28 && \
+    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6 libstdc++.so.6 && \
+    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6.0.28 libstdc++.so.28
+
+ 
 # enable X11 forwarding
 RUN sed -i 's/#   ForwardX11 no/ForwardX11 yes/g' /etc/ssh/ssh_config
 # copy over environment setup script (without CAD tools)
@@ -111,16 +134,4 @@ COPY small/tmux.conf /root/.tmux.conf
 # copy over emacs script
 COPY small/emacs /root/.emacs
 
-# tiny yolo package requirements
-RUN conda install pip libgcc && conda install --channel pytorch pytorch torchvision && \
-    conda install --channel conda-forge opencv pytorch-lightning onnx numexpr && \
-    /home/espuser/anaconda3/bin/pip install lightnet && conda update numpy
 
-# link necexssary python and libstdc++6 libraries
-RUN cd /usr/lib && ln -s /home/espuser/anaconda3/lib/libpython3.7m.so libpython3.7m.so && \
-    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1 libpython3.7m.so.1 && \
-    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1.0 libpython3.7m.so.1.0 && \
-    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6 libstdc++.so.6 && \
-    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6.0.28 libstdc++.so.28 && \
-    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6 libstdc++.so.6 && \
-    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6.0.28 libstdc++.so.28
