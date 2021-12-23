@@ -107,7 +107,7 @@ def predict(imagetype): # --> called by kernels_api.c
     # nvdla instead
 
     # not utilizing object from trace here since its hpvm is not passing args correctly
-    imagetype = randint(0, 11)
+    #imagetype = randint(0, 11)
 
     # # fit MIO labels to YOLO model labels
     # if imagetype in [-1, 0]:         # nothing = nothing
@@ -137,8 +137,8 @@ def predict(imagetype): # --> called by kernels_api.c
         rand = randint(mini, maxi)
         path = lines[rand][:-1]
     test_image = Image.open(path).convert('RGB')
-    image_num  = cv2.imread(path)
-    image_num  = cv2.cvtColor(image_num, cv2.COLOR_BGR2RGB)
+    #image_num  = cv2.imread(path)
+    #image_num  = cv2.cvtColor(image_num, cv2.COLOR_BGR2RGB)
 
     # transform image to proper pytorch tensor format
     transform = transforms.Compose([
@@ -160,9 +160,9 @@ def predict(imagetype): # --> called by kernels_api.c
         # attempt to match string label with integer label
         label_str = dets['class_label'][0]
         label = classes.index(label_str)
-        print("label", label, label_str)
-        bbox = [x_min, y_min, width, height]
-        visualize(image_num, bbox, label_str)
+        #print("label", label, label_str)
+        #bbox = [x_min, y_min, width, height]
+        #visualize(image_num, bbox, label_str)
     except:
         # uh oh! no detections found
         label = -1
@@ -173,15 +173,10 @@ def predict(imagetype): # --> called by kernels_api.c
     # objects equal for testing purposes
     if label == -1: # myself or nothing
         corrected_label = 0
-    elif label in (0, 1, 2):
-        corrected_label = 1
-    elif label in (2, 4, 5):
-        corrected_label = 2
-    elif label in (6, 7, 8):
-        corrected_label = 3
-    else: # (9, 10, 11)
-        corrected_label = 4
-
+    elif label in (0, 1, 2, 3, 4):
+        corrected_label = label
+    else: #> 4 Say nothing
+        correcteed_label = 0
     return corrected_label
 
 
