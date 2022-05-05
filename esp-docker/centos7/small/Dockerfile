@@ -56,6 +56,8 @@ ENV LD_LIBRARY_PATH="/usr/local/lib64/:/usr/local/lib/"
 ENV PATH /home/espuser/anaconda3/bin:$PATH
 
 # clone ESP repository and install software toolchains
+RUN git config --global url."https://github.com/".insteadOf git://github.com/
+# && git config --global http.postBuffer 524288000
 RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
     git submodule update --init --recursive \
     accelerators/stratus_hls/common/inc \
@@ -78,7 +80,7 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
   #    mkdir build && cd build && cmake -G "Ninja" ../llvm \ 
   #   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
   #    -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
-RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && conda install pip libgcc && pip install Pmw torch lightnet && conda update numpy && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
+RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git && cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && sed -i '/imgaug/d' ./env.yaml && conda env create -n hpvm -f ./env.yaml && conda activate hpvm && conda install pip libgcc && pip install Pmw torch lightnet && conda update numpy && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
 RUN git clone -b hpvm-integration https://github.com/IBM/scheduler-library.git && \
       cd scheduler-library && conda init bash && . ~/.bashrc && conda activate hpvm && \
       #ln -sf /home/espuser/scheduler-library/sched_library/build_riscv_nvdla.config /home/espuser/scheduler-library/sched_library/hardware_config && \
