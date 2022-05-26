@@ -56,6 +56,7 @@ ENV LD_LIBRARY_PATH="/usr/local/lib64/:/usr/local/lib/"
 ENV PATH /home/espuser/anaconda3/bin:$PATH
 
 # clone ESP repository and install software toolchains
+RUN git config --global url."https://github.com/".insteadOf git://github.com/
 RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
     git submodule update --init --recursive \
     accelerators/stratus_hls/common/inc \
@@ -79,21 +80,36 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
 #   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_BUILD_TYPE=MinSizeRel \
 #   -DLLVM_TARGETS_TO_BUILD="X86" && ninja -j4 
 RUN git clone -b hpvm-release-epochs0 --single-branch https://gitlab.engr.illinois.edu/llvm/hpvm-release.git 
-RUN cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && conda env create -n hpvm -f ./env.yaml
+RUN cd hpvm-release/hpvm && conda init bash && . ~/.bashrc && sed -i '/imgaug/d' ./env.yaml && conda env create -n hpvm -f ./env.yaml
 RUN conda init bash && . ~/.bashrc && conda activate hpvm && conda install pip libgcc && pip install Pmw torch torchvision lightnet && conda update numpy 
 RUN conda init bash && . ~/.bashrc && conda activate hpvm && cd hpvm-release/hpvm && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
 
 # tiny yolo package requirements
 RUN conda install pip libgcc && conda install --channel pytorch pytorch torchvision 
-RUN conda install --channel conda-forge opencv pytorch-lightning onnx numexpr
+RUN conda install --channel conda-forge opencv
+RUN conda install --channel conda-forge pytorch-lightning onnx numexpr
 RUN /home/espuser/anaconda3/bin/pip install lightnet && conda update numpy
+RUN /home/espuser/anaconda3/bin/pip install --upgrade torchmetrics==0.6.0
+RUN conda install imgaug
+
+USER root
+
+# link necexssary python and libstdc++6 libraries
+RUN cd /usr/lib && ln -s /home/espuser/anaconda3/lib/libpython3.7m.so libpython3.7m.so && \
+    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1 libpython3.7m.so.1 && \
+    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1.0 libpython3.7m.so.1.0 && \
+    ln -sf /home/espuser/anaconda3/lib/libstdc++.so.6 libstdc++.so.6 && \
+    ln -sf /home/espuser/anaconda3/lib/libstdc++.so.6.0.28 libstdc++.so.28 && \
+    ln -sf /home/espuser/anaconda3/lib64/libstdc++.so.6 libstdc++.so.6 && \
+    ln -sf /home/espuser/anaconda3/lib64/libstdc++.so.6.0.28 libstdc++.so.28
+USER espuser
 
 RUN git clone -b hpvm-yolo-integration https://github.com/IBM/scheduler-library.git && \
       cd scheduler-library && conda init bash && . ~/.bashrc && conda activate hpvm && \
       #ln -sf /home/espuser/scheduler-library/sched_library/build_riscv_nvdla.config /home/espuser/scheduler-library/sched_library/hardware_config && \
-      sed -i 's/HPVM_DIR=/HPVM_DIR=\/home\/espuser\/hpvm-release\/hpvm/g' setup_paths.sh && \
-      sed -i 's/RISCV_BIN_DIR=/RISCV_BIN_DIR=\/home\/espuser\/riscv\/bin/g' setup_paths.sh &&\
-      sed -i 's/ESP_ROOT=/ESP_ROOT=\/home\/espuser\/esp/g' setup_paths.sh &&\
+      sed -i 's/HPVM_DIR=.*/HPVM_DIR=\/home\/espuser\/hpvm-release\/hpvm/g' setup_paths.sh && \
+      sed -i 's/RISCV_BIN_DIR=.*/RISCV_BIN_DIR=\/home\/espuser\/riscv\/bin/g' setup_paths.sh &&\
+      sed -i 's/ESP_ROOT=.*/ESP_ROOT=\/home\/espuser\/esp/g' setup_paths.sh &&\
       . ./setup_paths.sh && ln -sf /home/espuser/scheduler-library/hw_config_files/build_riscv_nvdla.config /home/espuser/scheduler-library/hardware_config && make clean && make hpvm-epochs && cd examples/mini-era && \
       make CONFIG_VERBOSE=y hpvm-epochs
 #      bash -c "source setup_paths.sh; make clean; make hpvm-epochs;"
@@ -105,24 +121,12 @@ RUN git clone -b hpvm-yolo-integration https://github.com/IBM/scheduler-library.
 #COPY mini-era folder
 RUN git clone -b docker-hpvm-yolo https://github.com/IBM/mini-era.git && cd mini-era && \
       source ./setup_paths.sh 
-COPY --chown=espuser:espuser weights.ckpt /home/espuser/mini-era/cv/yolo/
-COPY --chown=espuser:espuser yolo-data.tar.gz /home/espuser/mini-era/
-RUN tar xvf /home/espuser/mini-era/yolo-data.tar.gz -C /home/espuser/mini-era && rm /home/espuser/mini-era/yolo-data.tar.gz
+COPY --chown=espuser:espuser small/weights.ckpt /home/espuser/mini-era/cv/yolo/
+#COPY --chown=espuser:espuser small/yolo-data.tar.gz /home/espuser/mini-era/
+#RUN tar xvf /home/espuser/mini-era/yolo-data.tar.gz -C /home/espuser/mini-era && rm /home/espuser/mini-era/yolo-data.tar.gz
 
-USER root
-
-# link necexssary python and libstdc++6 libraries
-RUN cd /usr/lib && ln -s /home/espuser/anaconda3/lib/libpython3.7m.so libpython3.7m.so && \
-    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1 libpython3.7m.so.1 && \
-    ln -s /home/espuser/anaconda3/lib/libpython3.7m.so.1.0 libpython3.7m.so.1.0 && \
-    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6 libstdc++.so.6 && \
-    ln -sfn /home/espuser/anaconda3/lib/libstdc++.so.6.0.28 libstdc++.so.28 && \
-    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6 libstdc++.so.6 && \
-    ln -sfn /home/espuser/anaconda3/lib64/libstdc++.so.6.0.28 libstdc++.so.28
 
  
-# enable X11 forwarding
-RUN sed -i 's/#   ForwardX11 no/ForwardX11 yes/g' /etc/ssh/ssh_config
 # copy over environment setup script (without CAD tools)
 COPY small/esp_env.sh /home/espuser
 # copy over environment setup script (with CAD tools)
