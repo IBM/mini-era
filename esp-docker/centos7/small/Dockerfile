@@ -3,7 +3,7 @@ FROM centos:7
 WORKDIR /home
 
 # Add repo for cmake3
-RUN yum install -y epel-release && \
+RUN yum install -y epel-release centos-release-scl && \
     rpm -ivh http://repo.okay.com.mx/centos/7/x86_64/release/okay-release-1-3.el7.noarch.rpm?
 # install python, perl,  CAD tools and software toolchain dependencies, miscellaneous
 RUN yum install -y python python-pip python-devel python3 python3-pip python3-devel python3-tkinter \
@@ -20,10 +20,11 @@ RUN yum install -y python python-pip python-devel python3 python3-pip python3-de
     git wget bzip2 which unzip file patch bc \
     texinfo texinfo-tex help2man emacs vim xorg-x11-apps java \
     libopencl-devel boost-devel ninja-build gcc-c++ libmpc-devel mpfr-devel \
-    gmp-devel pygame autoconf automake openssl-devel libtool --nogpgcheck
+    gmp-devel pygame autoconf automake openssl-devel libtool devtoolset-7-make --nogpgcheck
 
 RUN ln -s /lib64/libtiff.so.5 /lib64/libtiff.so.3 && \
     ln -s /usr/lib64/libmpc.so.3 /usr/lib64/libmpc.so.2 && \
+    ln -sf /opt/rh/devtoolset-7/root/usr/bin/make /usr/bin/make && \
     #ln -s /usr/bin/cmake3 /usr/bin/cmake && \
     # enable X11 forwardingOA
     sed -i 's/#   ForwardX11 no/ForwardX11 yes/g' /etc/ssh/ssh_config
@@ -56,7 +57,8 @@ ENV LD_LIBRARY_PATH="/usr/local/lib64/:/usr/local/lib/"
 ENV PATH /home/espuser/anaconda3/bin:$PATH
 
 # clone ESP repository and install software toolchains
-RUN git config --global url."https://github.com/".insteadOf git://github.com/
+RUN git config --global url."https://github.com/".insteadOf git://github.com/ && git config --global url."https://gitlab.com/qemu-project/".insteadOf https://git.qemu.org/git/
+
 RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
     git submodule update --init --recursive \
     accelerators/stratus_hls/common/inc \
@@ -67,7 +69,7 @@ RUN git clone https://github.com/sld-columbia/esp.git && cd esp && \
     cd /home/espuser/esp/accelerators/third-party/NV_NVDLA && \
     rm -rf ip/verif sw/prebuilt sw/regression && \
     cd /home/espuser/esp && \
-    (echo y; echo /home/espuser/riscv; echo 4; echo n; echo n; echo n) | bash utils/toolchain/build_riscv_toolchain.sh && rm -rf /tmp/_riscv_build 
+    (echo y; echo /home/espuser/riscv; echo 4; echo y; echo n; echo n) | bash utils/toolchain/build_riscv_toolchain.sh && rm -rf /tmp/_riscv_build 
 #(echo y; echo /home/espuser/riscv32imc; echo 4; echo n) | bash utils/toolchain/build_riscv32imc_toolchain.sh && rm -rf /tmp/_riscv32imc_build
 
 # HPVM Mini-era
@@ -85,7 +87,7 @@ RUN conda init bash && . ~/.bashrc && conda activate hpvm && conda install pip l
 RUN conda init bash && . ~/.bashrc && conda activate hpvm && cd hpvm-release/hpvm && sed -i 's/--recursive\"])/--recursive\"],cwd=\"\/home\/espuser\/hpvm-release\")/g' scripts/hpvm_installer.py && ./install.sh -t "X86;RISCV"
 
 # tiny yolo package requirements
-RUN conda install pip libgcc && conda install --channel pytorch pytorch torchvision 
+RUN conda install pip libgcc && conda install --channel pytorch pytorch torchvision pillow=6.2.1 
 RUN conda install --channel conda-forge opencv
 RUN conda install --channel conda-forge pytorch-lightning onnx numexpr
 RUN /home/espuser/anaconda3/bin/pip install lightnet && conda update numpy
@@ -121,21 +123,23 @@ RUN git clone -b hpvm-yolo-integration https://github.com/IBM/scheduler-library.
 #COPY mini-era folder
 RUN git clone -b docker-hpvm-yolo https://github.com/IBM/mini-era.git && cd mini-era && \
       source ./setup_paths.sh 
-COPY --chown=espuser:espuser small/weights.ckpt /home/espuser/mini-era/cv/yolo/
-#COPY --chown=espuser:espuser small/yolo-data.tar.gz /home/espuser/mini-era/
+COPY --chown=espuser:espuser weights.ckpt /home/espuser/mini-era/cv/yolo/
+#COPY --chown=espuser:espuser yolo-data.tar.gz /home/espuser/mini-era/
 #RUN tar xvf /home/espuser/mini-era/yolo-data.tar.gz -C /home/espuser/mini-era && rm /home/espuser/mini-era/yolo-data.tar.gz
 
 
  
 # copy over environment setup script (without CAD tools)
-COPY small/esp_env.sh /home/espuser
+COPY esp_env.sh /home/espuser
 # copy over environment setup script (with CAD tools)
-COPY small/esp_env_cad.sh /home/espuser
+COPY esp_env_cad.sh /home/espuser
 # copy over bashrc script
-COPY small/bashrc /root/.bashrc
+COPY bashrc /root/.bashrc
 # copy over tmux.conf script
-COPY small/tmux.conf /root/.tmux.conf
+COPY tmux.conf /root/.tmux.conf
 # copy over emacs script
-COPY small/emacs /root/.emacs
+COPY emacs /root/.emacs
+
+RUN echo "source /home/espuser/mini-era/setup_paths.sh" >> /home/espuser/.bashrc
 
 
