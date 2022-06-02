@@ -171,12 +171,13 @@ def predict(imagetype): # --> called by kernels_api.c
     
     # fit YOLO labels to MIO model labels, assigned in order to make likelihood of different
     # objects equal for testing purposes
+    corrected_label = 0
     if label == -1: # myself or nothing
         corrected_label = 0
     elif label in (0, 1, 2, 3, 4):
         corrected_label = label
     else: #> 4 Say nothing
-        correcteed_label = 0
+        corrected_label = 0
     return corrected_label
 
 
