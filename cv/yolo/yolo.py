@@ -182,20 +182,20 @@ def predict(imagetype): # --> called by kernels_api.c
 
 
 # only needed for individual testing purposes
-# def main(argv):
-#     print('Running command:', str(sys.argv))
-#     parser = argparse.ArgumentParser()
+def main(argv):
+     print('Running command:', str(sys.argv))
+     parser = argparse.ArgumentParser()
 
-#     parser.add_argument("-t", "--objecttype", type=int,
-#                         help="Class from ATR dataset")
+     parser.add_argument("-t", "--objecttype", type=int,
+                         help="Class from ATR dataset")
 
-#     args = parser.parse_args()
-#     global model
-#     loadmodel()
-#     val = predict(args.objecttype)
+     args = parser.parse_args()
+     global model
+     loadmodel()
+     val = predict(args.objecttype)
 
-#     print("CNN Predicted Label: %u\n" % val)
+     print("CNN Predicted Label: %u\n" % val)
 
 
-# if __name__ == "__main__":
-#     main(sys.argv[1:])
+if __name__ == "__main__":
+     main(sys.argv[1:])
