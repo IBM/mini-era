@@ -122,6 +122,6 @@ COPY emacs /root/.emacs
 RUN   . ~/.bashrc && conda activate hpvm && pip install --upgrade torchmetrics==0.6.0 && \
       pip install lightnet && pip install opencv-python && \
       echo "source /home/espuser/mini-era/setup_paths.sh" >> /home/espuser/.bashrc && \ 
-      echo "conda activate hpvm" >> /home/espuser/.bashrc
+      echo "conda activate base" >> /home/espuser/.bashrc
 
 
