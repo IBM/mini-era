@@ -8,7 +8,7 @@ YOLO Data tarball must be present and uncompresed in this folder level (centos7)
 docker build -f <small/full>/Dockerfile -t <name>:<tag> ./<small/full>
 ```
 # RUN
-To ruin the container the working directory must be the one containing the yolo-data directory. By default:
+To run the container the working directory must be the one containing the yolo-data directory. By default:
 ```bash
 cd mini-era/esp-docker/centos7
 ```
